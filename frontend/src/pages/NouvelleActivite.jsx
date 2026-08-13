@@ -1,0 +1,260 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Confetti from '../components/Confetti';
+import SuccessModal from '../components/SuccessModal';
+import { apiFetch } from '../utils/api';
+import phoneIcon from '../assets/Phone.png';
+import calendarIcon from '../assets/calendar.png';
+import documentIcon from '../assets/document.png';
+import cartIcon from '../assets/Cart.png';
+
+const ACCENT = '#f86635';
+
+function NouvelleActivite() {
+  const navigate = useNavigate();
+  const [type, setType] = useState(null);
+  const [sens, setSens] = useState(null);
+  const [statut, setStatut] = useState(null);
+  const [message, setMessage] = useState('');
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [combo, setCombo] = useState(0);
+  const [shake, setShake] = useState(false);
+  const [todayStats, setTodayStats] = useState([]);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  const dailyTarget = 5;
+  const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const prenom = user?.nom?.split(' ')[0] || 'Commercial';
+
+  const activityTypes = [
+    { key: 'appel', label: 'Appel', icon: phoneIcon },
+    { key: 'rdv', label: 'Rendez-vous', icon: calendarIcon },
+    { key: 'devis', label: 'Devis', icon: documentIcon },
+    { key: 'commande', label: 'Commande', icon: cartIcon },
+  ];
+
+  const icons = { appel: phoneIcon, rdv: calendarIcon, devis: documentIcon, commande: cartIcon };
+  const labels = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
+
+  const loadStats = () => {
+    if (!token) return;
+    apiFetch('http://localhost:5000/api/activities/stats').then(r => r.json()).then(setTodayStats);
+  };
+
+  useEffect(() => { loadStats(); }, []);
+
+  const resetForm = () => { setType(null); setSens(null); setStatut(null); };
+
+  const handleTypeClick = (t) => {
+    setMessage('');
+    setType(t.key);
+    setSens(null);
+    setStatut(null);
+  };
+
+  const canSubmit = () => {
+    if (type === 'appel') return sens && statut;
+    if (type === 'rdv') return !!statut;
+    if (type === 'devis' || type === 'commande') return true;
+    return false;
+  };
+
+  const handleSubmit = async () => {
+    if (!token) { navigate('/login'); return; }
+    if (!canSubmit()) return;
+
+    const payload = { type, sens: sens || null, statut: statut || null };
+    try {
+      const res = await apiFetch('http://localhost:5000/api/activities', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const newCombo = combo + 1;
+        setCombo(newCombo);
+        setShowConfetti(true);
+        setMessage(`Bien joué ! Activité #${newCombo} du jour 🔥`);
+        resetForm();
+
+        const totalBefore = todayStats.reduce((sum, s) => sum + Number(s.total), 0);
+        const totalAfter = totalBefore + 1;
+
+        if (totalBefore < dailyTarget && totalAfter >= dailyTarget) {
+          setTimeout(() => setShowSuccess(true), 1400);
+        }
+
+        loadStats();
+        setTimeout(() => setShowConfetti(false), 1300);
+        setTimeout(() => setMessage(''), 2500);
+      }
+    } catch (err) {
+      setShake(true);
+      setMessage("Erreur lors de l'enregistrement");
+      setTimeout(() => setShake(false), 400);
+    }
+  };
+
+  const getStat = (key) => todayStats.find((s) => s.type === key)?.total || 0;
+  const totalToday = todayStats.reduce((sum, s) => sum + Number(s.total), 0);
+  const progressPercent = Math.min(Math.round((totalToday / dailyTarget) * 100), 100);
+
+  return (
+    <div className="bg-black h-[calc(100vh-56px)] overflow-hidden p-6 flex items-center justify-center">
+      <Confetti show={showConfetti} />
+      {showSuccess && <SuccessModal onClose={() => setShowSuccess(false)} />}
+
+      <div className="max-w-4xl w-full grid grid-cols-3 gap-5">
+
+        <div className="col-span-2 flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-lg font-semibold text-white">Nouvelle activité</h1>
+              <p className="text-white/40 text-xs">Sélectionne un type puis confirme</p>
+            </div>
+            {combo > 0 && (
+              <span className="text-xs text-white px-3 py-1 rounded-full animate-bounce" style={{ backgroundColor: ACCENT, boxShadow: `0 0 20px ${ACCENT}80` }}>
+                Combo x{combo} 🔥
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-4 gap-3">
+            {activityTypes.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => handleTypeClick(t)}
+                className="p-3 rounded-xl border transition-all duration-150 active:scale-95 hover:scale-[1.03] flex flex-col items-center"
+                style={type === t.key
+                  ? { backgroundColor: ACCENT, borderColor: ACCENT, boxShadow: `0 0 20px ${ACCENT}55` }
+                  : { backgroundColor: '#0a0a0a', borderColor: 'rgba(255,255,255,0.12)' }}
+              >
+                <img src={t.icon} alt={t.label} className="w-6 h-6 mb-1" />
+                <span className="text-xs text-white">{t.label}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="p-5 bg-white/5 border border-white/10 rounded-2xl flex-1 flex flex-col justify-center">
+            {!type && (
+              <p className="text-white/30 text-sm text-center">Choisis un type ci-dessus pour continuer</p>
+            )}
+
+            {type === 'appel' && (
+              <div className="animate-[fadeIn_0.2s_ease]">
+                <p className="text-sm text-white/50 mb-3">Détail de l'appel</p>
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  {['sortant', 'entrant'].map((s) => (
+                    <button key={s} onClick={() => setSens(s)} className="p-2.5 rounded-lg text-sm border transition-all active:scale-95"
+                      style={sens === s ? { backgroundColor: ACCENT, borderColor: ACCENT, color: '#fff', fontWeight: 500 } : { backgroundColor: '#000', borderColor: 'rgba(255,255,255,0.15)', color: '#fff' }}>
+                      {s === 'sortant' ? 'Sortant' : 'Entrant'}
+                    </button>
+                  ))}
+                  {['repond', 'ne_repond_pas'].map((s) => (
+                    <button key={s} onClick={() => setStatut(s)} className="p-2.5 rounded-lg text-sm border transition-all active:scale-95"
+                      style={statut === s ? { backgroundColor: ACCENT, borderColor: ACCENT, color: '#fff', fontWeight: 500 } : { backgroundColor: '#000', borderColor: 'rgba(255,255,255,0.15)', color: '#fff' }}>
+                      {s === 'repond' ? 'Répond' : 'Ne répond pas'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {type === 'rdv' && (
+              <div className="animate-[fadeIn_0.2s_ease]">
+                <p className="text-sm text-white/50 mb-3">Détail du rendez-vous</p>
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  {['present', 'absent'].map((s) => (
+                    <button key={s} onClick={() => setStatut(s)} className="p-2.5 rounded-lg text-sm border transition-all active:scale-95"
+                      style={statut === s ? { backgroundColor: ACCENT, borderColor: ACCENT, color: '#fff', fontWeight: 500 } : { backgroundColor: '#000', borderColor: 'rgba(255,255,255,0.15)', color: '#fff' }}>
+                      {s === 'present' ? 'Présent' : 'Absent'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(type === 'devis' || type === 'commande') && (
+              <div className="animate-[fadeIn_0.2s_ease] text-center">
+                <img src={icons[type]} alt={type} className="w-8 h-8 mx-auto mb-2 opacity-70" />
+                <p className="text-white text-sm">Confirmer l'enregistrement d'un(e) {labels[type].toLowerCase().replace(/s$/, '')}</p>
+              </div>
+            )}
+
+            {type && (
+              <button
+                onClick={handleSubmit}
+                disabled={!canSubmit()}
+                className={`w-full text-white p-2.5 rounded-lg font-medium transition-all active:scale-95 mt-2 ${shake ? 'animate-[shake_0.4s_ease]' : ''}`}
+                style={{
+                  backgroundColor: canSubmit() ? ACCENT : 'rgba(255,255,255,0.1)',
+                  boxShadow: canSubmit() ? `0 4px 20px ${ACCENT}40` : 'none',
+                  cursor: canSubmit() ? 'pointer' : 'not-allowed',
+                  color: canSubmit() ? '#fff' : 'rgba(255,255,255,0.3)',
+                }}
+              >
+                Enregistrer l'activité
+              </button>
+            )}
+          </div>
+
+          {message && <p className="text-sm font-medium animate-[fadeIn_0.2s_ease]" style={{ color: ACCENT }}>{message}</p>}
+        </div>
+
+        <div className="col-span-1 flex flex-col gap-3">
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-semibold" style={{ backgroundColor: ACCENT }}>
+                {prenom.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <p className="text-white text-sm font-medium">{prenom}</p>
+                <p className="text-white/40 text-xs">Aujourd'hui</p>
+              </div>
+            </div>
+            <p className="text-2xl font-semibold text-white">{totalToday}</p>
+            <p className="text-xs text-white/40">activités enregistrées</p>
+          </div>
+
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-xs text-white/50">Objectif du jour</span>
+              <span className="text-xs font-semibold" style={{ color: ACCENT }}>{totalToday} / {dailyTarget}</span>
+            </div>
+            <div className="w-full bg-white/10 rounded-full h-2">
+              <div
+                className="h-2 rounded-full transition-all duration-700"
+                style={{ width: `${progressPercent}%`, backgroundColor: ACCENT }}
+              />
+            </div>
+          </div>
+
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-2.5">
+            {activityTypes.map((t) => (
+              <div key={t.key} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <img src={icons[t.key]} alt={t.key} className="w-4 h-4 opacity-60" />
+                  <span className="text-xs text-white/60">{labels[t.key]}</span>
+                </div>
+                <span className="text-sm font-medium text-white">{getStat(t.key)}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="rounded-2xl p-4 text-center" style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}>
+            <p className="text-xl mb-1">🔥</p>
+            <p className="text-white text-xs font-medium">Reste actif chaque jour</p>
+          </div>
+        </div>
+
+      </div>
+
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+      `}</style>
+    </div>
+  );
+}
+
+export default NouvelleActivite;
