@@ -23,7 +23,7 @@ function AppLayout({ children }) {
     if (!token) return;
     if (sessionStorage.getItem('popupShownThisSession')) return;
 
-    apiFetch('http://localhost:5000/api/activities/today')
+    apiFetch('${API_URL}/api/activities/today')
       .then((r) => r.json())
       .then((d) => {
         const total = Number(d.total);

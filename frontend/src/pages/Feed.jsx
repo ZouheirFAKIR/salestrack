@@ -133,14 +133,14 @@ function Feed() {
 
   const loadActivities = () => {
     if (!token) return;
-    apiFetch('http://localhost:5000/api/activities').then(r => r.json()).then(setActivities);
+    apiFetch('${API_URL}/api/activities').then(r => r.json()).then(setActivities);
   };
 
   useEffect(() => { loadActivities(); }, [token]);
 
   const handleDelete = async (id) => {
     try {
-      const res = await apiFetch(`http://localhost:5000/api/activities/${id}`, {
+      const res = await apiFetch(`${API_URL}/api/activities/${id}`, {
         method: 'DELETE',
       });
       if (res.ok) {

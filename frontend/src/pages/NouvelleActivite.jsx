@@ -48,7 +48,7 @@ function NouvelleActivite() {
 
   const loadStats = () => {
     if (!token) return;
-    apiFetch('http://localhost:5000/api/activities/stats/today')
+    apiFetch('${API_URL}/api/activities/stats/today')
       .then(r => r.json())
       .then(setTodayStats);
   };
@@ -77,7 +77,7 @@ function NouvelleActivite() {
 
     const payload = { type, sens: sens || null, statut: statut || null };
     try {
-      const res = await apiFetch('http://localhost:5000/api/activities', {
+      const res = await apiFetch('${API_URL}/api/activities', {
         method: 'POST',
         body: JSON.stringify(payload),
       });

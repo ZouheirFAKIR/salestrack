@@ -7,7 +7,7 @@ function WeeklyTargetHistory() {
   const [data, setData] = useState([]);
 
   useEffect(() => {
-    apiFetch('http://localhost:5000/api/activities/weekly-target')
+    apiFetch('${API_URL}/api/activities/weekly-target')
       .then((r) => r.json())
       .then(setData);
   }, []);

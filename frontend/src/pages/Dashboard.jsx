@@ -40,9 +40,9 @@ function Dashboard() {
 
   useEffect(() => {
     if (!token) return;
-    apiFetch('http://localhost:5000/api/activities/stats/today').then(r => r.json()).then(setStats);
-    apiFetch('http://localhost:5000/api/activities/daily').then(r => r.json()).then(setDaily);
-    apiFetch('http://localhost:5000/api/activities/today').then(r => r.json()).then(d => setToday(Number(d.total)));
+    apiFetch('${API_URL}/api/activities/stats/today').then(r => r.json()).then(setStats);
+    apiFetch('${API_URL}/api/activities/daily').then(r => r.json()).then(setDaily);
+    apiFetch('${API_URL}/api/activities/today').then(r => r.json()).then(d => setToday(Number(d.total)));
   }, [token]);
 
   const getStat = (type) => stats.find((s) => s.type === type) || { total: 0 };
