@@ -162,7 +162,7 @@ function NouvelleActivite() {
             ))}
           </div>
 
-          <div className="p-4 sm:p-5 bg-white/5 border border-white/10 rounded-2xl flex-1 flex flex-col justify-center min-h-[160px]">
+          <div className="p-4 sm:p-5 bg-white/5 border border-white/10 rounded-2xl flex-1 flex flex-col justify-center min-h-40">
             {!type && (
               <p className="text-white/30 text-sm text-center">Choisis un type ci-dessus pour continuer</p>
             )}
