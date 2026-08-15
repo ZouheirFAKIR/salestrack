@@ -77,4 +77,60 @@ router.get('/daily', authMiddleware, async (req, res) => {
   }
 });
 
+router.get('/weekly-target', authMiddleware, async (req, res) => {
+  const target = 5;
+  try {
+    const result = await pool.query(
+      `SELECT TO_CHAR(d, 'YYYY-MM-DD') as jour, COALESCE(COUNT(a.id), 0) as total
+       FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') d
+       LEFT JOIN activities a ON DATE(a.date_activite) = d AND a.commercial_id = $1
+       GROUP BY d ORDER BY d ASC`,
+      [req.userId]
+    );
+    const withTarget = result.rows.map((r) => ({
+      jour: r.jour,
+      total: Number(r.total),
+      target,
+      atteint: Number(r.total) >= target,
+    }));
+    res.json(withTarget);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/stats/today', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT type, COUNT(*) as total
+       FROM activities
+       WHERE commercial_id = $1 AND DATE(date_activite) = CURRENT_DATE
+       GROUP BY type`,
+      [req.userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.delete('/:id', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      'DELETE FROM activities WHERE id = $1 AND commercial_id = $2 RETURNING *',
+      [id, req.userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Activité introuvable' });
+    }
+    res.json({ message: 'Activité supprimée', deleted: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 module.exports = router;

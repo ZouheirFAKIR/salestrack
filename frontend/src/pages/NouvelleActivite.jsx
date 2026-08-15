@@ -37,9 +37,20 @@ function NouvelleActivite() {
   const icons = { appel: phoneIcon, rdv: calendarIcon, devis: documentIcon, commande: cartIcon };
   const labels = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
 
+  const getDateParts = () => {
+    const today = new Date();
+    const jourComplet = today.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const jourNum = today.getDate();
+    const moisAbrev = today.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '');
+    const annee = today.getFullYear();
+    return { jourComplet, jourNum, moisAbrev, annee };
+  };
+
   const loadStats = () => {
     if (!token) return;
-    apiFetch('http://localhost:5000/api/activities/stats').then(r => r.json()).then(setTodayStats);
+    apiFetch('http://localhost:5000/api/activities/stats/today')
+      .then(r => r.json())
+      .then(setTodayStats);
   };
 
   useEffect(() => { loadStats(); }, []);
@@ -100,26 +111,42 @@ function NouvelleActivite() {
   const progressPercent = Math.min(Math.round((totalToday / dailyTarget) * 100), 100);
 
   return (
-    <div className="bg-black h-[calc(100vh-56px)] overflow-hidden p-6 flex items-center justify-center">
+    <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 flex items-center justify-center">
       <Confetti show={showConfetti} />
       {showSuccess && <SuccessModal onClose={() => setShowSuccess(false)} />}
 
-      <div className="max-w-4xl w-full grid grid-cols-3 gap-5">
+      <div className="max-w-4xl w-full grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-        <div className="col-span-2 flex flex-col gap-4">
-          <div className="flex items-center justify-between">
+        <div className="lg:col-span-2 flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h1 className="text-lg font-semibold text-white">Nouvelle activité</h1>
               <p className="text-white/40 text-xs">Sélectionne un type puis confirme</p>
             </div>
+
+            <div className="flex items-center gap-3 sm:gap-4 bg-[#0a0a0a] border border-white/10 rounded-2xl px-4 sm:px-5 py-2.5 sm:py-3">
+              <div>
+                <p className="text-white/40 text-[10px] sm:text-[11px] uppercase tracking-wide mb-0.5">Aujourd'hui</p>
+                <p className="text-white text-sm sm:text-base font-medium capitalize">{getDateParts().jourComplet}</p>
+                <p className="text-white/35 text-[10px] sm:text-[11px] mt-0.5">{getDateParts().annee}</p>
+              </div>
+              <div
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex flex-col items-center justify-center shrink-0"
+                style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}
+              >
+                <span className="text-white text-sm sm:text-base font-semibold leading-none">{getDateParts().jourNum}</span>
+                <span className="text-white/80 text-[8px] sm:text-[9px] uppercase mt-0.5">{getDateParts().moisAbrev}</span>
+              </div>
+            </div>
+
             {combo > 0 && (
-              <span className="text-xs text-white px-3 py-1 rounded-full animate-bounce" style={{ backgroundColor: ACCENT, boxShadow: `0 0 20px ${ACCENT}80` }}>
+              <span className="text-xs text-white px-3 py-1 rounded-full animate-bounce shrink-0 self-start sm:self-auto" style={{ backgroundColor: ACCENT, boxShadow: `0 0 20px ${ACCENT}80` }}>
                 Combo x{combo} 🔥
               </span>
             )}
           </div>
 
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {activityTypes.map((t) => (
               <button
                 key={t.key}
@@ -135,7 +162,7 @@ function NouvelleActivite() {
             ))}
           </div>
 
-          <div className="p-5 bg-white/5 border border-white/10 rounded-2xl flex-1 flex flex-col justify-center">
+          <div className="p-4 sm:p-5 bg-white/5 border border-white/10 rounded-2xl flex-1 flex flex-col justify-center min-h-[160px]">
             {!type && (
               <p className="text-white/30 text-sm text-center">Choisis un type ci-dessus pour continuer</p>
             )}
@@ -201,7 +228,7 @@ function NouvelleActivite() {
           {message && <p className="text-sm font-medium animate-[fadeIn_0.2s_ease]" style={{ color: ACCENT }}>{message}</p>}
         </div>
 
-        <div className="col-span-1 flex flex-col gap-3">
+        <div className="lg:col-span-1 flex flex-col gap-3">
           <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-semibold" style={{ backgroundColor: ACCENT }}>

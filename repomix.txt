@@ -1,0 +1,1868 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+backend/
+  middleware/
+    authMiddleware.js
+  routes/
+    activities.js
+    auth.js
+  .gitignore
+  db.js
+  index.js
+  package.json
+frontend/
+  public/
+    favicon.svg
+    icons.svg
+  src/
+    assets/
+      add.png
+      calendar.png
+      Cart.png
+      dashboard.png
+      document.png
+      feed.png
+      hero.png
+      Phone.png
+      react.svg
+      vite.svg
+      yealead.png
+    components/
+      Confetti.jsx
+      Footer.jsx
+      LineChart.jsx
+      Navbar.jsx
+      SuccessModal.jsx
+      TargetModal.jsx
+      WeeklyTargetHistory.jsx
+    pages/
+      Dashboard.jsx
+      Feed.jsx
+      Login.jsx
+      NouvelleActivite.jsx
+      Signup.jsx
+    utils/
+      api.js
+    App.css
+    App.jsx
+    index.css
+    main.jsx
+  .gitignore
+  .oxlintrc.json
+  index.html
+  package.json
+  README.md
+  vite.config.js
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="frontend/src/components/WeeklyTargetHistory.jsx">
+import { useEffect, useState } from 'react';
+import { apiFetch } from '../utils/api';
+
+const ACCENT = '#f86635';
+
+function WeeklyTargetHistory() {
+  const [data, setData] = useState([]);
+
+  useEffect(() => {
+    apiFetch('http://localhost:5000/api/activities/weekly-target')
+      .then((r) => r.json())
+      .then(setData);
+  }, []);
+
+  const jourFr = (dateStr) => new Date(dateStr).toLocaleDateString('fr-FR', { weekday: 'long' });
+  const isToday = (dateStr) => dateStr === new Date().toISOString().split('T')[0];
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-xl p-5">
+      <p className="text-sm text-white/50 mb-4">Historique des objectifs</p>
+      <div className="flex flex-col gap-2">
+        {data.map((d, i) => (
+          <div
+            key={d.jour}
+            className="flex items-center justify-between py-2 px-3 rounded-lg"
+            style={{
+              backgroundColor: isToday(d.jour) ? 'rgba(248,102,53,0.08)' : 'transparent',
+              animation: `fadeIn 0.3s ease ${i * 0.05}s both`,
+            }}
+          >
+            <span className="text-sm text-white/70 capitalize">
+              {isToday(d.jour) ? "Aujourd'hui" : jourFr(d.jour)}
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium" style={{ color: d.atteint ? ACCENT : 'rgba(255,255,255,0.5)' }}>
+                {d.total}/{d.target}
+              </span>
+              {d.atteint && (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+      <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: translateX(0); } }`}</style>
+    </div>
+  );
+}
+
+export default WeeklyTargetHistory;
+</file>
+
+<file path="backend/middleware/authMiddleware.js">
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = 'change_this_secret_key';
+
+function authMiddleware(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ error: 'Non authentifié' });
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.userId = decoded.id;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Token invalide' });
+  }
+}
+
+module.exports = authMiddleware;
+</file>
+
+<file path="backend/routes/activities.js">
+const express = require('express');
+const router = express.Router();
+const pool = require('../db');
+const authMiddleware = require('../middleware/authMiddleware');
+
+router.post('/', authMiddleware, async (req, res) => {
+  const { type, sens, statut } = req.body;
+  if (!type) return res.status(400).json({ error: 'Le type est obligatoire' });
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO activities (type, sens, statut, commercial_id)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [type, sens || null, statut || null, req.userId]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM activities WHERE commercial_id = $1 ORDER BY date_activite DESC',
+      [req.userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/stats', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT type, COUNT(*) as total
+       FROM activities WHERE commercial_id = $1 GROUP BY type`,
+      [req.userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/today', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT COUNT(*) as total FROM activities
+       WHERE commercial_id = $1 AND DATE(date_activite) = CURRENT_DATE`,
+      [req.userId]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/daily', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT TO_CHAR(d, 'YYYY-MM-DD') as jour, COALESCE(COUNT(a.id), 0) as total
+       FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') d
+       LEFT JOIN activities a ON DATE(a.date_activite) = d AND a.commercial_id = $1
+       GROUP BY d ORDER BY d ASC`,
+      [req.userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/weekly-target', authMiddleware, async (req, res) => {
+  const target = 5;
+  try {
+    const result = await pool.query(
+      `SELECT TO_CHAR(d, 'YYYY-MM-DD') as jour, COALESCE(COUNT(a.id), 0) as total
+       FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') d
+       LEFT JOIN activities a ON DATE(a.date_activite) = d AND a.commercial_id = $1
+       GROUP BY d ORDER BY d ASC`,
+      [req.userId]
+    );
+    const withTarget = result.rows.map((r) => ({
+      jour: r.jour,
+      total: Number(r.total),
+      target,
+      atteint: Number(r.total) >= target,
+    }));
+    res.json(withTarget);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/stats/today', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT type, COUNT(*) as total
+       FROM activities
+       WHERE commercial_id = $1 AND DATE(date_activite) = CURRENT_DATE
+       GROUP BY type`,
+      [req.userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+module.exports = router;
+</file>
+
+<file path="backend/routes/auth.js">
+const express = require('express');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const router = express.Router();
+const pool = require('../db');
+
+const JWT_SECRET = 'change_this_secret_key';
+
+router.post('/signup', async (req, res) => {
+  const { nom, email, password } = req.body;
+
+  if (!nom || !email || !password) {
+    return res.status(400).json({ error: 'Tous les champs sont obligatoires' });
+  }
+
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const result = await pool.query(
+      'INSERT INTO users (nom, email, password) VALUES ($1, $2, $3) RETURNING id, nom, email',
+      [nom, email, hashedPassword]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(400).json({ error: 'Cet email est déjà utilisé' });
+    }
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const user = result.rows[0];
+
+    if (!user) {
+      return res.status(400).json({ error: 'Email ou mot de passe incorrect' });
+    }
+
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) {
+      return res.status(400).json({ error: 'Email ou mot de passe incorrect' });
+    }
+
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: { id: user.id, nom: user.nom, email: user.email } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+module.exports = router;
+</file>
+
+<file path="backend/.gitignore">
+node_modules
+.env
+</file>
+
+<file path="backend/db.js">
+require('dotenv').config();
+const { Pool } = require('pg');
+
+const pool = new Pool({
+  user: process.env.DB_USER,
+  host: process.env.DB_HOST,
+  database: process.env.DB_NAME,
+  password: process.env.DB_PASSWORD,
+  port: process.env.DB_PORT,
+});
+
+pool.connect((err) => {
+  if (err) {
+    console.error('Erreur de connexion à PostgreSQL', err.stack);
+  } else {
+    console.log('Connecté à PostgreSQL avec succès');
+  }
+});
+
+module.exports = pool;
+</file>
+
+<file path="backend/index.js">
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const activitiesRoutes = require('./routes/activities');
+
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+app.use('/api/activities', activitiesRoutes);
+
+app.get('/', (req, res) => {
+  res.send('API Commercial Tracker fonctionne');
+});
+
+const authRoutes = require('./routes/auth');
+app.use('/api/auth', authRoutes);
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Serveur démarré sur http://localhost:${PORT}`);
+});
+</file>
+
+<file path="backend/package.json">
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
+</file>
+
+<file path="frontend/public/favicon.svg">
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="46" fill="none" viewBox="0 0 48 46"><path fill="#863bff" d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z" style="fill:#863bff;fill:color(display-p3 .5252 .23 1);fill-opacity:1"/><mask id="a" width="48" height="46" x="0" y="0" maskUnits="userSpaceOnUse" style="mask-type:alpha"><path fill="#000" d="M25.842 44.938c-.664.844-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.183c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.498 0-3.579-1.842-3.579H1.133c-.92 0-1.456-1.04-.92-1.787L9.91.473c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.578 1.842 3.578h11.377c.943 0 1.473 1.088.89 1.832L25.843 44.94z" style="fill:#000;fill-opacity:1"/></mask><g mask="url(#a)"><g filter="url(#b)"><ellipse cx="5.508" cy="14.704" fill="#ede6ff" rx="5.508" ry="14.704" style="fill:#ede6ff;fill:color(display-p3 .9275 .9033 1);fill-opacity:1" transform="matrix(.00324 1 1 -.00324 -4.47 31.516)"/></g><g filter="url(#c)"><ellipse cx="10.399" cy="29.851" fill="#ede6ff" rx="10.399" ry="29.851" style="fill:#ede6ff;fill:color(display-p3 .9275 .9033 1);fill-opacity:1" transform="matrix(.00324 1 1 -.00324 -39.328 7.883)"/></g><g filter="url(#d)"><ellipse cx="5.508" cy="30.487" fill="#7e14ff" rx="5.508" ry="30.487" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(89.814 -25.913 -14.639)scale(1 -1)"/></g><g filter="url(#e)"><ellipse cx="5.508" cy="30.599" fill="#7e14ff" rx="5.508" ry="30.599" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(89.814 -32.644 -3.334)scale(1 -1)"/></g><g filter="url(#f)"><ellipse cx="5.508" cy="30.599" fill="#7e14ff" rx="5.508" ry="30.599" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="matrix(.00324 1 1 -.00324 -34.34 30.47)"/></g><g filter="url(#g)"><ellipse cx="14.072" cy="22.078" fill="#ede6ff" rx="14.072" ry="22.078" style="fill:#ede6ff;fill:color(display-p3 .9275 .9033 1);fill-opacity:1" transform="rotate(93.35 24.506 48.493)scale(-1 1)"/></g><g filter="url(#h)"><ellipse cx="3.47" cy="21.501" fill="#7e14ff" rx="3.47" ry="21.501" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(89.009 28.708 47.59)scale(-1 1)"/></g><g filter="url(#i)"><ellipse cx="3.47" cy="21.501" fill="#7e14ff" rx="3.47" ry="21.501" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(89.009 28.708 47.59)scale(-1 1)"/></g><g filter="url(#j)"><ellipse cx=".387" cy="8.972" fill="#7e14ff" rx="4.407" ry="29.108" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(39.51 .387 8.972)"/></g><g filter="url(#k)"><ellipse cx="47.523" cy="-6.092" fill="#7e14ff" rx="4.407" ry="29.108" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(37.892 47.523 -6.092)"/></g><g filter="url(#l)"><ellipse cx="41.412" cy="6.333" fill="#47bfff" rx="5.971" ry="9.665" style="fill:#47bfff;fill:color(display-p3 .2799 .748 1);fill-opacity:1" transform="rotate(37.892 41.412 6.333)"/></g><g filter="url(#m)"><ellipse cx="-1.879" cy="38.332" fill="#7e14ff" rx="4.407" ry="29.108" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(37.892 -1.88 38.332)"/></g><g filter="url(#n)"><ellipse cx="-1.879" cy="38.332" fill="#7e14ff" rx="4.407" ry="29.108" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(37.892 -1.88 38.332)"/></g><g filter="url(#o)"><ellipse cx="35.651" cy="29.907" fill="#7e14ff" rx="4.407" ry="29.108" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(37.892 35.651 29.907)"/></g><g filter="url(#p)"><ellipse cx="38.418" cy="32.4" fill="#47bfff" rx="5.971" ry="15.297" style="fill:#47bfff;fill:color(display-p3 .2799 .748 1);fill-opacity:1" transform="rotate(37.892 38.418 32.4)"/></g></g><defs><filter id="b" width="60.045" height="41.654" x="-19.77" y="16.149" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="7.659"/></filter><filter id="c" width="90.34" height="51.437" x="-54.613" y="-7.533" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="7.659"/></filter><filter id="d" width="79.355" height="29.4" x="-49.64" y="2.03" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="e" width="79.579" height="29.4" x="-45.045" y="20.029" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="f" width="79.579" height="29.4" x="-43.513" y="21.178" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="g" width="74.749" height="58.852" x="15.756" y="-17.901" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="7.659"/></filter><filter id="h" width="61.377" height="25.362" x="23.548" y="2.284" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="i" width="61.377" height="25.362" x="23.548" y="2.284" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="j" width="56.045" height="63.649" x="-27.636" y="-22.853" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="k" width="54.814" height="64.646" x="20.116" y="-38.415" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="l" width="33.541" height="35.313" x="24.641" y="-11.323" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="m" width="54.814" height="64.646" x="-29.286" y="6.009" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="n" width="54.814" height="64.646" x="-29.286" y="6.009" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="o" width="54.814" height="64.646" x="8.244" y="-2.416" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="p" width="39.409" height="43.623" x="18.713" y="10.588" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter></defs></svg>
+</file>
+
+<file path="frontend/public/icons.svg">
+<svg xmlns="http://www.w3.org/2000/svg">
+  <symbol id="bluesky-icon" viewBox="0 0 16 17">
+    <g clip-path="url(#bluesky-clip)"><path fill="#08060d" d="M7.75 7.735c-.693-1.348-2.58-3.86-4.334-5.097-1.68-1.187-2.32-.981-2.74-.79C.188 2.065.1 2.812.1 3.251s.241 3.602.398 4.13c.52 1.744 2.367 2.333 4.07 2.145-2.495.37-4.71 1.278-1.805 4.512 3.196 3.309 4.38-.71 4.987-2.746.608 2.036 1.307 5.91 4.93 2.746 2.72-2.746.747-4.143-1.747-4.512 1.702.189 3.55-.4 4.07-2.145.156-.528.397-3.691.397-4.13s-.088-1.186-.575-1.406c-.42-.19-1.06-.395-2.741.79-1.755 1.24-3.64 3.752-4.334 5.099"/></g>
+    <defs><clipPath id="bluesky-clip"><path fill="#fff" d="M.1.85h15.3v15.3H.1z"/></clipPath></defs>
+  </symbol>
+  <symbol id="discord-icon" viewBox="0 0 20 19">
+    <path fill="#08060d" d="M16.224 3.768a14.5 14.5 0 0 0-3.67-1.153c-.158.286-.343.67-.47.976a13.5 13.5 0 0 0-4.067 0c-.128-.306-.317-.69-.476-.976A14.4 14.4 0 0 0 3.868 3.77C1.546 7.28.916 10.703 1.231 14.077a14.7 14.7 0 0 0 4.5 2.306q.545-.748.965-1.587a9.5 9.5 0 0 1-1.518-.74q.191-.14.372-.293c2.927 1.369 6.107 1.369 8.999 0q.183.152.372.294-.723.437-1.52.74.418.838.963 1.588a14.6 14.6 0 0 0 4.504-2.308c.37-3.911-.63-7.302-2.644-10.309m-9.13 8.234c-.878 0-1.599-.82-1.599-1.82 0-.998.705-1.82 1.6-1.82.894 0 1.614.82 1.599 1.82.001 1-.705 1.82-1.6 1.82m5.91 0c-.878 0-1.599-.82-1.599-1.82 0-.998.705-1.82 1.6-1.82.893 0 1.614.82 1.599 1.82 0 1-.706 1.82-1.6 1.82"/>
+  </symbol>
+  <symbol id="documentation-icon" viewBox="0 0 21 20">
+    <path fill="none" stroke="#aa3bff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.35" d="m15.5 13.333 1.533 1.322c.645.555.967.833.967 1.178s-.322.623-.967 1.179L15.5 18.333m-3.333-5-1.534 1.322c-.644.555-.966.833-.966 1.178s.322.623.966 1.179l1.534 1.321"/>
+    <path fill="none" stroke="#aa3bff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.35" d="M17.167 10.836v-4.32c0-1.41 0-2.117-.224-2.68-.359-.906-1.118-1.621-2.08-1.96-.599-.21-1.349-.21-2.848-.21-2.623 0-3.935 0-4.983.369-1.684.591-3.013 1.842-3.641 3.428C3 6.449 3 7.684 3 10.154v2.122c0 2.558 0 3.838.706 4.726q.306.383.713.671c.76.536 1.79.64 3.581.66"/>
+    <path fill="none" stroke="#aa3bff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.35" d="M3 10a2.78 2.78 0 0 1 2.778-2.778c.555 0 1.209.097 1.748-.047.48-.129.854-.503.982-.982.145-.54.048-1.194.048-1.749a2.78 2.78 0 0 1 2.777-2.777"/>
+  </symbol>
+  <symbol id="github-icon" viewBox="0 0 19 19">
+    <path fill="#08060d" fill-rule="evenodd" d="M9.356 1.85C5.05 1.85 1.57 5.356 1.57 9.694a7.84 7.84 0 0 0 5.324 7.44c.387.079.528-.168.528-.376 0-.182-.013-.805-.013-1.454-2.165.467-2.616-.935-2.616-.935-.349-.91-.864-1.143-.864-1.143-.71-.48.051-.48.051-.48.787.051 1.2.805 1.2.805.695 1.194 1.817.857 2.268.649.064-.507.27-.857.49-1.052-1.728-.182-3.545-.857-3.545-3.87 0-.857.31-1.558.8-2.104-.078-.195-.349-1 .077-2.078 0 0 .657-.208 2.14.805a7.5 7.5 0 0 1 1.946-.26c.657 0 1.328.092 1.946.26 1.483-1.013 2.14-.805 2.14-.805.426 1.078.155 1.883.078 2.078.502.546.799 1.247.799 2.104 0 3.013-1.818 3.675-3.558 3.87.284.247.528.714.528 1.454 0 1.052-.012 1.896-.012 2.156 0 .208.142.455.528.377a7.84 7.84 0 0 0 5.324-7.441c.013-4.338-3.48-7.844-7.773-7.844" clip-rule="evenodd"/>
+  </symbol>
+  <symbol id="social-icon" viewBox="0 0 20 20">
+    <path fill="none" stroke="#aa3bff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.35" d="M12.5 6.667a4.167 4.167 0 1 0-8.334 0 4.167 4.167 0 0 0 8.334 0"/>
+    <path fill="none" stroke="#aa3bff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.35" d="M2.5 16.667a5.833 5.833 0 0 1 8.75-5.053m3.837.474.513 1.035c.07.144.257.282.414.309l.93.155c.596.1.736.536.307.965l-.723.73a.64.64 0 0 0-.152.531l.207.903c.164.715-.213.991-.84.618l-.872-.52a.63.63 0 0 0-.577 0l-.872.52c-.624.373-1.003.094-.84-.618l.207-.903a.64.64 0 0 0-.152-.532l-.723-.729c-.426-.43-.289-.864.306-.964l.93-.156a.64.64 0 0 0 .412-.31l.513-1.034c.28-.562.735-.562 1.012 0"/>
+  </symbol>
+  <symbol id="x-icon" viewBox="0 0 19 19">
+    <path fill="#08060d" fill-rule="evenodd" d="M1.893 1.98c.052.072 1.245 1.769 2.653 3.77l2.892 4.114c.183.261.333.48.333.486s-.068.089-.152.183l-.522.593-.765.867-3.597 4.087c-.375.426-.734.834-.798.905a1 1 0 0 0-.118.148c0 .01.236.017.664.017h.663l.729-.83c.4-.457.796-.906.879-.999a692 692 0 0 0 1.794-2.038c.034-.037.301-.34.594-.675l.551-.624.345-.392a7 7 0 0 1 .34-.374c.006 0 .93 1.306 2.052 2.903l2.084 2.965.045.063h2.275c1.87 0 2.273-.003 2.266-.021-.008-.02-1.098-1.572-3.894-5.547-2.013-2.862-2.28-3.246-2.273-3.266.008-.019.282-.332 2.085-2.38l2-2.274 1.567-1.782c.022-.028-.016-.03-.65-.03h-.674l-.3.342a871 871 0 0 1-1.782 2.025c-.067.075-.405.458-.75.852a100 100 0 0 1-.803.91c-.148.172-.299.344-.99 1.127-.304.343-.32.358-.345.327-.015-.019-.904-1.282-1.976-2.808L6.365 1.85H1.8zm1.782.91 8.078 11.294c.772 1.08 1.413 1.973 1.425 1.984.016.017.241.02 1.05.017l1.03-.004-2.694-3.766L7.796 5.75 5.722 2.852l-1.039-.004-1.039-.004z" clip-rule="evenodd"/>
+  </symbol>
+</svg>
+</file>
+
+<file path="frontend/src/assets/react.svg">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--logos" width="35.93" height="32" preserveAspectRatio="xMidYMid meet" viewBox="0 0 256 228"><path fill="#00D8FF" d="M210.483 73.824a171.49 171.49 0 0 0-8.24-2.597c.465-1.9.893-3.777 1.273-5.621c6.238-30.281 2.16-54.676-11.769-62.708c-13.355-7.7-35.196.329-57.254 19.526a171.23 171.23 0 0 0-6.375 5.848a155.866 155.866 0 0 0-4.241-3.917C100.759 3.829 77.587-4.822 63.673 3.233C50.33 10.957 46.379 33.89 51.995 62.588a170.974 170.974 0 0 0 1.892 8.48c-3.28.932-6.445 1.924-9.474 2.98C17.309 83.498 0 98.307 0 113.668c0 15.865 18.582 31.778 46.812 41.427a145.52 145.52 0 0 0 6.921 2.165a167.467 167.467 0 0 0-2.01 9.138c-5.354 28.2-1.173 50.591 12.134 58.266c13.744 7.926 36.812-.22 59.273-19.855a145.567 145.567 0 0 0 5.342-4.923a168.064 168.064 0 0 0 6.92 6.314c21.758 18.722 43.246 26.282 56.54 18.586c13.731-7.949 18.194-32.003 12.4-61.268a145.016 145.016 0 0 0-1.535-6.842c1.62-.48 3.21-.974 4.76-1.488c29.348-9.723 48.443-25.443 48.443-41.52c0-15.417-17.868-30.326-45.517-39.844Zm-6.365 70.984c-1.4.463-2.836.91-4.3 1.345c-3.24-10.257-7.612-21.163-12.963-32.432c5.106-11 9.31-21.767 12.459-31.957c2.619.758 5.16 1.557 7.61 2.4c23.69 8.156 38.14 20.213 38.14 29.504c0 9.896-15.606 22.743-40.946 31.14Zm-10.514 20.834c2.562 12.94 2.927 24.64 1.23 33.787c-1.524 8.219-4.59 13.698-8.382 15.893c-8.067 4.67-25.32-1.4-43.927-17.412a156.726 156.726 0 0 1-6.437-5.87c7.214-7.889 14.423-17.06 21.459-27.246c12.376-1.098 24.068-2.894 34.671-5.345a134.17 134.17 0 0 1 1.386 6.193ZM87.276 214.515c-7.882 2.783-14.16 2.863-17.955.675c-8.075-4.657-11.432-22.636-6.853-46.752a156.923 156.923 0 0 1 1.869-8.499c10.486 2.32 22.093 3.988 34.498 4.994c7.084 9.967 14.501 19.128 21.976 27.15a134.668 134.668 0 0 1-4.877 4.492c-9.933 8.682-19.886 14.842-28.658 17.94ZM50.35 144.747c-12.483-4.267-22.792-9.812-29.858-15.863c-6.35-5.437-9.555-10.836-9.555-15.216c0-9.322 13.897-21.212 37.076-29.293c2.813-.98 5.757-1.905 8.812-2.773c3.204 10.42 7.406 21.315 12.477 32.332c-5.137 11.18-9.399 22.249-12.634 32.792a134.718 134.718 0 0 1-6.318-1.979Zm12.378-84.26c-4.811-24.587-1.616-43.134 6.425-47.789c8.564-4.958 27.502 2.111 47.463 19.835a144.318 144.318 0 0 1 3.841 3.545c-7.438 7.987-14.787 17.08-21.808 26.988c-12.04 1.116-23.565 2.908-34.161 5.309a160.342 160.342 0 0 1-1.76-7.887Zm110.427 27.268a347.8 347.8 0 0 0-7.785-12.803c8.168 1.033 15.994 2.404 23.343 4.08c-2.206 7.072-4.956 14.465-8.193 22.045a381.151 381.151 0 0 0-7.365-13.322Zm-45.032-43.861c5.044 5.465 10.096 11.566 15.065 18.186a322.04 322.04 0 0 0-30.257-.006c4.974-6.559 10.069-12.652 15.192-18.18ZM82.802 87.83a323.167 323.167 0 0 0-7.227 13.238c-3.184-7.553-5.909-14.98-8.134-22.152c7.304-1.634 15.093-2.97 23.209-3.984a321.524 321.524 0 0 0-7.848 12.897Zm8.081 65.352c-8.385-.936-16.291-2.203-23.593-3.793c2.26-7.3 5.045-14.885 8.298-22.6a321.187 321.187 0 0 0 7.257 13.246c2.594 4.48 5.28 8.868 8.038 13.147Zm37.542 31.03c-5.184-5.592-10.354-11.779-15.403-18.433c4.902.192 9.899.29 14.978.29c5.218 0 10.376-.117 15.453-.343c-4.985 6.774-10.018 12.97-15.028 18.486Zm52.198-57.817c3.422 7.8 6.306 15.345 8.596 22.52c-7.422 1.694-15.436 3.058-23.88 4.071a382.417 382.417 0 0 0 7.859-13.026a347.403 347.403 0 0 0 7.425-13.565Zm-16.898 8.101a358.557 358.557 0 0 1-12.281 19.815a329.4 329.4 0 0 1-23.444.823c-7.967 0-15.716-.248-23.178-.732a310.202 310.202 0 0 1-12.513-19.846h.001a307.41 307.41 0 0 1-10.923-20.627a310.278 310.278 0 0 1 10.89-20.637l-.001.001a307.318 307.318 0 0 1 12.413-19.761c7.613-.576 15.42-.876 23.31-.876H128c7.926 0 15.743.303 23.354.883a329.357 329.357 0 0 1 12.335 19.695a358.489 358.489 0 0 1 11.036 20.54a329.472 329.472 0 0 1-11 20.722Zm22.56-122.124c8.572 4.944 11.906 24.881 6.52 51.026c-.344 1.668-.73 3.367-1.15 5.09c-10.622-2.452-22.155-4.275-34.23-5.408c-7.034-10.017-14.323-19.124-21.64-27.008a160.789 160.789 0 0 1 5.888-5.4c18.9-16.447 36.564-22.941 44.612-18.3ZM128 90.808c12.625 0 22.86 10.235 22.86 22.86s-10.235 22.86-22.86 22.86s-22.86-10.235-22.86-22.86s10.235-22.86 22.86-22.86Z"></path></svg>
+</file>
+
+<file path="frontend/src/assets/vite.svg">
+<svg xmlns="http://www.w3.org/2000/svg" width="77" height="47" fill="none" aria-labelledby="vite-logo-title" viewBox="0 0 77 47"><title id="vite-logo-title">Vite</title><style>.parenthesis{fill:#000}@media (prefers-color-scheme:dark){.parenthesis{fill:#fff}}</style><path fill="#9135ff" d="M40.151 45.71c-.663.844-2.02.374-2.02-.699V34.708a2.26 2.26 0 0 0-2.262-2.262H24.493c-.92 0-1.457-1.04-.92-1.788l7.479-10.471c1.07-1.498 0-3.578-1.842-3.578H15.443c-.92 0-1.456-1.04-.92-1.788l9.696-13.576c.213-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.472c-1.07 1.497 0 3.578 1.842 3.578h11.376c.944 0 1.474 1.087.89 1.83L40.153 45.712z"/><mask id="a" width="48" height="47" x="14" y="0" maskUnits="userSpaceOnUse" style="mask-type:alpha"><path fill="#000" d="M40.047 45.71c-.663.843-2.02.374-2.02-.699V34.708a2.26 2.26 0 0 0-2.262-2.262H24.389c-.92 0-1.457-1.04-.92-1.788l7.479-10.472c1.07-1.497 0-3.578-1.842-3.578H15.34c-.92 0-1.456-1.04-.92-1.788l9.696-13.575c.213-.297.556-.474.92-.474H53.93c.92 0 1.456 1.04.92 1.788L47.37 13.03c-1.07 1.498 0 3.578 1.842 3.578h11.376c.944 0 1.474 1.088.89 1.831L40.049 45.712z"/></mask><g mask="url(#a)"><g filter="url(#b)"><ellipse cx="5.508" cy="14.704" fill="#eee6ff" rx="5.508" ry="14.704" transform="rotate(269.814 20.96 11.29)scale(-1 1)"/></g><g filter="url(#c)"><ellipse cx="10.399" cy="29.851" fill="#eee6ff" rx="10.399" ry="29.851" transform="rotate(89.814 -16.902 -8.275)scale(1 -1)"/></g><g filter="url(#d)"><ellipse cx="5.508" cy="30.487" fill="#8900ff" rx="5.508" ry="30.487" transform="rotate(89.814 -19.197 -7.127)scale(1 -1)"/></g><g filter="url(#e)"><ellipse cx="5.508" cy="30.599" fill="#8900ff" rx="5.508" ry="30.599" transform="rotate(89.814 -25.928 4.177)scale(1 -1)"/></g><g filter="url(#f)"><ellipse cx="5.508" cy="30.599" fill="#8900ff" rx="5.508" ry="30.599" transform="rotate(89.814 -25.738 5.52)scale(1 -1)"/></g><g filter="url(#g)"><ellipse cx="14.072" cy="22.078" fill="#eee6ff" rx="14.072" ry="22.078" transform="rotate(93.35 31.245 55.578)scale(-1 1)"/></g><g filter="url(#h)"><ellipse cx="3.47" cy="21.501" fill="#8900ff" rx="3.47" ry="21.501" transform="rotate(89.009 35.419 55.202)scale(-1 1)"/></g><g filter="url(#i)"><ellipse cx="3.47" cy="21.501" fill="#8900ff" rx="3.47" ry="21.501" transform="rotate(89.009 35.419 55.202)scale(-1 1)"/></g><g filter="url(#j)"><ellipse cx="14.592" cy="9.743" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(39.51 14.592 9.743)"/></g><g filter="url(#k)"><ellipse cx="61.728" cy="-5.321" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(37.892 61.728 -5.32)"/></g><g filter="url(#l)"><ellipse cx="55.618" cy="7.104" fill="#00c2ff" rx="5.971" ry="9.665" transform="rotate(37.892 55.618 7.104)"/></g><g filter="url(#m)"><ellipse cx="12.326" cy="39.103" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(37.892 12.326 39.103)"/></g><g filter="url(#n)"><ellipse cx="12.326" cy="39.103" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(37.892 12.326 39.103)"/></g><g filter="url(#o)"><ellipse cx="49.857" cy="30.678" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(37.892 49.857 30.678)"/></g><g filter="url(#p)"><ellipse cx="52.623" cy="33.171" fill="#00c2ff" rx="5.971" ry="15.297" transform="rotate(37.892 52.623 33.17)"/></g></g><path d="M6.919 0c-9.198 13.166-9.252 33.575 0 46.789h6.215c-9.25-13.214-9.196-33.623 0-46.789zm62.424 0h-6.215c9.198 13.166 9.252 33.575 0 46.789h6.215c9.25-13.214 9.196-33.623 0-46.789" class="parenthesis"/><defs><filter id="b" width="60.045" height="41.654" x="-5.564" y="16.92" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="7.659"/></filter><filter id="c" width="90.34" height="51.437" x="-40.407" y="-6.762" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="7.659"/></filter><filter id="d" width="79.355" height="29.4" x="-35.435" y="2.801" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="e" width="79.579" height="29.4" x="-30.84" y="20.8" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="f" width="79.579" height="29.4" x="-29.307" y="21.949" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="g" width="74.749" height="58.852" x="29.961" y="-17.13" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="7.659"/></filter><filter id="h" width="61.377" height="25.362" x="37.754" y="3.055" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="i" width="61.377" height="25.362" x="37.754" y="3.055" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="j" width="56.045" height="63.649" x="-13.43" y="-22.082" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="k" width="54.814" height="64.646" x="34.321" y="-37.644" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="l" width="33.541" height="35.313" x="38.847" y="-10.552" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="m" width="54.814" height="64.646" x="-15.081" y="6.78" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="n" width="54.814" height="64.646" x="-15.081" y="6.78" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="o" width="54.814" height="64.646" x="22.45" y="-1.645" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="p" width="39.409" height="43.623" x="32.919" y="11.36" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter></defs></svg>
+</file>
+
+<file path="frontend/src/components/Confetti.jsx">
+const ACCENT = '#f86635';
+
+function Confetti({ show }) {
+  if (!show) return null;
+  const pieces = Array.from({ length: 30 });
+
+  return (
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-50">
+      {pieces.map((_, i) => (
+        <span
+          key={i}
+          className="absolute w-2 h-2 rounded-sm"
+          style={{
+            left: `${Math.random() * 100}%`,
+            top: '-10px',
+            backgroundColor: i % 2 === 0 ? ACCENT : '#ffffff',
+            animation: `fall 1.3s ease-in forwards`,
+            animationDelay: `${Math.random() * 0.3}s`,
+          }}
+        />
+      ))}
+      <style>{`@keyframes fall { to { transform: translateY(100vh) rotate(360deg); opacity: 0; } }`}</style>
+    </div>
+  );
+}
+
+export default Confetti;
+</file>
+
+<file path="frontend/src/components/Footer.jsx">
+const ACCENT = '#f86635';
+
+function Footer() {
+  return (
+    <footer className="bg-black border-t border-white/10 px-6 py-3">
+      <div className="flex items-center justify-between text-xs text-white/30">
+        <span>SalesTrack by Yealead</span>
+        <span style={{ color: ACCENT }}>Chaque activité compte 🔥</span>
+      </div>
+    </footer>
+  );
+}
+
+export default Footer;
+</file>
+
+<file path="frontend/src/components/LineChart.jsx">
+const ACCENT = '#f86635';
+
+function LineChart({ data }) {
+  if (!data || data.length === 0) return null;
+
+  const width = 600;
+  const height = 160;
+  const padding = 30;
+  const values = data.map((d) => Number(d.total));
+  const rawMax = Math.max(...values, 1);
+  const max = Math.ceil(rawMax / 5) * 5 || 5;
+
+  const points = data.map((d, i) => {
+    const x = padding + (i / (data.length - 1)) * (width - padding * 2);
+    const y = height - padding - (Number(d.total) / max) * (height - padding * 2);
+    return { x, y, total: Number(d.total) };
+  });
+
+  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  const areaPath = `${linePath} L ${points[points.length - 1].x} ${height - padding} L ${points[0].x} ${height - padding} Z`;
+  const jourFr = (dateStr) => new Date(dateStr).toLocaleDateString('fr-FR', { weekday: 'short' });
+  const yTicks = [0, Math.round(max / 2), max];
+
+  return (
+    <div className="w-full" style={{ height: '200px' }}>
+      <svg viewBox={`0 0 ${width} ${height + 30}`} className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={ACCENT} stopOpacity="0.4" />
+            <stop offset="100%" stopColor={ACCENT} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        {yTicks.map((t, i) => {
+          const y = height - padding - (t / max) * (height - padding * 2);
+          return (
+            <g key={i}>
+              <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+              <text x={padding - 8} y={y + 4} textAnchor="end" fontSize="10" fill="rgba(255,255,255,0.35)">{t}</text>
+            </g>
+          );
+        })}
+
+        <path d={areaPath} fill="url(#areaGradient)" />
+        <path
+          d={linePath} fill="none" stroke={ACCENT} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+          style={{ strokeDasharray: 1000, strokeDashoffset: 1000, animation: 'drawLine 1s ease forwards' }}
+        />
+
+        {points.map((p, i) => (
+          <g key={i} className="group">
+            <circle cx={p.x} cy={p.y} r="10" fill="transparent" className="cursor-pointer" />
+            <circle cx={p.x} cy={p.y} r="4" fill={ACCENT} stroke="#000" strokeWidth="2" style={{ animation: `popIn 0.3s ease ${0.6 + i * 0.05}s both` }} />
+            <text x={p.x} y={p.y - 14} textAnchor="middle" fontSize="11" fill="#fff" className="opacity-0 group-hover:opacity-100 transition-opacity">{p.total}</text>
+            <text x={p.x} y={height + 22} textAnchor="middle" fontSize="11" fill="rgba(255,255,255,0.4)">{jourFr(data[i].jour)}</text>
+          </g>
+        ))}
+      </svg>
+      <style>{`
+        @keyframes drawLine { to { stroke-dashoffset: 0; } }
+        @keyframes popIn { from { opacity: 0; transform: scale(0); } to { opacity: 1; transform: scale(1); } }
+      `}</style>
+    </div>
+  );
+}
+
+export default LineChart;
+</file>
+
+<file path="frontend/src/components/Navbar.jsx">
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import yealeadLogo from '../assets/yealead.png';
+import addIcon from '../assets/add.png';
+import dashboardIcon from '../assets/dashboard.png';
+import feedIcon from '../assets/feed.png';
+
+const ACCENT = '#f86635';
+
+function Navbar() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+
+  const links = [
+    { path: '/nouvelle-activite', label: 'Nouvelle activité', icon: addIcon },
+    { path: '/', label: 'Dashboard', icon: dashboardIcon },
+    { path: '/feed', label: 'Feed', icon: feedIcon },
+  ];
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
+  };
+
+  return (
+    <nav className="bg-black border-b border-white/10 px-6 py-3 flex items-center justify-between sticky top-0 z-20">
+      <div className="flex items-center gap-3">
+        <img src={yealeadLogo} alt="Yealead" className="w-9 h-9 object-contain" />
+        <span className="text-white font-semibold text-lg">Yealead</span>
+      </div>
+
+      <div className="flex gap-1 bg-white/5 rounded-full p-1">
+        {links.map((link) => {
+          const active = location.pathname === link.path;
+          return (
+            <Link
+              key={link.path}
+              to={link.path}
+              className="flex items-center gap-2 px-4 py-2 rounded-full text-sm transition-all duration-200"
+              style={active ? { backgroundColor: ACCENT, color: '#fff', fontWeight: 500, boxShadow: `0 0 16px ${ACCENT}66` } : { color: 'rgba(255,255,255,0.55)' }}
+              onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = '#fff'; }}
+              onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = 'rgba(255,255,255,0.55)'; }}
+            >
+              <img src={link.icon} alt="" className="w-4 h-4" style={{ filter: active ? 'brightness(0) invert(1)' : 'brightness(0) invert(1) opacity(0.6)' }} />
+              {link.label}
+            </Link>
+          );
+        })}
+      </div>
+
+      {user ? (
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-medium" style={{ backgroundColor: ACCENT }}>
+            {user.nom?.charAt(0).toUpperCase()}
+          </div>
+          <button onClick={handleLogout} className="text-xs text-white/40 hover:text-white transition-colors">
+            Déconnexion
+          </button>
+        </div>
+      ) : (
+        <Link to="/login" className="text-sm px-4 py-2 rounded-full border border-white/20 text-white hover:bg-white hover:text-black transition-all">
+          Connexion
+        </Link>
+      )}
+    </nav>
+  );
+}
+
+export default Navbar;
+</file>
+
+<file path="frontend/src/components/SuccessModal.jsx">
+import { useEffect, useState } from 'react';
+import Confetti from './Confetti';
+
+const ACCENT = '#f86635';
+
+function SuccessModal({ onClose }) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => { setTimeout(() => setVisible(true), 100); }, []);
+
+  const handleClose = () => {
+    setVisible(false);
+    setTimeout(onClose, 200);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4">
+      <Confetti show={true} />
+      <div
+        className="bg-white rounded-2xl p-8 max-w-sm w-full text-center transition-all duration-300"
+        style={{ transform: visible ? 'scale(1)' : 'scale(0.85)', opacity: visible ? 1 : 0 }}
+      >
+        <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ backgroundColor: '#fff0e8' }}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 21h8" />
+            <path d="M12 17v4" />
+            <path d="M7 4h10v5a5 5 0 0 1-10 0V4Z" />
+            <path d="M17 5a3 3 0 0 0 3 3" />
+            <path d="M7 5a3 3 0 0 1-3 3" />
+          </svg>
+        </div>
+        <h2 className="text-xl font-semibold text-black mb-2">Objectif atteint</h2>
+        <p className="text-black/50 text-sm mb-6">
+          Tu as complété ton objectif du jour. Excellent travail, continue sur cette lancée.
+        </p>
+        <button
+          onClick={handleClose}
+          className="w-full text-white p-3 rounded-xl font-medium transition-transform active:scale-95 hover:scale-[1.02]"
+          style={{ backgroundColor: ACCENT }}
+        >
+          Continuer
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default SuccessModal;
+</file>
+
+<file path="frontend/src/components/TargetModal.jsx">
+import { useEffect, useState } from 'react';
+
+const ACCENT = '#f86635';
+
+function TargetModal({ onClose, target, current = 0 }) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => { setTimeout(() => setVisible(true), 100); }, []);
+
+  const handleClose = () => {
+    setVisible(false);
+    setTimeout(onClose, 200);
+  };
+
+  const remaining = Math.max(target - current, 0);
+
+  return (
+    <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4">
+      <div
+        className="bg-white rounded-2xl p-8 max-w-sm w-full text-center transition-all duration-300"
+        style={{ transform: visible ? 'scale(1)' : 'scale(0.85)', opacity: visible ? 1 : 0 }}
+      >
+        <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ backgroundColor: '#fff0e8' }}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <circle cx="12" cy="12" r="6" />
+            <circle cx="12" cy="12" r="2" fill={ACCENT} />
+          </svg>
+        </div>
+        <h2 className="text-xl font-semibold text-black mb-2">Objectif du jour</h2>
+        <p className="text-black/50 text-sm mb-6">
+          Il te reste <span style={{ color: ACCENT, fontWeight: 600 }}>{remaining} activité{remaining > 1 ? 's' : ''}</span> à enregistrer pour atteindre ton objectif de {target}.
+        </p>
+        <button
+          onClick={handleClose}
+          className="w-full text-white p-3 rounded-xl font-medium transition-transform active:scale-95 hover:scale-[1.02]"
+          style={{ backgroundColor: ACCENT }}
+        >
+          Commencer
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default TargetModal;
+</file>
+
+<file path="frontend/src/pages/Dashboard.jsx">
+import { useEffect, useState } from 'react';
+import LineChart from '../components/LineChart';
+import { apiFetch } from '../utils/api';
+import phoneIcon from '../assets/Phone.png';
+import calendarIcon from '../assets/calendar.png';
+import documentIcon from '../assets/document.png';
+import cartIcon from '../assets/Cart.png';
+import WeeklyTargetHistory from '../components/WeeklyTargetHistory';
+const ACCENT = '#f86635';
+
+function AnimatedNumber({ value }) {
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    let start = 0;
+    const step = Math.max(1, Math.ceil(value / 20));
+    const interval = setInterval(() => {
+      start += step;
+      if (start >= value) { setDisplay(value); clearInterval(interval); }
+      else setDisplay(start);
+    }, 30);
+    return () => clearInterval(interval);
+  }, [value]);
+  return <>{display}</>;
+}
+
+function Dashboard() {
+  const [stats, setStats] = useState([]);
+  const [daily, setDaily] = useState([]);
+  const [today, setToday] = useState(0);
+  const dailyTarget = 5;
+
+  const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const prenom = user?.nom?.split(' ')[0];
+
+  const icons = { appel: phoneIcon, rdv: calendarIcon, devis: documentIcon, commande: cartIcon };
+  const labels = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
+  const allTypes = ['appel', 'rdv', 'devis', 'commande'];
+
+  useEffect(() => {
+    if (!token) return;
+    apiFetch('http://localhost:5000/api/activities/stats').then(r => r.json()).then(setStats);
+    apiFetch('http://localhost:5000/api/activities/daily').then(r => r.json()).then(setDaily);
+    apiFetch('http://localhost:5000/api/activities/today').then(r => r.json()).then(d => setToday(Number(d.total)));
+  }, [token]);
+
+  const getStat = (type) => stats.find((s) => s.type === type) || { total: 0 };
+  const progressPercent = Math.min(Math.round((today / dailyTarget) * 100), 100);
+  const circumference = 2 * Math.PI * 34;
+
+  if (!token) {
+    return (
+      <div className="bg-black min-h-screen flex flex-col items-center justify-center p-6 text-center">
+        <span className="text-4xl mb-4">🔒</span>
+        <h1 className="text-xl font-semibold text-white mb-2">Connecte-toi pour voir ton dashboard</h1>
+        <p className="text-white/40 text-sm mb-6">Tes statistiques personnelles apparaîtront ici</p>
+        <a href="/login" className="text-white px-5 py-2.5 rounded-lg font-medium" style={{ backgroundColor: ACCENT }}>
+          Se connecter
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-black p-6 pb-12">
+      <div className="max-w-5xl mx-auto flex flex-col gap-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-semibold text-white">Salut {prenom} 👋</h1>
+            <p className="text-white/40 text-sm">Voici ton activité récente</p>
+          </div>
+          <div className="relative w-20 h-20 shrink-0">
+            <svg viewBox="0 0 80 80" className="w-20 h-20 -rotate-90">
+              <circle cx="40" cy="40" r="34" stroke="rgba(255,255,255,0.1)" strokeWidth="6" fill="none" />
+              <circle
+                cx="40" cy="40" r="34" stroke={ACCENT} strokeWidth="6" fill="none" strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={circumference - (progressPercent / 100) * circumference}
+                style={{ transition: 'stroke-dashoffset 0.8s ease' }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-sm font-semibold text-white">{today}/{dailyTarget}</span>
+              <span className="text-[10px] text-white/40">objectif</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-4 gap-3">
+          {allTypes.map((type, i) => {
+            const s = getStat(type);
+            return (
+              <div key={type} className="bg-white/5 border border-white/10 rounded-xl p-4 hover:border-orange-400/50 hover:-translate-y-1 transition-all"
+                style={{ animation: `popIn 0.4s ease ${i * 0.06}s both` }}>
+                <img src={icons[type]} alt={type} className="w-6 h-6" />
+                <p className="text-2xl font-semibold text-white mt-2"><AnimatedNumber value={Number(s.total)} /></p>
+                <p className="text-xs text-white/50">{labels[type]}</p>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="bg-white/5 border border-white/10 rounded-xl p-5">
+          <p className="text-sm text-white/50 mb-1">Activités par jour (7 derniers jours)</p>
+          <p className="text-2xl font-semibold text-white mb-4">
+            {daily.reduce((sum, d) => sum + Number(d.total), 0)} activités
+          </p>
+          <LineChart data={daily} />
+        </div>
+
+        <WeeklyTargetHistory />
+      </div>
+
+      <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>
+    </div>
+  );
+}
+
+export default Dashboard;
+</file>
+
+<file path="frontend/src/pages/Feed.jsx">
+import { useEffect, useState } from 'react';
+import { apiFetch } from '../utils/api';
+import phoneIcon from '../assets/Phone.png';
+import calendarIcon from '../assets/calendar.png';
+import documentIcon from '../assets/document.png';
+import cartIcon from '../assets/Cart.png';
+
+const ACCENT = '#f86635';
+
+function ActivityCard({ activity, index, icons, titles }) {
+  const [showComment, setShowComment] = useState(false);
+  const [comments, setComments] = useState([]);
+  const [commentText, setCommentText] = useState('');
+
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const initiales = user?.nom?.split(' ').map(n => n[0]).join('').toUpperCase() || 'ZF';
+
+  const addComment = () => {
+    if (!commentText.trim()) return;
+    setComments((c) => [...c, commentText]);
+    setCommentText('');
+  };
+
+  const statutLabels = { repond: 'Répond', ne_repond_pas: 'Ne répond pas', present: 'Présent', absent: 'Absent' };
+
+  return (
+    <div
+      className="bg-white/5 border border-white/10 rounded-xl overflow-hidden hover:border-white/20 transition-all"
+      style={{ animation: `slideIn 0.35s ease ${index * 0.04}s both` }}
+    >
+      <div className="p-4 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0" style={{ backgroundColor: ACCENT }}>
+          {initiales}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-white text-sm">{user?.nom || 'Toi'}</p>
+          <p className="text-xs text-white/40">{new Date(activity.date_activite).toLocaleString('fr-FR')}</p>
+        </div>
+        <img src={icons[activity.type]} alt={activity.type} className="w-6 h-6 opacity-70" />
+      </div>
+
+      <div className="px-4 pb-3">
+        <p className="text-lg font-semibold text-white mb-2">{titles[activity.type]}</p>
+        {(activity.sens || activity.statut) && (
+          <div className="flex gap-6">
+            {activity.sens && (
+              <div>
+                <p className="text-xs text-white/40">Sens</p>
+                <p className="text-sm font-medium text-white">{activity.sens === 'sortant' ? 'Sortant' : 'Entrant'}</p>
+              </div>
+            )}
+            {activity.statut && (
+              <div>
+                <p className="text-xs text-white/40">Statut</p>
+                <p className="text-sm font-medium text-white">{statutLabels[activity.statut]}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {comments.length > 0 && (
+        <div className="px-4 pb-2 text-xs text-white/40">
+          {comments.length} commentaire{comments.length > 1 ? 's' : ''}
+        </div>
+      )}
+
+      <div className="border-t border-white/10 px-2 py-1 flex">
+        <button onClick={() => setShowComment((s) => !s)} className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm text-white/60 hover:text-white transition-colors">
+          💬 Commenter
+        </button>
+      </div>
+
+      {showComment && (
+        <div className="border-t border-white/10 p-3 animate-[fadeIn_0.2s_ease]">
+          {comments.map((c, i) => (
+            <p key={i} className="text-sm text-white/70 mb-2">💬 {c}</p>
+          ))}
+          <div className="flex gap-2">
+            <input
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addComment()}
+              placeholder="Écrire un commentaire..."
+              className="flex-1 bg-black border border-white/15 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-orange-500"
+            />
+            <button onClick={addComment} className="px-3 py-2 rounded-lg text-sm text-white" style={{ backgroundColor: ACCENT }}>
+              Envoyer
+            </button>
+          </div>
+        </div>
+      )}
+
+      <style>{`@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }`}</style>
+    </div>
+  );
+}
+
+function Feed() {
+  const [activities, setActivities] = useState([]);
+  const token = localStorage.getItem('token');
+
+  useEffect(() => {
+    if (!token) return;
+    apiFetch('http://localhost:5000/api/activities').then(r => r.json()).then(setActivities);
+  }, [token]);
+
+  const icons = { appel: phoneIcon, rdv: calendarIcon, devis: documentIcon, commande: cartIcon };
+  const titles = {
+    appel: '📞 Appel enregistré',
+    rdv: '📅 Rendez-vous enregistré',
+    devis: '📄 Devis envoyé',
+    commande: '🛒 Commande conclue',
+  };
+
+  if (!token) {
+    return (
+      <div className="bg-black min-h-screen flex flex-col items-center justify-center p-6 text-center">
+        <span className="text-4xl mb-4">🔒</span>
+        <h1 className="text-xl font-semibold text-white mb-2">Connecte-toi pour voir ton feed</h1>
+        <p className="text-white/40 text-sm mb-6">Ton historique d'activités apparaîtra ici</p>
+        <a href="/login" className="text-white px-5 py-2.5 rounded-lg font-medium" style={{ backgroundColor: ACCENT }}>
+          Se connecter
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-black p-6 pb-12">
+      <div className="max-w-xl mx-auto">
+        <h1 className="text-xl font-semibold text-white mb-1">Feed</h1>
+        <p className="text-white/40 text-sm mb-6">Toutes tes activités, façon flux social</p>
+
+        {activities.length === 0 && (
+          <p className="text-white/30 text-sm text-center mt-10">Aucune activité pour l'instant. Enregistre-en une !</p>
+        )}
+
+        <div className="flex flex-col gap-4">
+          {activities.map((a, i) => (
+            <ActivityCard key={a.id} activity={a} index={i} icons={icons} titles={titles} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default Feed;
+</file>
+
+<file path="frontend/src/pages/Login.jsx">
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import yealeadLogo from '../assets/yealead.png';
+
+const ACCENT = '#f86635';
+
+function Login() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error); return; }
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      navigate('/');
+    } catch (err) {
+      setError('Erreur de connexion');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-black flex items-center justify-center p-4 relative">
+      <button
+        onClick={() => navigate(-1)}
+        className="absolute top-6 left-6 text-white/50 hover:text-white text-sm flex items-center gap-1 transition-colors"
+      >
+        ← Retour
+      </button>
+
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-8 max-w-sm w-full animate-[popIn_0.3s_ease]">
+        <img src={yealeadLogo} alt="Yealead" className="w-10 h-10 mx-auto mb-4" />
+        <h1 className="text-xl font-semibold text-black mb-1 text-center">Connexion</h1>
+        <p className="text-black/50 text-sm mb-6 text-center">Accède à ton espace SalesTrack</p>
+
+        {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
+
+        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
+          className="w-full p-3 rounded-lg border border-black/15 mb-3 outline-none focus:border-orange-500 transition-colors" />
+        <input type="password" placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)}
+          className="w-full p-3 rounded-lg border border-black/15 mb-4 outline-none focus:border-orange-500 transition-colors" />
+        <button type="submit" className="w-full text-white p-3 rounded-lg font-medium hover:brightness-110 active:scale-95 transition-all" style={{ backgroundColor: ACCENT }}>
+          Se connecter
+        </button>
+        <p className="text-center text-sm text-black/50 mt-4">
+          Pas de compte ? <Link to="/signup" style={{ color: ACCENT }} className="font-medium">S'inscrire</Link>
+        </p>
+      </form>
+      <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>
+    </div>
+  );
+}
+
+export default Login;
+</file>
+
+<file path="frontend/src/pages/NouvelleActivite.jsx">
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Confetti from '../components/Confetti';
+import SuccessModal from '../components/SuccessModal';
+import { apiFetch } from '../utils/api';
+import phoneIcon from '../assets/Phone.png';
+import calendarIcon from '../assets/calendar.png';
+import documentIcon from '../assets/document.png';
+import cartIcon from '../assets/Cart.png';
+
+const ACCENT = '#f86635';
+
+function NouvelleActivite() {
+  const navigate = useNavigate();
+  const [type, setType] = useState(null);
+  const [sens, setSens] = useState(null);
+  const [statut, setStatut] = useState(null);
+  const [message, setMessage] = useState('');
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [combo, setCombo] = useState(0);
+  const [shake, setShake] = useState(false);
+  const [todayStats, setTodayStats] = useState([]);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  const dailyTarget = 5;
+  const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const prenom = user?.nom?.split(' ')[0] || 'Commercial';
+
+  const activityTypes = [
+    { key: 'appel', label: 'Appel', icon: phoneIcon },
+    { key: 'rdv', label: 'Rendez-vous', icon: calendarIcon },
+    { key: 'devis', label: 'Devis', icon: documentIcon },
+    { key: 'commande', label: 'Commande', icon: cartIcon },
+  ];
+
+  const icons = { appel: phoneIcon, rdv: calendarIcon, devis: documentIcon, commande: cartIcon };
+  const labels = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
+
+  const getDateParts = () => {
+    const today = new Date();
+    const jourComplet = today.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const jourNum = today.getDate();
+    const moisAbrev = today.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '');
+    const annee = today.getFullYear();
+    return { jourComplet, jourNum, moisAbrev, annee };
+  };
+
+  // Corrigé : appelle désormais /stats/today, filtré par jour côté serveur
+  const loadStats = () => {
+    if (!token) return;
+    apiFetch('http://localhost:5000/api/activities/stats/today')
+      .then(r => r.json())
+      .then(setTodayStats);
+  };
+
+  useEffect(() => { loadStats(); }, []);
+
+  const resetForm = () => { setType(null); setSens(null); setStatut(null); };
+
+  const handleTypeClick = (t) => {
+    setMessage('');
+    setType(t.key);
+    setSens(null);
+    setStatut(null);
+  };
+
+  const canSubmit = () => {
+    if (type === 'appel') return sens && statut;
+    if (type === 'rdv') return !!statut;
+    if (type === 'devis' || type === 'commande') return true;
+    return false;
+  };
+
+  const handleSubmit = async () => {
+    if (!token) { navigate('/login'); return; }
+    if (!canSubmit()) return;
+
+    const payload = { type, sens: sens || null, statut: statut || null };
+    try {
+      const res = await apiFetch('http://localhost:5000/api/activities', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const newCombo = combo + 1;
+        setCombo(newCombo);
+        setShowConfetti(true);
+        setMessage(`Bien joué ! Activité #${newCombo} du jour 🔥`);
+        resetForm();
+
+        const totalBefore = todayStats.reduce((sum, s) => sum + Number(s.total), 0);
+        const totalAfter = totalBefore + 1;
+
+        if (totalBefore < dailyTarget && totalAfter >= dailyTarget) {
+          setTimeout(() => setShowSuccess(true), 1400);
+        }
+
+        loadStats();
+        setTimeout(() => setShowConfetti(false), 1300);
+        setTimeout(() => setMessage(''), 2500);
+      }
+    } catch (err) {
+      setShake(true);
+      setMessage("Erreur lors de l'enregistrement");
+      setTimeout(() => setShake(false), 400);
+    }
+  };
+
+  const getStat = (key) => todayStats.find((s) => s.type === key)?.total || 0;
+  const totalToday = todayStats.reduce((sum, s) => sum + Number(s.total), 0);
+  const progressPercent = Math.min(Math.round((totalToday / dailyTarget) * 100), 100);
+
+  return (
+    <div className="bg-black h-[calc(100vh-56px)] overflow-hidden p-6 flex items-center justify-center">
+      <Confetti show={showConfetti} />
+      {showSuccess && <SuccessModal onClose={() => setShowSuccess(false)} />}
+
+      <div className="max-w-4xl w-full grid grid-cols-3 gap-5">
+
+        <div className="col-span-2 flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h1 className="text-lg font-semibold text-white">Nouvelle activité</h1>
+              <p className="text-white/40 text-xs">Sélectionne un type puis confirme</p>
+            </div>
+
+            <div className="flex items-center gap-4 bg-[#0a0a0a] border border-white/10 rounded-2xl px-5 py-3">
+              <div>
+                <p className="text-white/40 text-[11px] uppercase tracking-wide mb-0.5">Aujourd'hui</p>
+                <p className="text-white text-base font-medium capitalize">{getDateParts().jourComplet}</p>
+                <p className="text-white/35 text-[11px] mt-0.5">{getDateParts().annee}</p>
+              </div>
+              <div
+                className="w-12 h-12 rounded-xl flex flex-col items-center justify-center shrink-0"
+                style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}
+              >
+                <span className="text-white text-base font-semibold leading-none">{getDateParts().jourNum}</span>
+                <span className="text-white/80 text-[9px] uppercase mt-0.5">{getDateParts().moisAbrev}</span>
+              </div>
+            </div>
+
+            {combo > 0 && (
+              <span className="text-xs text-white px-3 py-1 rounded-full animate-bounce shrink-0" style={{ backgroundColor: ACCENT, boxShadow: `0 0 20px ${ACCENT}80` }}>
+                Combo x{combo} 🔥
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-4 gap-3">
+            {activityTypes.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => handleTypeClick(t)}
+                className="p-3 rounded-xl border transition-all duration-150 active:scale-95 hover:scale-[1.03] flex flex-col items-center"
+                style={type === t.key
+                  ? { backgroundColor: ACCENT, borderColor: ACCENT, boxShadow: `0 0 20px ${ACCENT}55` }
+                  : { backgroundColor: '#0a0a0a', borderColor: 'rgba(255,255,255,0.12)' }}
+              >
+                <img src={t.icon} alt={t.label} className="w-6 h-6 mb-1" />
+                <span className="text-xs text-white">{t.label}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="p-5 bg-white/5 border border-white/10 rounded-2xl flex-1 flex flex-col justify-center">
+            {!type && (
+              <p className="text-white/30 text-sm text-center">Choisis un type ci-dessus pour continuer</p>
+            )}
+
+            {type === 'appel' && (
+              <div className="animate-[fadeIn_0.2s_ease]">
+                <p className="text-sm text-white/50 mb-3">Détail de l'appel</p>
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  {['sortant', 'entrant'].map((s) => (
+                    <button key={s} onClick={() => setSens(s)} className="p-2.5 rounded-lg text-sm border transition-all active:scale-95"
+                      style={sens === s ? { backgroundColor: ACCENT, borderColor: ACCENT, color: '#fff', fontWeight: 500 } : { backgroundColor: '#000', borderColor: 'rgba(255,255,255,0.15)', color: '#fff' }}>
+                      {s === 'sortant' ? 'Sortant' : 'Entrant'}
+                    </button>
+                  ))}
+                  {['repond', 'ne_repond_pas'].map((s) => (
+                    <button key={s} onClick={() => setStatut(s)} className="p-2.5 rounded-lg text-sm border transition-all active:scale-95"
+                      style={statut === s ? { backgroundColor: ACCENT, borderColor: ACCENT, color: '#fff', fontWeight: 500 } : { backgroundColor: '#000', borderColor: 'rgba(255,255,255,0.15)', color: '#fff' }}>
+                      {s === 'repond' ? 'Répond' : 'Ne répond pas'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {type === 'rdv' && (
+              <div className="animate-[fadeIn_0.2s_ease]">
+                <p className="text-sm text-white/50 mb-3">Détail du rendez-vous</p>
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  {['present', 'absent'].map((s) => (
+                    <button key={s} onClick={() => setStatut(s)} className="p-2.5 rounded-lg text-sm border transition-all active:scale-95"
+                      style={statut === s ? { backgroundColor: ACCENT, borderColor: ACCENT, color: '#fff', fontWeight: 500 } : { backgroundColor: '#000', borderColor: 'rgba(255,255,255,0.15)', color: '#fff' }}>
+                      {s === 'present' ? 'Présent' : 'Absent'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(type === 'devis' || type === 'commande') && (
+              <div className="animate-[fadeIn_0.2s_ease] text-center">
+                <img src={icons[type]} alt={type} className="w-8 h-8 mx-auto mb-2 opacity-70" />
+                <p className="text-white text-sm">Confirmer l'enregistrement d'un(e) {labels[type].toLowerCase().replace(/s$/, '')}</p>
+              </div>
+            )}
+
+            {type && (
+              <button
+                onClick={handleSubmit}
+                disabled={!canSubmit()}
+                className={`w-full text-white p-2.5 rounded-lg font-medium transition-all active:scale-95 mt-2 ${shake ? 'animate-[shake_0.4s_ease]' : ''}`}
+                style={{
+                  backgroundColor: canSubmit() ? ACCENT : 'rgba(255,255,255,0.1)',
+                  boxShadow: canSubmit() ? `0 4px 20px ${ACCENT}40` : 'none',
+                  cursor: canSubmit() ? 'pointer' : 'not-allowed',
+                  color: canSubmit() ? '#fff' : 'rgba(255,255,255,0.3)',
+                }}
+              >
+                Enregistrer l'activité
+              </button>
+            )}
+          </div>
+
+          {message && <p className="text-sm font-medium animate-[fadeIn_0.2s_ease]" style={{ color: ACCENT }}>{message}</p>}
+        </div>
+
+        <div className="col-span-1 flex flex-col gap-3">
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-semibold" style={{ backgroundColor: ACCENT }}>
+                {prenom.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <p className="text-white text-sm font-medium">{prenom}</p>
+                <p className="text-white/40 text-xs">Aujourd'hui</p>
+              </div>
+            </div>
+            <p className="text-2xl font-semibold text-white">{totalToday}</p>
+            <p className="text-xs text-white/40">activités enregistrées</p>
+          </div>
+
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-xs text-white/50">Objectif du jour</span>
+              <span className="text-xs font-semibold" style={{ color: ACCENT }}>{totalToday} / {dailyTarget}</span>
+            </div>
+            <div className="w-full bg-white/10 rounded-full h-2">
+              <div
+                className="h-2 rounded-full transition-all duration-700"
+                style={{ width: `${progressPercent}%`, backgroundColor: ACCENT }}
+              />
+            </div>
+          </div>
+
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-2.5">
+            {activityTypes.map((t) => (
+              <div key={t.key} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <img src={icons[t.key]} alt={t.key} className="w-4 h-4 opacity-60" />
+                  <span className="text-xs text-white/60">{labels[t.key]}</span>
+                </div>
+                <span className="text-sm font-medium text-white">{getStat(t.key)}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="rounded-2xl p-4 text-center" style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}>
+            <p className="text-xl mb-1">🔥</p>
+            <p className="text-white text-xs font-medium">Reste actif chaque jour</p>
+          </div>
+        </div>
+
+      </div>
+
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+      `}</style>
+    </div>
+  );
+}
+
+export default NouvelleActivite;
+</file>
+
+<file path="frontend/src/pages/Signup.jsx">
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import yealeadLogo from '../assets/yealead.png';
+
+const ACCENT = '#f86635';
+
+function Signup() {
+  const [nom, setNom] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('http://localhost:5000/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nom, email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error); return; }
+      navigate('/login');
+    } catch (err) {
+      setError("Erreur lors de l'inscription");
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-black flex items-center justify-center p-4">
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-8 max-w-sm w-full animate-[popIn_0.3s_ease]">
+        <img src={yealeadLogo} alt="Yealead" className="w-10 h-10 mx-auto mb-4" />
+        <h1 className="text-xl font-semibold text-black mb-1 text-center">Créer un compte</h1>
+        <p className="text-black/50 text-sm mb-6 text-center">Rejoins SalesTrack</p>
+
+        {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
+
+        <input type="text" placeholder="Nom complet" value={nom} onChange={(e) => setNom(e.target.value)}
+          className="w-full p-3 rounded-lg border border-black/15 mb-3 outline-none focus:border-orange-500 transition-colors" />
+        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
+          className="w-full p-3 rounded-lg border border-black/15 mb-3 outline-none focus:border-orange-500 transition-colors" />
+        <input type="password" placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)}
+          className="w-full p-3 rounded-lg border border-black/15 mb-4 outline-none focus:border-orange-500 transition-colors" />
+        <button type="submit" className="w-full text-white p-3 rounded-lg font-medium hover:brightness-110 active:scale-95 transition-all" style={{ backgroundColor: ACCENT }}>
+          S'inscrire
+        </button>
+        <p className="text-center text-sm text-black/50 mt-4">
+          Déjà un compte ? <Link to="/login" style={{ color: ACCENT }} className="font-medium">Se connecter</Link>
+        </p>
+      </form>
+      <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>
+    </div>
+  );
+}
+
+export default Signup;
+</file>
+
+<file path="frontend/src/utils/api.js">
+export async function apiFetch(url, options = {}) {
+  const token = localStorage.getItem('token');
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(url, { ...options, headers });
+  if (res.status === 401) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+  }
+  return res;
+}
+</file>
+
+<file path="frontend/src/App.css">
+.counter {
+  font-size: 16px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 2px solid transparent;
+  transition: border-color 0.3s;
+  margin-bottom: 24px;
+
+  &:hover {
+    border-color: var(--accent-border);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.hero {
+  position: relative;
+
+  .base,
+  .framework,
+  .vite {
+    inset-inline: 0;
+    margin: 0 auto;
+  }
+
+  .base {
+    width: 170px;
+    position: relative;
+    z-index: 0;
+  }
+
+  .framework,
+  .vite {
+    position: absolute;
+  }
+
+  .framework {
+    z-index: 1;
+    top: 34px;
+    height: 28px;
+    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg)
+      scale(1.4);
+  }
+
+  .vite {
+    z-index: 0;
+    top: 107px;
+    height: 26px;
+    width: auto;
+    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
+      scale(0.8);
+  }
+}
+
+#center {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  place-content: center;
+  place-items: center;
+  flex-grow: 1;
+
+  @media (max-width: 1024px) {
+    padding: 32px 20px 24px;
+    gap: 18px;
+  }
+}
+
+#next-steps {
+  display: flex;
+  border-top: 1px solid var(--border);
+  text-align: left;
+
+  & > div {
+    flex: 1 1 0;
+    padding: 32px;
+    @media (max-width: 1024px) {
+      padding: 24px 20px;
+    }
+  }
+
+  .icon {
+    margin-bottom: 16px;
+    width: 22px;
+    height: 22px;
+  }
+
+  @media (max-width: 1024px) {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+#docs {
+  border-right: 1px solid var(--border);
+
+  @media (max-width: 1024px) {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+#next-steps ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  gap: 8px;
+  margin: 32px 0 0;
+
+  .logo {
+    height: 18px;
+  }
+
+  a {
+    color: var(--text-h);
+    font-size: 16px;
+    border-radius: 6px;
+    background: var(--social-bg);
+    display: flex;
+    padding: 6px 12px;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    transition: box-shadow 0.3s;
+
+    &:hover {
+      box-shadow: var(--shadow);
+    }
+    .button-icon {
+      height: 18px;
+      width: 18px;
+    }
+  }
+
+  @media (max-width: 1024px) {
+    margin-top: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+
+    li {
+      flex: 1 1 calc(50% - 8px);
+    }
+
+    a {
+      width: 100%;
+      justify-content: center;
+      box-sizing: border-box;
+    }
+  }
+}
+
+#spacer {
+  height: 88px;
+  border-top: 1px solid var(--border);
+  @media (max-width: 1024px) {
+    height: 48px;
+  }
+}
+
+.ticks {
+  position: relative;
+  width: 100%;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    top: -4.5px;
+    border: 5px solid transparent;
+  }
+
+  &::before {
+    left: 0;
+    border-left-color: var(--border);
+  }
+  &::after {
+    right: 0;
+    border-right-color: var(--border);
+  }
+}
+</file>
+
+<file path="frontend/src/App.jsx">
+import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+import Dashboard from './pages/Dashboard';
+import NouvelleActivite from './pages/NouvelleActivite';
+import Feed from './pages/Feed';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import TargetModal from './components/TargetModal';
+import SuccessModal from './components/SuccessModal';
+import { apiFetch } from './utils/api';
+
+const dailyTarget = 5;
+
+function AppLayout({ children }) {
+  const [showModal, setShowModal] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [currentToday, setCurrentToday] = useState(0);
+  const token = localStorage.getItem('token');
+
+  useEffect(() => {
+    if (!token) return;
+    if (sessionStorage.getItem('popupShownThisSession')) return;
+
+    apiFetch('http://localhost:5000/api/activities/today')
+      .then((r) => r.json())
+      .then((d) => {
+        const total = Number(d.total);
+        setCurrentToday(total);
+        if (total >= dailyTarget) {
+          setShowSuccess(true);
+        } else {
+          setShowModal(true);
+        }
+        sessionStorage.setItem('popupShownThisSession', 'true');
+      });
+  }, [token]);
+
+  return (
+    <div className="min-h-screen bg-black flex flex-col">
+      {showModal && (
+        <TargetModal
+          onClose={() => setShowModal(false)}
+          target={dailyTarget}
+          current={currentToday}
+        />
+      )}
+      {showSuccess && <SuccessModal onClose={() => setShowSuccess(false)} />}
+      <Navbar />
+      <main className="flex-1">{children}</main>
+      <Footer />
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />
+        <Route path="/nouvelle-activite" element={<AppLayout><NouvelleActivite /></AppLayout>} />
+        <Route path="/feed" element={<AppLayout><Feed /></AppLayout>} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export default App;
+</file>
+
+<file path="frontend/src/index.css">
+@import "tailwindcss";
+</file>
+
+<file path="frontend/src/main.jsx">
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.jsx'
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+</file>
+
+<file path="frontend/.gitignore">
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+node_modules
+dist
+.env
+</file>
+
+<file path="frontend/.oxlintrc.json">
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "oxc"],
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+  }
+}
+</file>
+
+<file path="frontend/index.html">
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>frontend</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+</file>
+
+<file path="frontend/package.json">
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "oxlint",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.2",
+    "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.4",
+    "oxlint": "^1.75.0",
+    "vite": "^8.2.0"
+  }
+}
+</file>
+
+<file path="frontend/README.md">
+# React + Vite
+
+This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+
+Currently, two official plugins are available:
+
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+
+## React Compiler
+
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+
+## Expanding the Oxlint configuration
+
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+</file>
+
+<file path="frontend/vite.config.js">
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
+
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+})
+</file>
+
+</files>

@@ -5,6 +5,7 @@ import phoneIcon from '../assets/Phone.png';
 import calendarIcon from '../assets/calendar.png';
 import documentIcon from '../assets/document.png';
 import cartIcon from '../assets/Cart.png';
+import WeeklyTargetHistory from '../components/WeeklyTargetHistory';
 
 const ACCENT = '#f86635';
 
@@ -39,7 +40,7 @@ function Dashboard() {
 
   useEffect(() => {
     if (!token) return;
-    apiFetch('http://localhost:5000/api/activities/stats').then(r => r.json()).then(setStats);
+    apiFetch('http://localhost:5000/api/activities/stats/today').then(r => r.json()).then(setStats);
     apiFetch('http://localhost:5000/api/activities/daily').then(r => r.json()).then(setDaily);
     apiFetch('http://localhost:5000/api/activities/today').then(r => r.json()).then(d => setToday(Number(d.total)));
   }, [token]);
@@ -62,15 +63,15 @@ function Dashboard() {
   }
 
   return (
-    <div className="bg-black p-6 pb-12">
+    <div className="bg-black p-4 sm:p-6 pb-12">
       <div className="max-w-5xl mx-auto flex flex-col gap-5">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-semibold text-white">Salut {prenom} 👋</h1>
+            <h1 className="text-lg sm:text-xl font-semibold text-white">Salut {prenom} 👋</h1>
             <p className="text-white/40 text-sm">Voici ton activité récente</p>
           </div>
-          <div className="relative w-20 h-20 shrink-0">
-            <svg viewBox="0 0 80 80" className="w-20 h-20 -rotate-90">
+          <div className="relative w-16 h-16 sm:w-20 sm:h-20 shrink-0 self-start sm:self-auto">
+            <svg viewBox="0 0 80 80" className="w-16 h-16 sm:w-20 sm:h-20 -rotate-90">
               <circle cx="40" cy="40" r="34" stroke="rgba(255,255,255,0.1)" strokeWidth="6" fill="none" />
               <circle
                 cx="40" cy="40" r="34" stroke={ACCENT} strokeWidth="6" fill="none" strokeLinecap="round"
@@ -80,33 +81,35 @@ function Dashboard() {
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-sm font-semibold text-white">{today}/{dailyTarget}</span>
-              <span className="text-[10px] text-white/40">objectif</span>
+              <span className="text-xs sm:text-sm font-semibold text-white">{today}/{dailyTarget}</span>
+              <span className="text-[9px] sm:text-[10px] text-white/40">objectif</span>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {allTypes.map((type, i) => {
             const s = getStat(type);
             return (
               <div key={type} className="bg-white/5 border border-white/10 rounded-xl p-4 hover:border-orange-400/50 hover:-translate-y-1 transition-all"
                 style={{ animation: `popIn 0.4s ease ${i * 0.06}s both` }}>
                 <img src={icons[type]} alt={type} className="w-6 h-6" />
-                <p className="text-2xl font-semibold text-white mt-2"><AnimatedNumber value={Number(s.total)} /></p>
+                <p className="text-xl sm:text-2xl font-semibold text-white mt-2"><AnimatedNumber value={Number(s.total)} /></p>
                 <p className="text-xs text-white/50">{labels[type]}</p>
               </div>
             );
           })}
         </div>
 
-        <div className="bg-white/5 border border-white/10 rounded-xl p-5">
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4 sm:p-5">
           <p className="text-sm text-white/50 mb-1">Activités par jour (7 derniers jours)</p>
-          <p className="text-2xl font-semibold text-white mb-4">
+          <p className="text-xl sm:text-2xl font-semibold text-white mb-4">
             {daily.reduce((sum, d) => sum + Number(d.total), 0)} activités
           </p>
           <LineChart data={daily} />
         </div>
+
+        <WeeklyTargetHistory />
       </div>
 
       <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>

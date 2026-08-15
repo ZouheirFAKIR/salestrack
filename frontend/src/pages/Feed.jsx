@@ -7,10 +7,11 @@ import cartIcon from '../assets/Cart.png';
 
 const ACCENT = '#f86635';
 
-function ActivityCard({ activity, index, icons, titles }) {
+function ActivityCard({ activity, index, icons, titles, onDelete }) {
   const [showComment, setShowComment] = useState(false);
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   const initiales = user?.nom?.split(' ').map(n => n[0]).join('').toUpperCase() || 'ZF';
@@ -37,6 +38,18 @@ function ActivityCard({ activity, index, icons, titles }) {
           <p className="text-xs text-white/40">{new Date(activity.date_activite).toLocaleString('fr-FR')}</p>
         </div>
         <img src={icons[activity.type]} alt={activity.type} className="w-6 h-6 opacity-70" />
+        <button
+          onClick={() => setConfirmDelete(true)}
+          className="text-white/30 hover:text-red-500 transition-colors p-1"
+          aria-label="Supprimer"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+            <path d="M10 11v6" />
+            <path d="M14 11v6" />
+          </svg>
+        </button>
       </div>
 
       <div className="px-4 pb-3">
@@ -58,6 +71,24 @@ function ActivityCard({ activity, index, icons, titles }) {
           </div>
         )}
       </div>
+
+      {confirmDelete && (
+        <div className="px-4 pb-3 flex items-center gap-2 animate-[fadeIn_0.2s_ease]">
+          <p className="text-xs text-white/60 flex-1">Supprimer cette activité ?</p>
+          <button
+            onClick={() => onDelete(activity.id)}
+            className="text-xs px-3 py-1.5 rounded-lg text-white bg-red-500 hover:bg-red-600 transition-colors"
+          >
+            Confirmer
+          </button>
+          <button
+            onClick={() => setConfirmDelete(false)}
+            className="text-xs px-3 py-1.5 rounded-lg text-white/60 border border-white/15 hover:text-white transition-colors"
+          >
+            Annuler
+          </button>
+        </div>
+      )}
 
       {comments.length > 0 && (
         <div className="px-4 pb-2 text-xs text-white/40">
@@ -100,10 +131,25 @@ function Feed() {
   const [activities, setActivities] = useState([]);
   const token = localStorage.getItem('token');
 
-  useEffect(() => {
+  const loadActivities = () => {
     if (!token) return;
     apiFetch('http://localhost:5000/api/activities').then(r => r.json()).then(setActivities);
-  }, [token]);
+  };
+
+  useEffect(() => { loadActivities(); }, [token]);
+
+  const handleDelete = async (id) => {
+    try {
+      const res = await apiFetch(`http://localhost:5000/api/activities/${id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setActivities((prev) => prev.filter((a) => a.id !== id));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const icons = { appel: phoneIcon, rdv: calendarIcon, devis: documentIcon, commande: cartIcon };
   const titles = {
@@ -127,7 +173,7 @@ function Feed() {
   }
 
   return (
-    <div className="bg-black p-6 pb-12">
+    <div className="bg-black p-4 sm:p-6 pb-12">
       <div className="max-w-xl mx-auto">
         <h1 className="text-xl font-semibold text-white mb-1">Feed</h1>
         <p className="text-white/40 text-sm mb-6">Toutes tes activités, façon flux social</p>
@@ -138,7 +184,7 @@ function Feed() {
 
         <div className="flex flex-col gap-4">
           {activities.map((a, i) => (
-            <ActivityCard key={a.id} activity={a} index={i} icons={icons} titles={titles} />
+            <ActivityCard key={a.id} activity={a} index={i} icons={icons} titles={titles} onDelete={handleDelete} />
           ))}
         </div>
       </div>
