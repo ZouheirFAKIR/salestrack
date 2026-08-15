@@ -9,7 +9,7 @@ import documentIcon from '../assets/document.png';
 import cartIcon from '../assets/Cart.png';
 
 const ACCENT = '#f86635';
-
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 function NouvelleActivite() {
   const navigate = useNavigate();
   const [type, setType] = useState(null);
@@ -48,7 +48,7 @@ function NouvelleActivite() {
 
   const loadStats = () => {
     if (!token) return;
-    apiFetch('${API_URL}/api/activities/stats/today')
+    apiFetch(`${API_URL}/api/activities/stats/today`)
       .then(r => r.json())
       .then(setTodayStats);
   };
@@ -77,7 +77,7 @@ function NouvelleActivite() {
 
     const payload = { type, sens: sens || null, statut: statut || null };
     try {
-      const res = await apiFetch('${API_URL}/api/activities', {
+      const res = await apiFetch(`${API_URL}/api/activities`, {
         method: 'POST',
         body: JSON.stringify(payload),
       });

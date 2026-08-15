@@ -4,7 +4,7 @@ import phoneIcon from '../assets/Phone.png';
 import calendarIcon from '../assets/calendar.png';
 import documentIcon from '../assets/document.png';
 import cartIcon from '../assets/Cart.png';
-
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const ACCENT = '#f86635';
 
 function ActivityCard({ activity, index, icons, titles, onDelete }) {
@@ -133,7 +133,7 @@ function Feed() {
 
   const loadActivities = () => {
     if (!token) return;
-    apiFetch('${API_URL}/api/activities').then(r => r.json()).then(setActivities);
+    apiFetch(`${API_URL}/api/activities`).then(r => r.json()).then(setActivities);
   };
 
   useEffect(() => { loadActivities(); }, [token]);

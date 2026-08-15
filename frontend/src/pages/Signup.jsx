@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import yealeadLogo from '../assets/yealead.png';
 
 const ACCENT = '#f86635';
-
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 function Signup() {
   const [nom, setNom] = useState('');
   const [email, setEmail] = useState('');
@@ -14,7 +14,7 @@ function Signup() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('${API_URL}/api/auth/signup', {
+      const res = await fetch(`${API_URL}/api/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nom, email, password }),

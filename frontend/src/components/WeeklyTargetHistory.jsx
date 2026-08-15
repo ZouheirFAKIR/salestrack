@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react';
 import { apiFetch } from '../utils/api';
 
 const ACCENT = '#f86635';
-
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 function WeeklyTargetHistory() {
   const [data, setData] = useState([]);
 
   useEffect(() => {
-    apiFetch('${API_URL}/api/activities/weekly-target')
+    apiFetch(`${API_URL}/api/activities/weekly-target`)
       .then((r) => r.json())
       .then(setData);
   }, []);

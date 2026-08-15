@@ -12,7 +12,7 @@ import SuccessModal from './components/SuccessModal';
 import { apiFetch } from './utils/api';
 
 const dailyTarget = 5;
-
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 function AppLayout({ children }) {
   const [showModal, setShowModal] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -23,7 +23,7 @@ function AppLayout({ children }) {
     if (!token) return;
     if (sessionStorage.getItem('popupShownThisSession')) return;
 
-    apiFetch('${API_URL}/api/activities/today')
+    apiFetch(`${API_URL}/api/activities/today`)
       .then((r) => r.json())
       .then((d) => {
         const total = Number(d.total);
