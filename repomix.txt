@@ -55,6 +55,7 @@ frontend/
   public/
     favicon.svg
     icons.svg
+    yealead.ico
   src/
     assets/
       add.png
@@ -93,6 +94,7 @@ frontend/
   index.html
   package.json
   README.md
+  vercel.json
   vite.config.js
 </directory_structure>
 
@@ -746,22 +748,6 @@ dist
 }
 </file>
 
-<file path="frontend/index.html">
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
-</html>
-</file>
-
 <file path="frontend/package.json">
 {
   "name": "frontend",
@@ -810,6 +796,14 @@ The React Compiler is not enabled on this template because of its impact on dev 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
 </file>
 
+<file path="frontend/vercel.json">
+{
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
+</file>
+
 <file path="frontend/vite.config.js">
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -828,15 +822,19 @@ const authMiddleware = require('../middleware/authMiddleware');
 
 router.post('/', authMiddleware, async (req, res) => {
   const { type, sens, statut } = req.body;
+  const qty = Math.max(1, Math.min(parseInt(req.body.nombre, 10) || 1, 100));
+
   if (!type) return res.status(400).json({ error: 'Le type est obligatoire' });
 
   try {
     const result = await pool.query(
-      `INSERT INTO activities (type, sens, statut, commercial_id)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [type, sens || null, statut || null, req.userId]
+      `INSERT INTO activities (type, sens, statut, commercial_id, date_activite)
+       SELECT $1, $2, $3, $4, NOW()
+       FROM generate_series(1, $5::int)
+       RETURNING *`,
+      [type, sens || null, statut || null, req.userId, qty]
     );
-    res.status(201).json(result.rows[0]);
+    res.status(201).json({ count: result.rows.length, activities: result.rows });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -861,6 +859,22 @@ router.get('/stats', authMiddleware, async (req, res) => {
     const result = await pool.query(
       `SELECT type, COUNT(*) as total
        FROM activities WHERE commercial_id = $1 GROUP BY type`,
+      [req.userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/stats/today', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT type, COUNT(*) as total
+       FROM activities
+       WHERE commercial_id = $1 AND DATE(date_activite) = CURRENT_DATE
+       GROUP BY type`,
       [req.userId]
     );
     res.json(result.rows);
@@ -923,22 +937,6 @@ router.get('/weekly-target', authMiddleware, async (req, res) => {
   }
 });
 
-router.get('/stats/today', authMiddleware, async (req, res) => {
-  try {
-    const result = await pool.query(
-      `SELECT type, COUNT(*) as total
-       FROM activities
-       WHERE commercial_id = $1 AND DATE(date_activite) = CURRENT_DATE
-       GROUP BY type`,
-      [req.userId]
-    );
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
 router.delete('/:id', authMiddleware, async (req, res) => {
   const { id } = req.params;
   try {
@@ -976,6 +974,42 @@ pool.connect((err) => {
 module.exports = pool;
 </file>
 
+<file path="frontend/src/utils/api.js">
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+export async function apiFetch(url, options = {}) {
+  const token = localStorage.getItem('token');
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(url, { ...options, headers });
+  if (res.status === 401) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+  }
+  return res;
+}
+
+export { API_URL };
+</file>
+
+<file path="frontend/index.html">
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/x-icon" href="/yealead.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SalesTrack - Yealead</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+</file>
+
 <file path="frontend/src/components/Navbar.jsx">
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import yealeadLogo from '../assets/yealead.png';
@@ -1004,10 +1038,10 @@ function Navbar() {
 
   return (
     <nav className="bg-black border-b border-white/10 px-3 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-20 gap-2">
-      <div className="flex items-center gap-2 shrink-0">
+      <Link to="/nouvelle-activite" className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">
         <img src={yealeadLogo} alt="Yealead" className="w-8 h-8 sm:w-9 sm:h-9 object-contain" />
         <span className="text-white font-semibold text-base sm:text-lg hidden sm:inline">SalesTrack</span>
-      </div>
+      </Link>
 
       <div className="flex gap-1 bg-white/5 rounded-full p-1 overflow-x-auto max-w-full">
         {links.map((link) => {
@@ -1029,16 +1063,34 @@ function Navbar() {
       </div>
 
       {user ? (
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-medium" style={{ backgroundColor: ACCENT }}>
             {user.nom?.charAt(0).toUpperCase()}
           </div>
-          <button onClick={handleLogout} className="text-xs text-white/40 hover:text-white transition-colors hidden sm:inline">
-            Déconnexion
+          <button
+            onClick={handleLogout}
+            className="w-8 h-8 sm:w-auto sm:h-auto flex items-center justify-center sm:px-3 sm:py-1.5 rounded-full border border-white/15 text-white/50 hover:text-white hover:border-white/30 transition-all"
+            aria-label="Déconnexion"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="sm:hidden">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            <span className="text-xs hidden sm:inline">Déconnexion</span>
           </button>
         </div>
       ) : (
-        <Link to="/login" className="text-xs sm:text-sm px-3 sm:px-4 py-2 rounded-full border border-white/20 text-white hover:bg-white hover:text-black transition-all whitespace-nowrap shrink-0">
+        <Link
+          to="/login"
+          className="flex items-center gap-1.5 text-xs sm:text-sm px-3 sm:px-5 py-2 rounded-full text-white transition-all whitespace-nowrap shrink-0 hover:brightness-110 active:scale-95"
+          style={{ backgroundColor: ACCENT, boxShadow: `0 2px 12px ${ACCENT}50` }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+            <polyline points="10 17 15 12 10 7" />
+            <line x1="15" y1="12" x2="3" y2="12" />
+          </svg>
           Connexion
         </Link>
       )}
@@ -1054,12 +1106,12 @@ import { useEffect, useState } from 'react';
 import { apiFetch } from '../utils/api';
 
 const ACCENT = '#f86635';
-
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 function WeeklyTargetHistory() {
   const [data, setData] = useState([]);
 
   useEffect(() => {
-    apiFetch('${API_URL}/api/activities/weekly-target')
+    apiFetch(`${API_URL}/api/activities/weekly-target`)
       .then((r) => r.json())
       .then(setData);
   }, []);
@@ -1104,79 +1156,13 @@ function WeeklyTargetHistory() {
 export default WeeklyTargetHistory;
 </file>
 
-<file path="frontend/src/pages/Login.jsx">
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import yealeadLogo from '../assets/yealead.png';
-
-const ACCENT = '#f86635';
-
-function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const navigate = useNavigate();
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await fetch('${API_URL}/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error); return; }
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      navigate('/');
-    } catch (err) {
-      setError('Erreur de connexion');
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4 relative">
-      <button
-        onClick={() => navigate(-1)}
-        className="absolute top-6 left-6 text-white/50 hover:text-white text-sm flex items-center gap-1 transition-colors"
-      >
-        ← Retour
-      </button>
-
-      <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-8 max-w-sm w-full animate-[popIn_0.3s_ease]">
-        <img src={yealeadLogo} alt="Yealead" className="w-10 h-10 mx-auto mb-4" />
-        <h1 className="text-xl font-semibold text-black mb-1 text-center">Connexion</h1>
-        <p className="text-black/50 text-sm mb-6 text-center">Accède à ton espace SalesTrack</p>
-
-        {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
-
-        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
-          className="w-full p-3 rounded-lg border border-black/15 mb-3 outline-none focus:border-orange-500 transition-colors" />
-        <input type="password" placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)}
-          className="w-full p-3 rounded-lg border border-black/15 mb-4 outline-none focus:border-orange-500 transition-colors" />
-        <button type="submit" className="w-full text-white p-3 rounded-lg font-medium hover:brightness-110 active:scale-95 transition-all" style={{ backgroundColor: ACCENT }}>
-          Se connecter
-        </button>
-        <p className="text-center text-sm text-black/50 mt-4">
-          Pas de compte ? <Link to="/signup" style={{ color: ACCENT }} className="font-medium">S'inscrire</Link>
-        </p>
-      </form>
-      <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>
-    </div>
-  );
-}
-
-export default Login;
-</file>
-
 <file path="frontend/src/pages/Signup.jsx">
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import yealeadLogo from '../assets/yealead.png';
 
 const ACCENT = '#f86635';
-
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 function Signup() {
   const [nom, setNom] = useState('');
   const [email, setEmail] = useState('');
@@ -1187,7 +1173,7 @@ function Signup() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('${API_URL}/api/auth/signup', {
+      const res = await fetch(`${API_URL}/api/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nom, email, password }),
@@ -1230,26 +1216,6 @@ function Signup() {
 export default Signup;
 </file>
 
-<file path="frontend/src/utils/api.js">
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-export async function apiFetch(url, options = {}) {
-  const token = localStorage.getItem('token');
-  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
-  if (token) headers.Authorization = `Bearer ${token}`;
-
-  const res = await fetch(url, { ...options, headers });
-  if (res.status === 401) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = '/login';
-  }
-  return res;
-}
-
-export { API_URL };
-</file>
-
 <file path="frontend/src/App.jsx">
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
@@ -1265,7 +1231,7 @@ import SuccessModal from './components/SuccessModal';
 import { apiFetch } from './utils/api';
 
 const dailyTarget = 5;
-
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 function AppLayout({ children }) {
   const [showModal, setShowModal] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -1276,7 +1242,7 @@ function AppLayout({ children }) {
     if (!token) return;
     if (sessionStorage.getItem('popupShownThisSession')) return;
 
-    apiFetch('${API_URL}/api/activities/today')
+    apiFetch(`${API_URL}/api/activities/today`)
       .then((r) => r.json())
       .then((d) => {
         const total = Number(d.total);
@@ -1335,7 +1301,7 @@ import cartIcon from '../assets/Cart.png';
 import WeeklyTargetHistory from '../components/WeeklyTargetHistory';
 
 const ACCENT = '#f86635';
-
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 function AnimatedNumber({ value }) {
   const [display, setDisplay] = useState(0);
   useEffect(() => {
@@ -1367,9 +1333,9 @@ function Dashboard() {
 
   useEffect(() => {
     if (!token) return;
-    apiFetch('${API_URL}/api/activities/stats/today').then(r => r.json()).then(setStats);
-    apiFetch('${API_URL}/api/activities/daily').then(r => r.json()).then(setDaily);
-    apiFetch('${API_URL}/api/activities/today').then(r => r.json()).then(d => setToday(Number(d.total)));
+    apiFetch(`${API_URL}/api/activities/stats/today`).then(r => r.json()).then(setStats);
+    apiFetch(`${API_URL}/api/activities/daily`).then(r => r.json()).then(setDaily);
+    apiFetch(`${API_URL}/api/activities/today`).then(r => r.json()).then(d => setToday(Number(d.total)));
   }, [token]);
 
   const getStat = (type) => stats.find((s) => s.type === type) || { total: 0 };
@@ -1454,7 +1420,7 @@ import phoneIcon from '../assets/Phone.png';
 import calendarIcon from '../assets/calendar.png';
 import documentIcon from '../assets/document.png';
 import cartIcon from '../assets/Cart.png';
-
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const ACCENT = '#f86635';
 
 function ActivityCard({ activity, index, icons, titles, onDelete }) {
@@ -1583,7 +1549,7 @@ function Feed() {
 
   const loadActivities = () => {
     if (!token) return;
-    apiFetch('${API_URL}/api/activities').then(r => r.json()).then(setActivities);
+    apiFetch(`${API_URL}/api/activities`).then(r => r.json()).then(setActivities);
   };
 
   useEffect(() => { loadActivities(); }, [token]);
@@ -1645,6 +1611,72 @@ function Feed() {
 export default Feed;
 </file>
 
+<file path="frontend/src/pages/Login.jsx">
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import yealeadLogo from '../assets/yealead.png';
+
+const ACCENT = '#f86635';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+function Login() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(`${API_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error); return; }
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      navigate('/');
+    } catch (err) {
+      setError('Erreur de connexion');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-black flex items-center justify-center p-4 relative">
+      <button
+        onClick={() => navigate(-1)}
+        className="absolute top-6 left-6 text-white/50 hover:text-white text-sm flex items-center gap-1 transition-colors"
+      >
+        ← Retour
+      </button>
+
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-8 max-w-sm w-full animate-[popIn_0.3s_ease]">
+        <img src={yealeadLogo} alt="Yealead" className="w-10 h-10 mx-auto mb-4" />
+        <h1 className="text-xl font-semibold text-black mb-1 text-center">Connexion</h1>
+        <p className="text-black/50 text-sm mb-6 text-center">Accède à ton espace SalesTrack</p>
+
+        {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
+
+        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
+          className="w-full p-3 rounded-lg border border-black/15 mb-3 outline-none focus:border-orange-500 transition-colors" />
+        <input type="password" placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)}
+          className="w-full p-3 rounded-lg border border-black/15 mb-4 outline-none focus:border-orange-500 transition-colors" />
+        <button type="submit" className="w-full text-white p-3 rounded-lg font-medium hover:brightness-110 active:scale-95 transition-all" style={{ backgroundColor: ACCENT }}>
+          Se connecter
+        </button>
+        <p className="text-center text-sm text-black/50 mt-4">
+          Pas de compte ? <Link to="/signup" style={{ color: ACCENT }} className="font-medium">S'inscrire</Link>
+        </p>
+      </form>
+      <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>
+    </div>
+  );
+}
+
+export default Login;
+</file>
+
 <file path="frontend/src/pages/NouvelleActivite.jsx">
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -1657,12 +1689,14 @@ import documentIcon from '../assets/document.png';
 import cartIcon from '../assets/Cart.png';
 
 const ACCENT = '#f86635';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 function NouvelleActivite() {
   const navigate = useNavigate();
   const [type, setType] = useState(null);
   const [sens, setSens] = useState(null);
   const [statut, setStatut] = useState(null);
+  const [nombre, setNombre] = useState(1);
   const [message, setMessage] = useState('');
   const [showConfetti, setShowConfetti] = useState(false);
   const [combo, setCombo] = useState(0);
@@ -1696,26 +1730,25 @@ function NouvelleActivite() {
 
   const loadStats = () => {
     if (!token) return;
-    apiFetch('${API_URL}/api/activities/stats/today')
-      .then(r => r.json())
-      .then(setTodayStats);
+    apiFetch(`${API_URL}/api/activities/stats/today`).then(r => r.json()).then(setTodayStats);
   };
 
   useEffect(() => { loadStats(); }, []);
 
-  const resetForm = () => { setType(null); setSens(null); setStatut(null); };
+  const resetForm = () => { setType(null); setSens(null); setStatut(null); setNombre(1); };
 
   const handleTypeClick = (t) => {
     setMessage('');
     setType(t.key);
     setSens(null);
     setStatut(null);
+    setNombre(1);
   };
 
   const canSubmit = () => {
-    if (type === 'appel') return sens && statut;
-    if (type === 'rdv') return !!statut;
-    if (type === 'devis' || type === 'commande') return true;
+    if (type === 'appel') return sens && statut && nombre >= 1;
+    if (type === 'rdv') return !!statut && nombre >= 1;
+    if (type === 'devis' || type === 'commande') return nombre >= 1;
     return false;
   };
 
@@ -1723,21 +1756,22 @@ function NouvelleActivite() {
     if (!token) { navigate('/login'); return; }
     if (!canSubmit()) return;
 
-    const payload = { type, sens: sens || null, statut: statut || null };
+    const payload = { type, sens: sens || null, statut: statut || null, nombre };
     try {
-      const res = await apiFetch('${API_URL}/api/activities', {
+      const res = await apiFetch(`${API_URL}/api/activities`, {
         method: 'POST',
         body: JSON.stringify(payload),
       });
       if (res.ok) {
-        const newCombo = combo + 1;
+        const data = await res.json();
+        const newCombo = combo + data.count;
         setCombo(newCombo);
         setShowConfetti(true);
-        setMessage(`Bien joué ! Activité #${newCombo} du jour 🔥`);
+        setMessage(`Bien joué ! ${data.count} activité${data.count > 1 ? 's' : ''} enregistrée${data.count > 1 ? 's' : ''} 🔥`);
         resetForm();
 
         const totalBefore = todayStats.reduce((sum, s) => sum + Number(s.total), 0);
-        const totalAfter = totalBefore + 1;
+        const totalAfter = totalBefore + data.count;
 
         if (totalBefore < dailyTarget && totalAfter >= dailyTarget) {
           setTimeout(() => setShowSuccess(true), 1400);
@@ -1850,26 +1884,52 @@ function NouvelleActivite() {
             )}
 
             {(type === 'devis' || type === 'commande') && (
-              <div className="animate-[fadeIn_0.2s_ease] text-center">
+              <div className="animate-[fadeIn_0.2s_ease] text-center mb-2">
                 <img src={icons[type]} alt={type} className="w-8 h-8 mx-auto mb-2 opacity-70" />
-                <p className="text-white text-sm">Confirmer l'enregistrement d'un(e) {labels[type].toLowerCase().replace(/s$/, '')}</p>
+                <p className="text-white text-sm">{labels[type]}</p>
               </div>
             )}
 
             {type && (
-              <button
-                onClick={handleSubmit}
-                disabled={!canSubmit()}
-                className={`w-full text-white p-2.5 rounded-lg font-medium transition-all active:scale-95 mt-2 ${shake ? 'animate-[shake_0.4s_ease]' : ''}`}
-                style={{
-                  backgroundColor: canSubmit() ? ACCENT : 'rgba(255,255,255,0.1)',
-                  boxShadow: canSubmit() ? `0 4px 20px ${ACCENT}40` : 'none',
-                  cursor: canSubmit() ? 'pointer' : 'not-allowed',
-                  color: canSubmit() ? '#fff' : 'rgba(255,255,255,0.3)',
-                }}
-              >
-                Enregistrer l'activité
-              </button>
+              <div className="animate-[fadeIn_0.2s_ease]">
+                <p className="text-sm text-white/50 mb-2">Nombre</p>
+                <div className="flex items-center gap-3 mb-4">
+                  <button
+                    onClick={() => setNombre((n) => Math.max(1, n - 1))}
+                    className="w-9 h-9 rounded-lg border border-white/15 text-white text-lg flex items-center justify-center hover:bg-white/10 active:scale-95 transition-all"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={nombre}
+                    onChange={(e) => setNombre(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
+                    className="w-16 text-center p-2 rounded-lg bg-black border border-white/15 text-white outline-none focus:border-orange-500"
+                  />
+                  <button
+                    onClick={() => setNombre((n) => Math.min(100, n + 1))}
+                    className="w-9 h-9 rounded-lg border border-white/15 text-white text-lg flex items-center justify-center hover:bg-white/10 active:scale-95 transition-all"
+                  >
+                    +
+                  </button>
+                </div>
+
+                <button
+                  onClick={handleSubmit}
+                  disabled={!canSubmit()}
+                  className={`w-full text-white p-2.5 rounded-lg font-medium transition-all active:scale-95 ${shake ? 'animate-[shake_0.4s_ease]' : ''}`}
+                  style={{
+                    backgroundColor: canSubmit() ? ACCENT : 'rgba(255,255,255,0.1)',
+                    boxShadow: canSubmit() ? `0 4px 20px ${ACCENT}40` : 'none',
+                    cursor: canSubmit() ? 'pointer' : 'not-allowed',
+                    color: canSubmit() ? '#fff' : 'rgba(255,255,255,0.3)',
+                  }}
+                >
+                  Enregistrer {nombre > 1 ? `(${nombre})` : ''}
+                </button>
+              </div>
             )}
           </div>
 

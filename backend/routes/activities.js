@@ -5,15 +5,19 @@ const authMiddleware = require('../middleware/authMiddleware');
 
 router.post('/', authMiddleware, async (req, res) => {
   const { type, sens, statut } = req.body;
+  const qty = Math.max(1, Math.min(parseInt(req.body.nombre, 10) || 1, 100));
+
   if (!type) return res.status(400).json({ error: 'Le type est obligatoire' });
 
   try {
     const result = await pool.query(
-      `INSERT INTO activities (type, sens, statut, commercial_id)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [type, sens || null, statut || null, req.userId]
+      `INSERT INTO activities (type, sens, statut, commercial_id, date_activite)
+       SELECT $1, $2, $3, $4, NOW()
+       FROM generate_series(1, $5::int)
+       RETURNING *`,
+      [type, sens || null, statut || null, req.userId, qty]
     );
-    res.status(201).json(result.rows[0]);
+    res.status(201).json({ count: result.rows.length, activities: result.rows });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -38,6 +42,22 @@ router.get('/stats', authMiddleware, async (req, res) => {
     const result = await pool.query(
       `SELECT type, COUNT(*) as total
        FROM activities WHERE commercial_id = $1 GROUP BY type`,
+      [req.userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/stats/today', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT type, COUNT(*) as total
+       FROM activities
+       WHERE commercial_id = $1 AND DATE(date_activite) = CURRENT_DATE
+       GROUP BY type`,
       [req.userId]
     );
     res.json(result.rows);
@@ -94,22 +114,6 @@ router.get('/weekly-target', authMiddleware, async (req, res) => {
       atteint: Number(r.total) >= target,
     }));
     res.json(withTarget);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-router.get('/stats/today', authMiddleware, async (req, res) => {
-  try {
-    const result = await pool.query(
-      `SELECT type, COUNT(*) as total
-       FROM activities
-       WHERE commercial_id = $1 AND DATE(date_activite) = CURRENT_DATE
-       GROUP BY type`,
-      [req.userId]
-    );
-    res.json(result.rows);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur' });

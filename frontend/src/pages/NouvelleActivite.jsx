@@ -10,11 +10,13 @@ import cartIcon from '../assets/Cart.png';
 
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 function NouvelleActivite() {
   const navigate = useNavigate();
   const [type, setType] = useState(null);
   const [sens, setSens] = useState(null);
   const [statut, setStatut] = useState(null);
+  const [nombre, setNombre] = useState(1);
   const [message, setMessage] = useState('');
   const [showConfetti, setShowConfetti] = useState(false);
   const [combo, setCombo] = useState(0);
@@ -48,26 +50,25 @@ function NouvelleActivite() {
 
   const loadStats = () => {
     if (!token) return;
-    apiFetch(`${API_URL}/api/activities/stats/today`)
-      .then(r => r.json())
-      .then(setTodayStats);
+    apiFetch(`${API_URL}/api/activities/stats/today`).then(r => r.json()).then(setTodayStats);
   };
 
   useEffect(() => { loadStats(); }, []);
 
-  const resetForm = () => { setType(null); setSens(null); setStatut(null); };
+  const resetForm = () => { setType(null); setSens(null); setStatut(null); setNombre(1); };
 
   const handleTypeClick = (t) => {
     setMessage('');
     setType(t.key);
     setSens(null);
     setStatut(null);
+    setNombre(1);
   };
 
   const canSubmit = () => {
-    if (type === 'appel') return sens && statut;
-    if (type === 'rdv') return !!statut;
-    if (type === 'devis' || type === 'commande') return true;
+    if (type === 'appel') return sens && statut && nombre >= 1;
+    if (type === 'rdv') return !!statut && nombre >= 1;
+    if (type === 'devis' || type === 'commande') return nombre >= 1;
     return false;
   };
 
@@ -75,21 +76,22 @@ function NouvelleActivite() {
     if (!token) { navigate('/login'); return; }
     if (!canSubmit()) return;
 
-    const payload = { type, sens: sens || null, statut: statut || null };
+    const payload = { type, sens: sens || null, statut: statut || null, nombre };
     try {
       const res = await apiFetch(`${API_URL}/api/activities`, {
         method: 'POST',
         body: JSON.stringify(payload),
       });
       if (res.ok) {
-        const newCombo = combo + 1;
+        const data = await res.json();
+        const newCombo = combo + data.count;
         setCombo(newCombo);
         setShowConfetti(true);
-        setMessage(`Bien joué ! Activité #${newCombo} du jour 🔥`);
+        setMessage(`Bien joué ! ${data.count} activité${data.count > 1 ? 's' : ''} enregistrée${data.count > 1 ? 's' : ''} 🔥`);
         resetForm();
 
         const totalBefore = todayStats.reduce((sum, s) => sum + Number(s.total), 0);
-        const totalAfter = totalBefore + 1;
+        const totalAfter = totalBefore + data.count;
 
         if (totalBefore < dailyTarget && totalAfter >= dailyTarget) {
           setTimeout(() => setShowSuccess(true), 1400);
@@ -202,26 +204,52 @@ function NouvelleActivite() {
             )}
 
             {(type === 'devis' || type === 'commande') && (
-              <div className="animate-[fadeIn_0.2s_ease] text-center">
+              <div className="animate-[fadeIn_0.2s_ease] text-center mb-2">
                 <img src={icons[type]} alt={type} className="w-8 h-8 mx-auto mb-2 opacity-70" />
-                <p className="text-white text-sm">Confirmer l'enregistrement d'un(e) {labels[type].toLowerCase().replace(/s$/, '')}</p>
+                <p className="text-white text-sm">{labels[type]}</p>
               </div>
             )}
 
             {type && (
-              <button
-                onClick={handleSubmit}
-                disabled={!canSubmit()}
-                className={`w-full text-white p-2.5 rounded-lg font-medium transition-all active:scale-95 mt-2 ${shake ? 'animate-[shake_0.4s_ease]' : ''}`}
-                style={{
-                  backgroundColor: canSubmit() ? ACCENT : 'rgba(255,255,255,0.1)',
-                  boxShadow: canSubmit() ? `0 4px 20px ${ACCENT}40` : 'none',
-                  cursor: canSubmit() ? 'pointer' : 'not-allowed',
-                  color: canSubmit() ? '#fff' : 'rgba(255,255,255,0.3)',
-                }}
-              >
-                Enregistrer l'activité
-              </button>
+              <div className="animate-[fadeIn_0.2s_ease]">
+                <p className="text-sm text-white/50 mb-2">Nombre</p>
+                <div className="flex items-center gap-3 mb-4">
+                  <button
+                    onClick={() => setNombre((n) => Math.max(1, n - 1))}
+                    className="w-9 h-9 rounded-lg border border-white/15 text-white text-lg flex items-center justify-center hover:bg-white/10 active:scale-95 transition-all"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={nombre}
+                    onChange={(e) => setNombre(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
+                    className="w-16 text-center p-2 rounded-lg bg-black border border-white/15 text-white outline-none focus:border-orange-500"
+                  />
+                  <button
+                    onClick={() => setNombre((n) => Math.min(100, n + 1))}
+                    className="w-9 h-9 rounded-lg border border-white/15 text-white text-lg flex items-center justify-center hover:bg-white/10 active:scale-95 transition-all"
+                  >
+                    +
+                  </button>
+                </div>
+
+                <button
+                  onClick={handleSubmit}
+                  disabled={!canSubmit()}
+                  className={`w-full text-white p-2.5 rounded-lg font-medium transition-all active:scale-95 ${shake ? 'animate-[shake_0.4s_ease]' : ''}`}
+                  style={{
+                    backgroundColor: canSubmit() ? ACCENT : 'rgba(255,255,255,0.1)',
+                    boxShadow: canSubmit() ? `0 4px 20px ${ACCENT}40` : 'none',
+                    cursor: canSubmit() ? 'pointer' : 'not-allowed',
+                    color: canSubmit() ? '#fff' : 'rgba(255,255,255,0.3)',
+                  }}
+                >
+                  Enregistrer {nombre > 1 ? `(${nombre})` : ''}
+                </button>
+              </div>
             )}
           </div>
 
