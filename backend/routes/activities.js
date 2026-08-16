@@ -2,20 +2,23 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const authMiddleware = require('../middleware/authMiddleware');
+const crypto = require('crypto');
 
 router.post('/', authMiddleware, async (req, res) => {
   const { type, sens, statut, description } = req.body;
-  const qty = Math.max(1, Math.min(parseInt(req.body.nombre, 10) || 1, 100));
+  const qty = Math.max(1, Math.min(parseInt(req.body.nombre, 10) || 1, 1000));
 
   if (!type) return res.status(400).json({ error: 'Le type est obligatoire' });
+
+  const batchId = crypto.randomUUID();
 
   try {
     const result = await pool.query(
       `INSERT INTO activities (type, sens, statut, commercial_id, date_activite, batch_id, description)
-       SELECT $1, $2, $3, $4, NOW(), gen_random_uuid(), $6
+       SELECT $1, $2, $3, $4, NOW(), $6::uuid, $7
        FROM generate_series(1, $5::int)
        RETURNING *`,
-      [type, sens || null, statut || null, req.userId, qty, description || null]
+      [type, sens || null, statut || null, req.userId, qty, batchId, description || null]
     );
     res.status(201).json({ count: result.rows.length, activities: result.rows });
   } catch (err) {
@@ -30,8 +33,7 @@ router.get('/', authMiddleware, async (req, res) => {
       `SELECT 
         batch_id, type, sens, statut, description, image_url,
         MIN(date_activite) as date_activite,
-        COUNT(*) as nombre,
-        array_agg(id) as ids
+        COUNT(*) as nombre
        FROM activities 
        WHERE commercial_id = $1
        GROUP BY batch_id, type, sens, statut, description, image_url
@@ -128,7 +130,6 @@ router.get('/weekly-target', authMiddleware, async (req, res) => {
   }
 });
 
-// Mettre à jour la description/image d'un batch entier
 router.patch('/batch/:batchId', authMiddleware, async (req, res) => {
   const { batchId } = req.params;
   const { description, image_url } = req.body;
@@ -151,7 +152,6 @@ router.patch('/batch/:batchId', authMiddleware, async (req, res) => {
   }
 });
 
-// Supprimer un batch entier
 router.delete('/batch/:batchId', authMiddleware, async (req, res) => {
   const { batchId } = req.params;
   try {
