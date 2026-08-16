@@ -4,7 +4,7 @@ import phoneIcon from '../assets/Phone.png';
 import calendarIcon from '../assets/calendar.png';
 import documentIcon from '../assets/document.png';
 import cartIcon from '../assets/Cart.png';
-
+import Spinner from '../components/Spinner';
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -42,7 +42,7 @@ const getTitleText = (activity) => {
   return `${emojis[activity.type]} ${labels[activity.type]}`;
 };
 
-function ActivityCard({ activity, index, icons, onUpdate }) {
+function ActivityCard({ activity, index, icons, onUpdate, onDelete }) {
   const [editing, setEditing] = useState(false);
   const [description, setDescription] = useState(activity.description || '');
   const [imageUrl, setImageUrl] = useState(activity.image_url || '');
@@ -50,6 +50,8 @@ function ActivityCard({ activity, index, icons, onUpdate }) {
   const [expanded, setExpanded] = useState(false);
   const [lightbox, setLightbox] = useState(false);
   const [error, setError] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   const initiales = user?.nom?.split(' ').map(n => n[0]).join('').toUpperCase() || 'ZF';
@@ -94,6 +96,21 @@ function ActivityCard({ activity, index, icons, onUpdate }) {
     setSaving(false);
   };
 
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const res = await apiFetch(`${API_URL}/api/activities/batch/${activity.batch_id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        onDelete(activity.batch_id);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    setDeleting(false);
+  };
+
   return (
     <div
       className="bg-[#0d0d0d] border border-white/[0.08] rounded-2xl overflow-hidden transition-all hover:border-white/[0.14]"
@@ -115,9 +132,42 @@ function ActivityCard({ activity, index, icons, onUpdate }) {
         <div className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center shrink-0">
           <img src={icons[activity.type]} alt={activity.type} className="w-4 h-4 opacity-80" />
         </div>
+        <button
+          onClick={() => setConfirmDelete(true)}
+          className="w-9 h-9 rounded-full flex items-center justify-center text-white/30 hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0"
+          aria-label="Supprimer"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+            <path d="M10 11v6" /><path d="M14 11v6" />
+          </svg>
+        </button>
       </div>
 
-      <div className="px-4 pb-1">
+      {confirmDelete && (
+        <div className="px-4 pb-3 flex items-center gap-2 animate-[fadeIn_0.2s_ease] bg-red-500/5 py-3">
+          <p className="text-xs text-white/70 flex-1">
+            Supprimer {Number(activity.nombre) > 1 ? `ces ${activity.nombre} activités` : 'cette activité'} ?
+          </p>
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="text-xs px-3 py-1.5 rounded-lg text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+          >
+            {deleting && <Spinner size={12} color="#fff" />}
+            {deleting ? '' : 'Confirmer'}
+          </button>
+          <button
+            onClick={() => setConfirmDelete(false)}
+            className="text-xs px-3 py-1.5 rounded-lg text-white/60 border border-white/15 hover:text-white transition-colors"
+          >
+            Annuler
+          </button>
+        </div>
+      )}
+
+      <div className="px-4 pb-1 pt-3">
         <div className="mb-3">
           <p className="text-base font-semibold text-white">{getTitleText(activity)}</p>
         </div>
@@ -203,9 +253,10 @@ function ActivityCard({ activity, index, icons, onUpdate }) {
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="text-xs px-4 py-2 rounded-lg text-white font-medium disabled:opacity-50 transition-all hover:brightness-110"
+                className="text-xs px-4 py-2 rounded-lg text-white font-medium disabled:opacity-50 transition-all hover:brightness-110 flex items-center gap-1.5"
                 style={{ backgroundColor: ACCENT }}
               >
+                {saving && <Spinner size={12} color="#fff" />}
                 {saving ? 'Enregistrement...' : 'Enregistrer'}
               </button>
             </div>
@@ -213,7 +264,7 @@ function ActivityCard({ activity, index, icons, onUpdate }) {
         </div>
       )}
 
-      {!editing && (
+      {!editing && !confirmDelete && (
         <div className="border-t border-white/[0.06] px-2 py-1 flex">
           <button
             onClick={() => setEditing(true)}
@@ -249,6 +300,10 @@ function Feed() {
     );
   };
 
+  const handleDelete = (batchId) => {
+    setActivities((prev) => prev.filter((a) => a.batch_id !== batchId));
+  };
+
   const icons = { appel: phoneIcon, rdv: calendarIcon, devis: documentIcon, commande: cartIcon };
 
   if (!token) {
@@ -276,7 +331,7 @@ function Feed() {
 
         <div className="flex flex-col gap-4">
           {activities.map((a, i) => (
-            <ActivityCard key={a.batch_id} activity={a} index={i} icons={icons} onUpdate={handleUpdate} />
+            <ActivityCard key={a.batch_id} activity={a} index={i} icons={icons} onUpdate={handleUpdate} onDelete={handleDelete} />
           ))}
         </div>
       </div>

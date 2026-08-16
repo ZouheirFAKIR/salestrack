@@ -1,18 +1,23 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import yealeadLogo from '../assets/yealead.png';
+import Spinner from '../components/Spinner';
 
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 function Signup() {
   const [nom, setNom] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError('');
     try {
       const res = await fetch(`${API_URL}/api/auth/signup`, {
         method: 'POST',
@@ -20,10 +25,11 @@ function Signup() {
         body: JSON.stringify({ nom, email, password }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error); return; }
+      if (!res.ok) { setError(data.error); setLoading(false); return; }
       navigate('/login');
     } catch (err) {
       setError("Erreur lors de l'inscription");
+      setLoading(false);
     }
   };
 
@@ -42,8 +48,14 @@ function Signup() {
           className="w-full p-3 rounded-lg border border-black/15 mb-3 outline-none focus:border-orange-500 transition-colors" />
         <input type="password" placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)}
           className="w-full p-3 rounded-lg border border-black/15 mb-4 outline-none focus:border-orange-500 transition-colors" />
-        <button type="submit" className="w-full text-white p-3 rounded-lg font-medium hover:brightness-110 active:scale-95 transition-all" style={{ backgroundColor: ACCENT }}>
-          S'inscrire
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full text-white p-3 rounded-lg font-medium hover:brightness-110 active:scale-95 transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+          style={{ backgroundColor: ACCENT }}
+        >
+          {loading && <Spinner size={16} color="#fff" />}
+          {loading ? 'Inscription...' : "S'inscrire"}
         </button>
         <p className="text-center text-sm text-black/50 mt-4">
           Déjà un compte ? <Link to="/login" style={{ color: ACCENT }} className="font-medium">Se connecter</Link>

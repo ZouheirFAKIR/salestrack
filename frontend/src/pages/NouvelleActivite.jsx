@@ -7,10 +7,10 @@ import phoneIcon from '../assets/Phone.png';
 import calendarIcon from '../assets/calendar.png';
 import documentIcon from '../assets/document.png';
 import cartIcon from '../assets/Cart.png';
-
+import Spinner from '../components/Spinner';
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
+const [submitting, setSubmitting] = useState(false);
 function NouvelleActivite() {
   const navigate = useNavigate();
   const [type, setType] = useState(null);
@@ -75,6 +75,7 @@ function NouvelleActivite() {
   const handleSubmit = async () => {
     if (!token) { navigate('/login'); return; }
     if (!canSubmit()) return;
+    setSubmitting(true);
 
     const payload = { type, sens: sens || null, statut: statut || null, nombre };
     try {
@@ -106,6 +107,7 @@ function NouvelleActivite() {
       setMessage("Erreur lors de l'enregistrement");
       setTimeout(() => setShake(false), 400);
     }
+    setSubmitting(false);
   };
 
   const getStat = (key) => todayStats.find((s) => s.type === key)?.total || 0;
@@ -238,8 +240,8 @@ function NouvelleActivite() {
 
                 <button
                   onClick={handleSubmit}
-                  disabled={!canSubmit()}
-                  className={`w-full text-white p-2.5 rounded-lg font-medium transition-all active:scale-95 ${shake ? 'animate-[shake_0.4s_ease]' : ''}`}
+                  disabled={!canSubmit() || submitting}
+                  className={`w-full text-white p-2.5 rounded-lg font-medium transition-all active:scale-95 flex items-center justify-center gap-2 ${shake ? 'animate-[shake_0.4s_ease]' : ''}`}
                   style={{
                     backgroundColor: canSubmit() ? ACCENT : 'rgba(255,255,255,0.1)',
                     boxShadow: canSubmit() ? `0 4px 20px ${ACCENT}40` : 'none',
@@ -247,7 +249,8 @@ function NouvelleActivite() {
                     color: canSubmit() ? '#fff' : 'rgba(255,255,255,0.3)',
                   }}
                 >
-                  Enregistrer {nombre > 1 ? `(${nombre})` : ''}
+                  {submitting && <Spinner size={15} color="#fff" />}
+                  {submitting ? 'Enregistrement...' : `Enregistrer ${nombre > 1 ? `(${nombre})` : ''}`}
                 </button>
               </div>
             )}

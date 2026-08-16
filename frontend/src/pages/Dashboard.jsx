@@ -6,9 +6,10 @@ import calendarIcon from '../assets/calendar.png';
 import documentIcon from '../assets/document.png';
 import cartIcon from '../assets/Cart.png';
 import WeeklyTargetHistory from '../components/WeeklyTargetHistory';
-
+import PageLoader from '../components/PageLoader';
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const [loading, setLoading] = useState(true);
 function AnimatedNumber({ value }) {
   const [display, setDisplay] = useState(0);
   useEffect(() => {
@@ -39,11 +40,18 @@ function Dashboard() {
   const allTypes = ['appel', 'rdv', 'devis', 'commande'];
 
   useEffect(() => {
-    if (!token) return;
-    apiFetch(`${API_URL}/api/activities/stats/today`).then(r => r.json()).then(setStats);
-    apiFetch(`${API_URL}/api/activities/daily`).then(r => r.json()).then(setDaily);
-    apiFetch(`${API_URL}/api/activities/today`).then(r => r.json()).then(d => setToday(Number(d.total)));
-  }, [token]);
+  if (!token) { setLoading(false); return; }
+  Promise.all([
+    apiFetch(`${API_URL}/api/activities/stats/today`).then(r => r.json()),
+    apiFetch(`${API_URL}/api/activities/daily`).then(r => r.json()),
+    apiFetch(`${API_URL}/api/activities/today`).then(r => r.json()),
+  ]).then(([statsData, dailyData, todayData]) => {
+    setStats(statsData);
+    setDaily(dailyData);
+    setToday(Number(todayData.total));
+    setLoading(false);
+  });
+}, [token]);
 
   const getStat = (type) => stats.find((s) => s.type === type) || { total: 0 };
   const progressPercent = Math.min(Math.round((today / dailyTarget) * 100), 100);
@@ -61,8 +69,8 @@ function Dashboard() {
       </div>
     );
   }
-
-  return (
+  if (loading) return <PageLoader />;
+  return (  
     <div className="bg-black p-4 sm:p-6 pb-12">
       <div className="max-w-5xl mx-auto flex flex-col gap-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
