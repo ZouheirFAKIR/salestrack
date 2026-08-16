@@ -4,18 +4,18 @@ const pool = require('../db');
 const authMiddleware = require('../middleware/authMiddleware');
 
 router.post('/', authMiddleware, async (req, res) => {
-  const { type, sens, statut } = req.body;
+  const { type, sens, statut, description } = req.body;
   const qty = Math.max(1, Math.min(parseInt(req.body.nombre, 10) || 1, 100));
 
   if (!type) return res.status(400).json({ error: 'Le type est obligatoire' });
 
   try {
     const result = await pool.query(
-      `INSERT INTO activities (type, sens, statut, commercial_id, date_activite)
-       SELECT $1, $2, $3, $4, NOW()
+      `INSERT INTO activities (type, sens, statut, commercial_id, date_activite, batch_id, description)
+       SELECT $1, $2, $3, $4, NOW(), gen_random_uuid(), $6
        FROM generate_series(1, $5::int)
        RETURNING *`,
-      [type, sens || null, statut || null, req.userId, qty]
+      [type, sens || null, statut || null, req.userId, qty, description || null]
     );
     res.status(201).json({ count: result.rows.length, activities: result.rows });
   } catch (err) {
@@ -27,7 +27,15 @@ router.post('/', authMiddleware, async (req, res) => {
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM activities WHERE commercial_id = $1 ORDER BY date_activite DESC',
+      `SELECT 
+        batch_id, type, sens, statut, description, image_url,
+        MIN(date_activite) as date_activite,
+        COUNT(*) as nombre,
+        array_agg(id) as ids
+       FROM activities 
+       WHERE commercial_id = $1
+       GROUP BY batch_id, type, sens, statut, description, image_url
+       ORDER BY MIN(date_activite) DESC`,
       [req.userId]
     );
     res.json(result.rows);
@@ -120,17 +128,41 @@ router.get('/weekly-target', authMiddleware, async (req, res) => {
   }
 });
 
-router.delete('/:id', authMiddleware, async (req, res) => {
-  const { id } = req.params;
+// Mettre à jour la description/image d'un batch entier
+router.patch('/batch/:batchId', authMiddleware, async (req, res) => {
+  const { batchId } = req.params;
+  const { description, image_url } = req.body;
+
   try {
     const result = await pool.query(
-      'DELETE FROM activities WHERE id = $1 AND commercial_id = $2 RETURNING *',
-      [id, req.userId]
+      `UPDATE activities 
+       SET description = COALESCE($1, description), image_url = COALESCE($2, image_url)
+       WHERE batch_id = $3 AND commercial_id = $4
+       RETURNING *`,
+      [description, image_url, batchId, req.userId]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Activité introuvable' });
     }
-    res.json({ message: 'Activité supprimée', deleted: result.rows[0] });
+    res.json({ updated: result.rows.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Supprimer un batch entier
+router.delete('/batch/:batchId', authMiddleware, async (req, res) => {
+  const { batchId } = req.params;
+  try {
+    const result = await pool.query(
+      'DELETE FROM activities WHERE batch_id = $1 AND commercial_id = $2 RETURNING *',
+      [batchId, req.userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Activité introuvable' });
+    }
+    res.json({ message: 'Activités supprimées', count: result.rows.length });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur' });
