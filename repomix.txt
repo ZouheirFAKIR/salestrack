@@ -74,6 +74,8 @@ frontend/
       Footer.jsx
       LineChart.jsx
       Navbar.jsx
+      PageLoader.jsx
+      Spinner.jsx
       SuccessModal.jsx
       TargetModal.jsx
       WeeklyTargetHistory.jsx
@@ -184,32 +186,6 @@ module.exports = router;
 <file path="backend/.gitignore">
 node_modules
 .env
-</file>
-
-<file path="backend/index.js">
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const activitiesRoutes = require('./routes/activities');
-
-const app = express();
-
-app.use(cors());
-app.use(express.json());
-
-app.use('/api/activities', activitiesRoutes);
-
-app.get('/', (req, res) => {
-  res.send('API Commercial Tracker fonctionne');
-});
-
-const authRoutes = require('./routes/auth');
-app.use('/api/auth', authRoutes);
-
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Serveur démarré sur http://localhost:${PORT}`);
-});
 </file>
 
 <file path="backend/package.json">
@@ -402,6 +378,42 @@ function LineChart({ data }) {
 }
 
 export default LineChart;
+</file>
+
+<file path="frontend/src/components/PageLoader.jsx">
+import Spinner from './Spinner';
+
+const ACCENT = '#f86635';
+
+function PageLoader() {
+  return (
+    <div className="min-h-screen bg-black flex items-center justify-center">
+      <Spinner size={32} color={ACCENT} />
+    </div>
+  );
+}
+
+export default PageLoader;
+</file>
+
+<file path="frontend/src/components/Spinner.jsx">
+function Spinner({ size = 16, color = 'currentColor' }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      className="animate-spin"
+      style={{ display: 'inline-block' }}
+    >
+      <circle cx="12" cy="12" r="10" stroke={color} strokeWidth="3" opacity="0.25" />
+      <path d="M12 2a10 10 0 0 1 10 10" stroke={color} strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export default Spinner;
 </file>
 
 <file path="frontend/src/components/SuccessModal.jsx">
@@ -814,164 +826,30 @@ export default defineConfig({
 })
 </file>
 
-<file path="backend/routes/activities.js">
-const express = require('express');
-const router = express.Router();
-const pool = require('../db');
-const authMiddleware = require('../middleware/authMiddleware');
-
-router.post('/', authMiddleware, async (req, res) => {
-  const { type, sens, statut } = req.body;
-  const qty = Math.max(1, Math.min(parseInt(req.body.nombre, 10) || 1, 100));
-
-  if (!type) return res.status(400).json({ error: 'Le type est obligatoire' });
-
-  try {
-    const result = await pool.query(
-      `INSERT INTO activities (type, sens, statut, commercial_id, date_activite)
-       SELECT $1, $2, $3, $4, NOW()
-       FROM generate_series(1, $5::int)
-       RETURNING *`,
-      [type, sens || null, statut || null, req.userId, qty]
-    );
-    res.status(201).json({ count: result.rows.length, activities: result.rows });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-router.get('/', authMiddleware, async (req, res) => {
-  try {
-    const result = await pool.query(
-      'SELECT * FROM activities WHERE commercial_id = $1 ORDER BY date_activite DESC',
-      [req.userId]
-    );
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-router.get('/stats', authMiddleware, async (req, res) => {
-  try {
-    const result = await pool.query(
-      `SELECT type, COUNT(*) as total
-       FROM activities WHERE commercial_id = $1 GROUP BY type`,
-      [req.userId]
-    );
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-router.get('/stats/today', authMiddleware, async (req, res) => {
-  try {
-    const result = await pool.query(
-      `SELECT type, COUNT(*) as total
-       FROM activities
-       WHERE commercial_id = $1 AND DATE(date_activite) = CURRENT_DATE
-       GROUP BY type`,
-      [req.userId]
-    );
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-router.get('/today', authMiddleware, async (req, res) => {
-  try {
-    const result = await pool.query(
-      `SELECT COUNT(*) as total FROM activities
-       WHERE commercial_id = $1 AND DATE(date_activite) = CURRENT_DATE`,
-      [req.userId]
-    );
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-router.get('/daily', authMiddleware, async (req, res) => {
-  try {
-    const result = await pool.query(
-      `SELECT TO_CHAR(d, 'YYYY-MM-DD') as jour, COALESCE(COUNT(a.id), 0) as total
-       FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') d
-       LEFT JOIN activities a ON DATE(a.date_activite) = d AND a.commercial_id = $1
-       GROUP BY d ORDER BY d ASC`,
-      [req.userId]
-    );
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-router.get('/weekly-target', authMiddleware, async (req, res) => {
-  const target = 5;
-  try {
-    const result = await pool.query(
-      `SELECT TO_CHAR(d, 'YYYY-MM-DD') as jour, COALESCE(COUNT(a.id), 0) as total
-       FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') d
-       LEFT JOIN activities a ON DATE(a.date_activite) = d AND a.commercial_id = $1
-       GROUP BY d ORDER BY d ASC`,
-      [req.userId]
-    );
-    const withTarget = result.rows.map((r) => ({
-      jour: r.jour,
-      total: Number(r.total),
-      target,
-      atteint: Number(r.total) >= target,
-    }));
-    res.json(withTarget);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-router.delete('/:id', authMiddleware, async (req, res) => {
-  const { id } = req.params;
-  try {
-    const result = await pool.query(
-      'DELETE FROM activities WHERE id = $1 AND commercial_id = $2 RETURNING *',
-      [id, req.userId]
-    );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Activité introuvable' });
-    }
-    res.json({ message: 'Activité supprimée', deleted: result.rows[0] });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-module.exports = router;
-</file>
-
-<file path="backend/db.js">
+<file path="backend/index.js">
 require('dotenv').config();
-const { Pool } = require('pg');
+const express = require('express');
+const cors = require('cors');
+const activitiesRoutes = require('./routes/activities');
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+const app = express();
+
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
+
+app.use('/api/activities', activitiesRoutes);
+
+app.get('/', (req, res) => {
+  res.send('API Commercial Tracker fonctionne');
 });
 
-pool.connect((err) => {
-  if (err) console.error('Erreur de connexion à PostgreSQL', err.stack);
-  else console.log('Connecté à PostgreSQL avec succès');
-});
+const authRoutes = require('./routes/auth');
+app.use('/api/auth', authRoutes);
 
-module.exports = pool;
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Serveur démarré sur http://localhost:${PORT}`);
+});
 </file>
 
 <file path="frontend/src/utils/api.js">
@@ -1008,6 +886,28 @@ export { API_URL };
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
+</file>
+
+<file path="backend/db.js">
+require('dotenv').config();
+const { Pool } = require('pg');
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+});
+
+// Empêche le crash du serveur si une connexion est coupée en arrière-plan
+pool.on('error', (err) => {
+  console.error('Erreur inattendue sur une connexion PostgreSQL inactive', err);
+});
+
+// Test de connexion au démarrage, sans garder la connexion ouverte
+pool.query('SELECT NOW()')
+  .then(() => console.log('Connecté à PostgreSQL avec succès'))
+  .catch((err) => console.error('Erreur de connexion à PostgreSQL', err.message));
+
+module.exports = pool;
 </file>
 
 <file path="frontend/src/components/Navbar.jsx">
@@ -1156,66 +1056,6 @@ function WeeklyTargetHistory() {
 export default WeeklyTargetHistory;
 </file>
 
-<file path="frontend/src/pages/Signup.jsx">
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import yealeadLogo from '../assets/yealead.png';
-
-const ACCENT = '#f86635';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-function Signup() {
-  const [nom, setNom] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const navigate = useNavigate();
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await fetch(`${API_URL}/api/auth/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nom, email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error); return; }
-      navigate('/login');
-    } catch (err) {
-      setError("Erreur lors de l'inscription");
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4">
-      <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-8 max-w-sm w-full animate-[popIn_0.3s_ease]">
-        <img src={yealeadLogo} alt="Yealead" className="w-10 h-10 mx-auto mb-4" />
-        <h1 className="text-xl font-semibold text-black mb-1 text-center">Créer un compte</h1>
-        <p className="text-black/50 text-sm mb-6 text-center">Rejoins SalesTrack</p>
-
-        {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
-
-        <input type="text" placeholder="Nom complet" value={nom} onChange={(e) => setNom(e.target.value)}
-          className="w-full p-3 rounded-lg border border-black/15 mb-3 outline-none focus:border-orange-500 transition-colors" />
-        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
-          className="w-full p-3 rounded-lg border border-black/15 mb-3 outline-none focus:border-orange-500 transition-colors" />
-        <input type="password" placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)}
-          className="w-full p-3 rounded-lg border border-black/15 mb-4 outline-none focus:border-orange-500 transition-colors" />
-        <button type="submit" className="w-full text-white p-3 rounded-lg font-medium hover:brightness-110 active:scale-95 transition-all" style={{ backgroundColor: ACCENT }}>
-          S'inscrire
-        </button>
-        <p className="text-center text-sm text-black/50 mt-4">
-          Déjà un compte ? <Link to="/login" style={{ color: ACCENT }} className="font-medium">Se connecter</Link>
-        </p>
-      </form>
-      <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>
-    </div>
-  );
-}
-
-export default Signup;
-</file>
-
 <file path="frontend/src/App.jsx">
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
@@ -1290,18 +1130,344 @@ function App() {
 export default App;
 </file>
 
+<file path="frontend/src/pages/Signup.jsx">
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import yealeadLogo from '../assets/yealead.png';
+import Spinner from '../components/Spinner';
+
+const ACCENT = '#f86635';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+function Signup() {
+  const [nom, setNom] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/api/auth/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nom, email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error); setLoading(false); return; }
+      navigate('/login');
+    } catch (err) {
+      setError("Erreur lors de l'inscription");
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-black flex items-center justify-center p-4">
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-8 max-w-sm w-full animate-[popIn_0.3s_ease]">
+        <img src={yealeadLogo} alt="Yealead" className="w-10 h-10 mx-auto mb-4" />
+        <h1 className="text-xl font-semibold text-black mb-1 text-center">Créer un compte</h1>
+        <p className="text-black/50 text-sm mb-6 text-center">Rejoins SalesTrack</p>
+
+        {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
+
+        <input type="text" placeholder="Nom complet" value={nom} onChange={(e) => setNom(e.target.value)}
+          className="w-full p-3 rounded-lg border border-black/15 mb-3 outline-none focus:border-orange-500 transition-colors" />
+        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
+          className="w-full p-3 rounded-lg border border-black/15 mb-3 outline-none focus:border-orange-500 transition-colors" />
+        <input type="password" placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)}
+          className="w-full p-3 rounded-lg border border-black/15 mb-4 outline-none focus:border-orange-500 transition-colors" />
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full text-white p-3 rounded-lg font-medium hover:brightness-110 active:scale-95 transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+          style={{ backgroundColor: ACCENT }}
+        >
+          {loading && <Spinner size={16} color="#fff" />}
+          {loading ? 'Inscription...' : "S'inscrire"}
+        </button>
+        <p className="text-center text-sm text-black/50 mt-4">
+          Déjà un compte ? <Link to="/login" style={{ color: ACCENT }} className="font-medium">Se connecter</Link>
+        </p>
+      </form>
+      <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>
+    </div>
+  );
+}
+
+export default Signup;
+</file>
+
+<file path="backend/routes/activities.js">
+const express = require('express');
+const router = express.Router();
+const pool = require('../db');
+const authMiddleware = require('../middleware/authMiddleware');
+const crypto = require('crypto');
+
+router.post('/', authMiddleware, async (req, res) => {
+  const { type, sens, statut, description } = req.body;
+  const qty = Math.max(1, Math.min(parseInt(req.body.nombre, 10) || 1, 1000));
+
+  if (!type) return res.status(400).json({ error: 'Le type est obligatoire' });
+
+  const batchId = crypto.randomUUID();
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO activities (type, sens, statut, commercial_id, date_activite, batch_id, description)
+       SELECT $1, $2, $3, $4, NOW(), $6::uuid, $7
+       FROM generate_series(1, $5::int)
+       RETURNING *`,
+      [type, sens || null, statut || null, req.userId, qty, batchId, description || null]
+    );
+    res.status(201).json({ count: result.rows.length, activities: result.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT 
+        batch_id, type, sens, statut, description, image_url,
+        MIN(date_activite) as date_activite,
+        COUNT(*) as nombre
+       FROM activities 
+       WHERE commercial_id = $1
+       GROUP BY batch_id, type, sens, statut, description, image_url
+       ORDER BY MIN(date_activite) DESC`,
+      [req.userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/stats', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT type, COUNT(*) as total
+       FROM activities WHERE commercial_id = $1 GROUP BY type`,
+      [req.userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/stats/today', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT type, COUNT(*) as total
+       FROM activities
+       WHERE commercial_id = $1 AND DATE(date_activite) = CURRENT_DATE
+       GROUP BY type`,
+      [req.userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/today', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT COUNT(*) as total FROM activities
+       WHERE commercial_id = $1 AND DATE(date_activite) = CURRENT_DATE`,
+      [req.userId]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/daily', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT TO_CHAR(d, 'YYYY-MM-DD') as jour, COALESCE(COUNT(a.id), 0) as total
+       FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') d
+       LEFT JOIN activities a ON DATE(a.date_activite) = d AND a.commercial_id = $1
+       GROUP BY d ORDER BY d ASC`,
+      [req.userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/weekly-target', authMiddleware, async (req, res) => {
+  const target = 5;
+  try {
+    const result = await pool.query(
+      `SELECT TO_CHAR(d, 'YYYY-MM-DD') as jour, COALESCE(COUNT(a.id), 0) as total
+       FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') d
+       LEFT JOIN activities a ON DATE(a.date_activite) = d AND a.commercial_id = $1
+       GROUP BY d ORDER BY d ASC`,
+      [req.userId]
+    );
+    const withTarget = result.rows.map((r) => ({
+      jour: r.jour,
+      total: Number(r.total),
+      target,
+      atteint: Number(r.total) >= target,
+    }));
+    res.json(withTarget);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.patch('/batch/:batchId', authMiddleware, async (req, res) => {
+  const { batchId } = req.params;
+  const { description, image_url } = req.body;
+
+  try {
+    const result = await pool.query(
+      `UPDATE activities 
+       SET description = COALESCE($1, description), image_url = COALESCE($2, image_url)
+       WHERE batch_id = $3 AND commercial_id = $4
+       RETURNING *`,
+      [description, image_url, batchId, req.userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Activité introuvable' });
+    }
+    res.json({ updated: result.rows.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.delete('/batch/:batchId', authMiddleware, async (req, res) => {
+  const { batchId } = req.params;
+  try {
+    const result = await pool.query(
+      'DELETE FROM activities WHERE batch_id = $1 AND commercial_id = $2 RETURNING *',
+      [batchId, req.userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Activité introuvable' });
+    }
+    res.json({ message: 'Activités supprimées', count: result.rows.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+module.exports = router;
+</file>
+
+<file path="frontend/src/pages/Login.jsx">
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import yealeadLogo from '../assets/yealead.png';
+import Spinner from '../components/Spinner';
+
+const ACCENT = '#f86635';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+function Login() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error); setLoading(false); return; }
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      navigate('/');
+    } catch (err) {
+      setError('Erreur de connexion');
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-black flex items-center justify-center p-4 relative">
+      <button
+        onClick={() => navigate(-1)}
+        className="absolute top-6 left-6 text-white/50 hover:text-white text-sm flex items-center gap-1 transition-colors"
+      >
+        ← Retour
+      </button>
+
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-8 max-w-sm w-full animate-[popIn_0.3s_ease]">
+        <img src={yealeadLogo} alt="Yealead" className="w-10 h-10 mx-auto mb-4" />
+        <h1 className="text-xl font-semibold text-black mb-1 text-center">Connexion</h1>
+        <p className="text-black/50 text-sm mb-6 text-center">Accède à ton espace SalesTrack</p>
+
+        {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
+
+        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
+          className="w-full p-3 rounded-lg border border-black/15 mb-3 outline-none focus:border-orange-500 transition-colors" />
+        <input type="password" placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)}
+          className="w-full p-3 rounded-lg border border-black/15 mb-4 outline-none focus:border-orange-500 transition-colors" />
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full text-white p-3 rounded-lg font-medium hover:brightness-110 active:scale-95 transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+          style={{ backgroundColor: ACCENT }}
+        >
+          {loading && <Spinner size={16} color="#fff" />}
+          {loading ? 'Connexion...' : 'Se connecter'}
+        </button>
+        <p className="text-center text-sm text-black/50 mt-4">
+          Pas de compte ? <Link to="/signup" style={{ color: ACCENT }} className="font-medium">S'inscrire</Link>
+        </p>
+      </form>
+      <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>
+    </div>
+  );
+}
+
+export default Login;
+</file>
+
 <file path="frontend/src/pages/Dashboard.jsx">
 import { useEffect, useState } from 'react';
 import LineChart from '../components/LineChart';
+import PageLoader from '../components/PageLoader';
 import { apiFetch } from '../utils/api';
 import phoneIcon from '../assets/Phone.png';
 import calendarIcon from '../assets/calendar.png';
 import documentIcon from '../assets/document.png';
 import cartIcon from '../assets/Cart.png';
-import WeeklyTargetHistory from '../components/WeeklyTargetHistory';
 
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 function AnimatedNumber({ value }) {
   const [display, setDisplay] = useState(0);
   useEffect(() => {
@@ -1321,6 +1487,7 @@ function Dashboard() {
   const [stats, setStats] = useState([]);
   const [daily, setDaily] = useState([]);
   const [today, setToday] = useState(0);
+  const [loading, setLoading] = useState(true);
   const dailyTarget = 5;
 
   const token = localStorage.getItem('token');
@@ -1332,15 +1499,24 @@ function Dashboard() {
   const allTypes = ['appel', 'rdv', 'devis', 'commande'];
 
   useEffect(() => {
-    if (!token) return;
-    apiFetch(`${API_URL}/api/activities/stats/today`).then(r => r.json()).then(setStats);
-    apiFetch(`${API_URL}/api/activities/daily`).then(r => r.json()).then(setDaily);
-    apiFetch(`${API_URL}/api/activities/today`).then(r => r.json()).then(d => setToday(Number(d.total)));
+    if (!token) { setLoading(false); return; }
+    Promise.all([
+      apiFetch(`${API_URL}/api/activities/stats/today`).then(r => r.json()),
+      apiFetch(`${API_URL}/api/activities/daily`).then(r => r.json()),
+      apiFetch(`${API_URL}/api/activities/today`).then(r => r.json()),
+    ]).then(([statsData, dailyData, todayData]) => {
+      setStats(statsData);
+      setDaily(dailyData);
+      setToday(Number(todayData.total));
+      setLoading(false);
+    });
   }, [token]);
 
   const getStat = (type) => stats.find((s) => s.type === type) || { total: 0 };
   const progressPercent = Math.min(Math.round((today / dailyTarget) * 100), 100);
   const circumference = 2 * Math.PI * 34;
+
+  if (loading) return <PageLoader />;
 
   if (!token) {
     return (
@@ -1401,8 +1577,6 @@ function Dashboard() {
           </p>
           <LineChart data={daily} />
         </div>
-
-        <WeeklyTargetHistory />
       </div>
 
       <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>
@@ -1420,82 +1594,159 @@ import phoneIcon from '../assets/Phone.png';
 import calendarIcon from '../assets/calendar.png';
 import documentIcon from '../assets/document.png';
 import cartIcon from '../assets/Cart.png';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import Spinner from '../components/Spinner';
 const ACCENT = '#f86635';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-function ActivityCard({ activity, index, icons, titles, onDelete }) {
-  const [showComment, setShowComment] = useState(false);
-  const [comments, setComments] = useState([]);
-  const [commentText, setCommentText] = useState('');
+function ImageLightbox({ src, onClose }) {
+  return (
+    <div
+      className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-6 animate-[fadeIn_0.2s_ease]"
+      onClick={onClose}
+    >
+      <button
+        onClick={onClose}
+        className="absolute top-5 right-5 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xl transition-colors"
+      >
+        ×
+      </button>
+      <img
+        src={src}
+        alt=""
+        className="max-w-full max-h-full rounded-lg object-contain shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
+  );
+}
+
+const getTitleText = (activity) => {
+  const n = Number(activity.nombre);
+  const labels = {
+    appel: n > 1 ? `${n} appels enregistrés` : 'Appel enregistré',
+    rdv: n > 1 ? `${n} rendez-vous enregistrés` : 'Rendez-vous enregistré',
+    devis: n > 1 ? `${n} devis envoyés` : 'Devis envoyé',
+    commande: n > 1 ? `${n} commandes conclues` : 'Commande conclue',
+  };
+  const emojis = { appel: '📞', rdv: '📅', devis: '📄', commande: '🛒' };
+  return `${emojis[activity.type]} ${labels[activity.type]}`;
+};
+
+function ActivityCard({ activity, index, icons, onUpdate, onDelete }) {
+  const [editing, setEditing] = useState(false);
+  const [description, setDescription] = useState(activity.description || '');
+  const [imageUrl, setImageUrl] = useState(activity.image_url || '');
+  const [saving, setSaving] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [lightbox, setLightbox] = useState(false);
+  const [error, setError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   const initiales = user?.nom?.split(' ').map(n => n[0]).join('').toUpperCase() || 'ZF';
+  const statutLabels = { repond: 'Répond', ne_repond_pas: 'Ne répond pas', present: 'Présent', absent: 'Absent' };
 
-  const addComment = () => {
-    if (!commentText.trim()) return;
-    setComments((c) => [...c, commentText]);
-    setCommentText('');
+  const isLongText = (activity.description || '').length > 140;
+  const displayText = expanded || !isLongText
+    ? activity.description
+    : `${activity.description.slice(0, 140)}...`;
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image trop lourde (max 5 Mo)');
+      return;
+    }
+    setError('');
+    const reader = new FileReader();
+    reader.onload = () => setImageUrl(reader.result);
+    reader.readAsDataURL(file);
   };
 
-  const statutLabels = { repond: 'Répond', ne_repond_pas: 'Ne répond pas', present: 'Présent', absent: 'Absent' };
+  const handleSave = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      const res = await apiFetch(`${API_URL}/api/activities/batch/${activity.batch_id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ description, image_url: imageUrl }),
+      });
+      if (res.ok) {
+        onUpdate(activity.batch_id, { description, image_url: imageUrl });
+        setEditing(false);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || 'Échec de la sauvegarde');
+      }
+    } catch (err) {
+      setError('Erreur réseau, réessaie');
+    }
+    setSaving(false);
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const res = await apiFetch(`${API_URL}/api/activities/batch/${activity.batch_id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        onDelete(activity.batch_id);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    setDeleting(false);
+  };
 
   return (
     <div
-      className="bg-white/5 border border-white/10 rounded-xl overflow-hidden hover:border-white/20 transition-all"
+      className="bg-[#0d0d0d] border border-white/[0.08] rounded-2xl overflow-hidden transition-all hover:border-white/[0.14]"
       style={{ animation: `slideIn 0.35s ease ${index * 0.04}s both` }}
     >
+      {lightbox && <ImageLightbox src={activity.image_url} onClose={() => setLightbox(false)} />}
+
       <div className="p-4 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0" style={{ backgroundColor: ACCENT }}>
+        <div
+          className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0"
+          style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}
+        >
           {initiales}
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-medium text-white text-sm">{user?.nom || 'Toi'}</p>
-          <p className="text-xs text-white/40">{new Date(activity.date_activite).toLocaleString('fr-FR')}</p>
+          <p className="text-xs text-white/35">{new Date(activity.date_activite).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
         </div>
-        <img src={icons[activity.type]} alt={activity.type} className="w-6 h-6 opacity-70" />
+        <div className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center shrink-0">
+          <img src={icons[activity.type]} alt={activity.type} className="w-4 h-4 opacity-80" />
+        </div>
         <button
           onClick={() => setConfirmDelete(true)}
-          className="text-white/30 hover:text-red-500 transition-colors p-1"
+          className="w-9 h-9 rounded-full flex items-center justify-center text-white/30 hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0"
           aria-label="Supprimer"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="3 6 5 6 21 6" />
             <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-            <path d="M10 11v6" />
-            <path d="M14 11v6" />
+            <path d="M10 11v6" /><path d="M14 11v6" />
           </svg>
         </button>
       </div>
 
-      <div className="px-4 pb-3">
-        <p className="text-lg font-semibold text-white mb-2">{titles[activity.type]}</p>
-        {(activity.sens || activity.statut) && (
-          <div className="flex gap-6">
-            {activity.sens && (
-              <div>
-                <p className="text-xs text-white/40">Sens</p>
-                <p className="text-sm font-medium text-white">{activity.sens === 'sortant' ? 'Sortant' : 'Entrant'}</p>
-              </div>
-            )}
-            {activity.statut && (
-              <div>
-                <p className="text-xs text-white/40">Statut</p>
-                <p className="text-sm font-medium text-white">{statutLabels[activity.statut]}</p>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
       {confirmDelete && (
-        <div className="px-4 pb-3 flex items-center gap-2 animate-[fadeIn_0.2s_ease]">
-          <p className="text-xs text-white/60 flex-1">Supprimer cette activité ?</p>
+        <div className="px-4 pb-3 flex items-center gap-2 animate-[fadeIn_0.2s_ease] bg-red-500/5 py-3">
+          <p className="text-xs text-white/70 flex-1">
+            Supprimer {Number(activity.nombre) > 1 ? `ces ${activity.nombre} activités` : 'cette activité'} ?
+          </p>
           <button
-            onClick={() => onDelete(activity.id)}
-            className="text-xs px-3 py-1.5 rounded-lg text-white bg-red-500 hover:bg-red-600 transition-colors"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="text-xs px-3 py-1.5 rounded-lg text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center gap-1.5"
           >
-            Confirmer
+            {deleting && <Spinner size={12} color="#fff" />}
+            {deleting ? '' : 'Confirmer'}
           </button>
           <button
             onClick={() => setConfirmDelete(false)}
@@ -1506,35 +1757,114 @@ function ActivityCard({ activity, index, icons, titles, onDelete }) {
         </div>
       )}
 
-      {comments.length > 0 && (
-        <div className="px-4 pb-2 text-xs text-white/40">
-          {comments.length} commentaire{comments.length > 1 ? 's' : ''}
+      <div className="px-4 pb-1 pt-3">
+        <div className="mb-3">
+          <p className="text-base font-semibold text-white">{getTitleText(activity)}</p>
+        </div>
+
+        {(activity.sens || activity.statut) && (
+          <div className="flex gap-5 mb-3 pb-3 border-b border-white/[0.06]">
+            {activity.sens && (
+              <div>
+                <p className="text-[11px] text-white/35 uppercase tracking-wide">Sens</p>
+                <p className="text-sm font-medium text-white/90">{activity.sens === 'sortant' ? 'Sortant' : 'Entrant'}</p>
+              </div>
+            )}
+            {activity.statut && (
+              <div>
+                <p className="text-[11px] text-white/35 uppercase tracking-wide">Statut</p>
+                <p className="text-sm font-medium text-white/90">{statutLabels[activity.statut]}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!editing && activity.description && (
+          <p className="text-sm text-white/65 leading-relaxed whitespace-pre-wrap mb-3">
+            {displayText}
+            {isLongText && (
+              <button onClick={() => setExpanded((e) => !e)} className="ml-1 text-sm font-medium" style={{ color: ACCENT }}>
+                {expanded ? 'Voir moins' : 'Voir plus'}
+              </button>
+            )}
+          </p>
+        )}
+      </div>
+
+      {!editing && activity.image_url && (
+        <button onClick={() => setLightbox(true)} className="block w-full bg-black">
+          <img
+            src={activity.image_url}
+            alt=""
+            className="w-full max-h-[420px] object-contain hover:opacity-90 transition-opacity"
+          />
+        </button>
+      )}
+
+      {editing && (
+        <div className="px-4 pb-4 animate-[fadeIn_0.2s_ease]">
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Ajouter une description..."
+            rows={3}
+            className="w-full p-3 rounded-xl bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 transition-colors resize-none placeholder:text-white/25"
+          />
+
+          {imageUrl && (
+            <div className="relative mt-3 rounded-xl overflow-hidden bg-black border border-white/10">
+              <img src={imageUrl} alt="" className="w-full max-h-72 object-contain" />
+              <button
+                onClick={() => setImageUrl('')}
+                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/80 text-white flex items-center justify-center hover:bg-black transition-colors backdrop-blur-sm"
+              >
+                ×
+              </button>
+            </div>
+          )}
+
+          {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+
+          <div className="flex items-center gap-2 mt-3">
+            <label className="text-xs text-white/70 px-3 py-2 rounded-lg border border-white/10 cursor-pointer hover:bg-white/5 transition-colors flex items-center gap-1.5">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+              </svg>
+              {imageUrl ? 'Changer' : 'Ajouter'} une image
+              <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+            </label>
+            <div className="ml-auto flex gap-2">
+              <button
+                onClick={() => { setEditing(false); setDescription(activity.description || ''); setImageUrl(activity.image_url || ''); setError(''); }}
+                className="text-xs px-3 py-2 rounded-lg text-white/50 border border-white/10 hover:text-white transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="text-xs px-4 py-2 rounded-lg text-white font-medium disabled:opacity-50 transition-all hover:brightness-110 flex items-center gap-1.5"
+                style={{ backgroundColor: ACCENT }}
+              >
+                {saving && <Spinner size={12} color="#fff" />}
+                {saving ? 'Enregistrement...' : 'Enregistrer'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
-      <div className="border-t border-white/10 px-2 py-1 flex">
-        <button onClick={() => setShowComment((s) => !s)} className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm text-white/60 hover:text-white transition-colors">
-          💬 Commenter
-        </button>
-      </div>
-
-      {showComment && (
-        <div className="border-t border-white/10 p-3 animate-[fadeIn_0.2s_ease]">
-          {comments.map((c, i) => (
-            <p key={i} className="text-sm text-white/70 mb-2">💬 {c}</p>
-          ))}
-          <div className="flex gap-2">
-            <input
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addComment()}
-              placeholder="Écrire un commentaire..."
-              className="flex-1 bg-black border border-white/15 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-orange-500"
-            />
-            <button onClick={addComment} className="px-3 py-2 rounded-lg text-sm text-white" style={{ backgroundColor: ACCENT }}>
-              Envoyer
-            </button>
-          </div>
+      {!editing && !confirmDelete && (
+        <div className="border-t border-white/[0.06] px-2 py-1 flex">
+          <button
+            onClick={() => setEditing(true)}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs text-white/45 hover:text-white hover:bg-white/[0.03] transition-colors"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z" />
+            </svg>
+            {activity.description || activity.image_url ? 'Modifier' : 'Ajouter description ou image'}
+          </button>
         </div>
       )}
 
@@ -1554,26 +1884,17 @@ function Feed() {
 
   useEffect(() => { loadActivities(); }, [token]);
 
-  const handleDelete = async (id) => {
-    try {
-      const res = await apiFetch(`${API_URL}/api/activities/${id}`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        setActivities((prev) => prev.filter((a) => a.id !== id));
-      }
-    } catch (err) {
-      console.error(err);
-    }
+  const handleUpdate = (batchId, updates) => {
+    setActivities((prev) =>
+      prev.map((a) => (a.batch_id === batchId ? { ...a, ...updates } : a))
+    );
+  };
+
+  const handleDelete = (batchId) => {
+    setActivities((prev) => prev.filter((a) => a.batch_id !== batchId));
   };
 
   const icons = { appel: phoneIcon, rdv: calendarIcon, devis: documentIcon, commande: cartIcon };
-  const titles = {
-    appel: '📞 Appel enregistré',
-    rdv: '📅 Rendez-vous enregistré',
-    devis: '📄 Devis envoyé',
-    commande: '🛒 Commande conclue',
-  };
 
   if (!token) {
     return (
@@ -1600,7 +1921,7 @@ function Feed() {
 
         <div className="flex flex-col gap-4">
           {activities.map((a, i) => (
-            <ActivityCard key={a.id} activity={a} index={i} icons={icons} titles={titles} onDelete={handleDelete} />
+            <ActivityCard key={a.batch_id} activity={a} index={i} icons={icons} onUpdate={handleUpdate} onDelete={handleDelete} />
           ))}
         </div>
       </div>
@@ -1611,77 +1932,12 @@ function Feed() {
 export default Feed;
 </file>
 
-<file path="frontend/src/pages/Login.jsx">
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import yealeadLogo from '../assets/yealead.png';
-
-const ACCENT = '#f86635';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const navigate = useNavigate();
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await fetch(`${API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error); return; }
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      navigate('/');
-    } catch (err) {
-      setError('Erreur de connexion');
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4 relative">
-      <button
-        onClick={() => navigate(-1)}
-        className="absolute top-6 left-6 text-white/50 hover:text-white text-sm flex items-center gap-1 transition-colors"
-      >
-        ← Retour
-      </button>
-
-      <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-8 max-w-sm w-full animate-[popIn_0.3s_ease]">
-        <img src={yealeadLogo} alt="Yealead" className="w-10 h-10 mx-auto mb-4" />
-        <h1 className="text-xl font-semibold text-black mb-1 text-center">Connexion</h1>
-        <p className="text-black/50 text-sm mb-6 text-center">Accède à ton espace SalesTrack</p>
-
-        {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
-
-        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
-          className="w-full p-3 rounded-lg border border-black/15 mb-3 outline-none focus:border-orange-500 transition-colors" />
-        <input type="password" placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)}
-          className="w-full p-3 rounded-lg border border-black/15 mb-4 outline-none focus:border-orange-500 transition-colors" />
-        <button type="submit" className="w-full text-white p-3 rounded-lg font-medium hover:brightness-110 active:scale-95 transition-all" style={{ backgroundColor: ACCENT }}>
-          Se connecter
-        </button>
-        <p className="text-center text-sm text-black/50 mt-4">
-          Pas de compte ? <Link to="/signup" style={{ color: ACCENT }} className="font-medium">S'inscrire</Link>
-        </p>
-      </form>
-      <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>
-    </div>
-  );
-}
-
-export default Login;
-</file>
-
 <file path="frontend/src/pages/NouvelleActivite.jsx">
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Confetti from '../components/Confetti';
 import SuccessModal from '../components/SuccessModal';
+import Spinner from '../components/Spinner';
 import { apiFetch } from '../utils/api';
 import phoneIcon from '../assets/Phone.png';
 import calendarIcon from '../assets/calendar.png';
@@ -1703,6 +1959,7 @@ function NouvelleActivite() {
   const [shake, setShake] = useState(false);
   const [todayStats, setTodayStats] = useState([]);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const dailyTarget = 5;
   const token = localStorage.getItem('token');
@@ -1755,6 +2012,7 @@ function NouvelleActivite() {
   const handleSubmit = async () => {
     if (!token) { navigate('/login'); return; }
     if (!canSubmit()) return;
+    setSubmitting(true);
 
     const payload = { type, sens: sens || null, statut: statut || null, nombre };
     try {
@@ -1786,6 +2044,7 @@ function NouvelleActivite() {
       setMessage("Erreur lors de l'enregistrement");
       setTimeout(() => setShake(false), 400);
     }
+    setSubmitting(false);
   };
 
   const getStat = (key) => todayStats.find((s) => s.type === key)?.total || 0;
@@ -1903,13 +2162,13 @@ function NouvelleActivite() {
                   <input
                     type="number"
                     min="1"
-                    max="100"
+                    max="1000"
                     value={nombre}
-                    onChange={(e) => setNombre(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
+                    onChange={(e) => setNombre(Math.max(1, Math.min(1000, parseInt(e.target.value) || 1)))}
                     className="w-16 text-center p-2 rounded-lg bg-black border border-white/15 text-white outline-none focus:border-orange-500"
                   />
                   <button
-                    onClick={() => setNombre((n) => Math.min(100, n + 1))}
+                    onClick={() => setNombre((n) => Math.min(1000, n + 1))}
                     className="w-9 h-9 rounded-lg border border-white/15 text-white text-lg flex items-center justify-center hover:bg-white/10 active:scale-95 transition-all"
                   >
                     +
@@ -1918,8 +2177,8 @@ function NouvelleActivite() {
 
                 <button
                   onClick={handleSubmit}
-                  disabled={!canSubmit()}
-                  className={`w-full text-white p-2.5 rounded-lg font-medium transition-all active:scale-95 ${shake ? 'animate-[shake_0.4s_ease]' : ''}`}
+                  disabled={!canSubmit() || submitting}
+                  className={`w-full text-white p-2.5 rounded-lg font-medium transition-all active:scale-95 flex items-center justify-center gap-2 ${shake ? 'animate-[shake_0.4s_ease]' : ''}`}
                   style={{
                     backgroundColor: canSubmit() ? ACCENT : 'rgba(255,255,255,0.1)',
                     boxShadow: canSubmit() ? `0 4px 20px ${ACCENT}40` : 'none',
@@ -1927,7 +2186,8 @@ function NouvelleActivite() {
                     color: canSubmit() ? '#fff' : 'rgba(255,255,255,0.3)',
                   }}
                 >
-                  Enregistrer {nombre > 1 ? `(${nombre})` : ''}
+                  {submitting && <Spinner size={15} color="#fff" />}
+                  {submitting ? 'Enregistrement...' : `Enregistrer ${nombre > 1 ? `(${nombre})` : ''}`}
                 </button>
               </div>
             )}

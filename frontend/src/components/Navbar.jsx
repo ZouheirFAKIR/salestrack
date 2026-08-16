@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import yealeadLogo from '../assets/yealead.png';
 import addIcon from '../assets/add.png';
 import dashboardIcon from '../assets/dashboard.png';
 import feedIcon from '../assets/feed.png';
+import Spinner from './Spinner';
 
 const ACCENT = '#f86635';
 
@@ -10,6 +12,7 @@ function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const links = [
     { path: '/nouvelle-activite', label: 'Nouvelle activité', icon: addIcon },
@@ -18,9 +21,12 @@ function Navbar() {
   ];
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    navigate('/login');
+    setLoggingOut(true);
+    setTimeout(() => {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      navigate('/login');
+    }, 300);
   };
 
   return (
@@ -51,20 +57,31 @@ function Navbar() {
 
       {user ? (
         <div className="flex items-center gap-2 shrink-0">
-          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-medium" style={{ backgroundColor: ACCENT }}>
-            {user.nom?.charAt(0).toUpperCase()}
-          </div>
+          <Link to="/profile" className="hover:opacity-80 transition-opacity">
+            {user.photo_url ? (
+              <img src={user.photo_url} alt="" className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover" />
+            ) : (
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-medium" style={{ backgroundColor: ACCENT }}>
+                {user.nom?.charAt(0).toUpperCase()}
+              </div>
+            )}
+          </Link>
           <button
             onClick={handleLogout}
-            className="w-8 h-8 sm:w-auto sm:h-auto flex items-center justify-center sm:px-3 sm:py-1.5 rounded-full border border-white/15 text-white/50 hover:text-white hover:border-white/30 transition-all"
+            disabled={loggingOut}
+            className="w-8 h-8 sm:w-auto sm:h-auto flex items-center justify-center sm:px-3 sm:py-1.5 rounded-full border border-white/15 text-white/50 hover:text-white hover:border-white/30 transition-all disabled:opacity-60"
             aria-label="Déconnexion"
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="sm:hidden">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
-            </svg>
-            <span className="text-xs hidden sm:inline">Déconnexion</span>
+            {loggingOut ? (
+              <Spinner size={14} color="currentColor" />
+            ) : (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="sm:hidden">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+            )}
+            <span className="text-xs hidden sm:inline">{loggingOut ? '' : 'Déconnexion'}</span>
           </button>
         </div>
       ) : (

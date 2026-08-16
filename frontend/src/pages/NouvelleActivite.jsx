@@ -2,15 +2,17 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Confetti from '../components/Confetti';
 import SuccessModal from '../components/SuccessModal';
+import Spinner from '../components/Spinner';
+import PageLoader from '../components/PageLoader';
 import { apiFetch } from '../utils/api';
 import phoneIcon from '../assets/Phone.png';
 import calendarIcon from '../assets/calendar.png';
 import documentIcon from '../assets/document.png';
 import cartIcon from '../assets/Cart.png';
-import Spinner from '../components/Spinner';
+
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-const [submitting, setSubmitting] = useState(false);
+
 function NouvelleActivite() {
   const navigate = useNavigate();
   const [type, setType] = useState(null);
@@ -23,6 +25,8 @@ function NouvelleActivite() {
   const [shake, setShake] = useState(false);
   const [todayStats, setTodayStats] = useState([]);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
 
   const dailyTarget = 5;
   const token = localStorage.getItem('token');
@@ -49,8 +53,13 @@ function NouvelleActivite() {
   };
 
   const loadStats = () => {
-    if (!token) return;
-    apiFetch(`${API_URL}/api/activities/stats/today`).then(r => r.json()).then(setTodayStats);
+    if (!token) { setPageLoading(false); return; }
+    apiFetch(`${API_URL}/api/activities/stats/today`)
+      .then(r => r.json())
+      .then((data) => {
+        setTodayStats(data);
+        setPageLoading(false);
+      });
   };
 
   useEffect(() => { loadStats(); }, []);
@@ -113,6 +122,8 @@ function NouvelleActivite() {
   const getStat = (key) => todayStats.find((s) => s.type === key)?.total || 0;
   const totalToday = todayStats.reduce((sum, s) => sum + Number(s.total), 0);
   const progressPercent = Math.min(Math.round((totalToday / dailyTarget) * 100), 100);
+
+  if (pageLoading) return <PageLoader />;
 
   return (
     <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 flex items-center justify-center">
@@ -225,13 +236,13 @@ function NouvelleActivite() {
                   <input
                     type="number"
                     min="1"
-                    max="100"
+                    max="1000"
                     value={nombre}
-                    onChange={(e) => setNombre(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
+                    onChange={(e) => setNombre(Math.max(1, Math.min(1000, parseInt(e.target.value) || 1)))}
                     className="w-16 text-center p-2 rounded-lg bg-black border border-white/15 text-white outline-none focus:border-orange-500"
                   />
                   <button
-                    onClick={() => setNombre((n) => Math.min(100, n + 1))}
+                    onClick={() => setNombre((n) => Math.min(1000, n + 1))}
                     className="w-9 h-9 rounded-lg border border-white/15 text-white text-lg flex items-center justify-center hover:bg-white/10 active:scale-95 transition-all"
                   >
                     +

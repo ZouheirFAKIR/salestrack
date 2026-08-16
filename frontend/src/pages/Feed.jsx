@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../utils/api';
+import Spinner from '../components/Spinner';
+import PageLoader from '../components/PageLoader';
 import phoneIcon from '../assets/Phone.png';
 import calendarIcon from '../assets/calendar.png';
 import documentIcon from '../assets/document.png';
 import cartIcon from '../assets/Cart.png';
-import Spinner from '../components/Spinner';
+
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -52,6 +54,7 @@ function ActivityCard({ activity, index, icons, onUpdate, onDelete }) {
   const [error, setError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [imageLoading, setImageLoading] = useState(false);
 
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   const initiales = user?.nom?.split(' ').map(n => n[0]).join('').toUpperCase() || 'ZF';
@@ -70,8 +73,13 @@ function ActivityCard({ activity, index, icons, onUpdate, onDelete }) {
       return;
     }
     setError('');
+    setImageLoading(true);
     const reader = new FileReader();
-    reader.onload = () => setImageUrl(reader.result);
+    reader.onload = () => {
+      setImageUrl(reader.result);
+      setImageLoading(false);
+    };
+    reader.onerror = () => setImageLoading(false);
     reader.readAsDataURL(file);
   };
 
@@ -221,7 +229,13 @@ function ActivityCard({ activity, index, icons, onUpdate, onDelete }) {
             className="w-full p-3 rounded-xl bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 transition-colors resize-none placeholder:text-white/25"
           />
 
-          {imageUrl && (
+          {imageLoading && (
+            <div className="mt-3 h-40 rounded-xl bg-black border border-white/10 flex items-center justify-center">
+              <Spinner size={22} color={ACCENT} />
+            </div>
+          )}
+
+          {!imageLoading && imageUrl && (
             <div className="relative mt-3 rounded-xl overflow-hidden bg-black border border-white/10">
               <img src={imageUrl} alt="" className="w-full max-h-72 object-contain" />
               <button
@@ -252,7 +266,7 @@ function ActivityCard({ activity, index, icons, onUpdate, onDelete }) {
               </button>
               <button
                 onClick={handleSave}
-                disabled={saving}
+                disabled={saving || imageLoading}
                 className="text-xs px-4 py-2 rounded-lg text-white font-medium disabled:opacity-50 transition-all hover:brightness-110 flex items-center gap-1.5"
                 style={{ backgroundColor: ACCENT }}
               >
@@ -285,11 +299,17 @@ function ActivityCard({ activity, index, icons, onUpdate, onDelete }) {
 
 function Feed() {
   const [activities, setActivities] = useState([]);
+  const [loading, setLoading] = useState(true);
   const token = localStorage.getItem('token');
 
   const loadActivities = () => {
-    if (!token) return;
-    apiFetch(`${API_URL}/api/activities`).then(r => r.json()).then(setActivities);
+    if (!token) { setLoading(false); return; }
+    apiFetch(`${API_URL}/api/activities`)
+      .then(r => r.json())
+      .then((data) => {
+        setActivities(data);
+        setLoading(false);
+      });
   };
 
   useEffect(() => { loadActivities(); }, [token]);
@@ -305,6 +325,8 @@ function Feed() {
   };
 
   const icons = { appel: phoneIcon, rdv: calendarIcon, devis: documentIcon, commande: cartIcon };
+
+  if (loading) return <PageLoader />;
 
   if (!token) {
     return (

@@ -5,6 +5,7 @@ import Footer from './components/Footer';
 import Dashboard from './pages/Dashboard';
 import NouvelleActivite from './pages/NouvelleActivite';
 import Feed from './pages/Feed';
+import Profile from './pages/Profile';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import TargetModal from './components/TargetModal';
@@ -13,6 +14,7 @@ import { apiFetch } from './utils/api';
 
 const dailyTarget = 5;
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 function AppLayout({ children }) {
   const [showModal, setShowModal] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -63,6 +65,7 @@ function App() {
         <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />
         <Route path="/nouvelle-activite" element={<AppLayout><NouvelleActivite /></AppLayout>} />
         <Route path="/feed" element={<AppLayout><Feed /></AppLayout>} />
+        <Route path="/profile" element={<AppLayout><Profile /></AppLayout>} />
       </Routes>
     </BrowserRouter>
   );
