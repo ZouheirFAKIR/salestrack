@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
 import LineChart from '../components/LineChart';
+import PageLoader from '../components/PageLoader';
 import { apiFetch } from '../utils/api';
 import phoneIcon from '../assets/Phone.png';
 import calendarIcon from '../assets/calendar.png';
 import documentIcon from '../assets/document.png';
 import cartIcon from '../assets/Cart.png';
-import WeeklyTargetHistory from '../components/WeeklyTargetHistory';
-import PageLoader from '../components/PageLoader';
+
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-const [loading, setLoading] = useState(true);
+
 function AnimatedNumber({ value }) {
   const [display, setDisplay] = useState(0);
   useEffect(() => {
@@ -29,6 +29,7 @@ function Dashboard() {
   const [stats, setStats] = useState([]);
   const [daily, setDaily] = useState([]);
   const [today, setToday] = useState(0);
+  const [loading, setLoading] = useState(true);
   const dailyTarget = 5;
 
   const token = localStorage.getItem('token');
@@ -40,22 +41,24 @@ function Dashboard() {
   const allTypes = ['appel', 'rdv', 'devis', 'commande'];
 
   useEffect(() => {
-  if (!token) { setLoading(false); return; }
-  Promise.all([
-    apiFetch(`${API_URL}/api/activities/stats/today`).then(r => r.json()),
-    apiFetch(`${API_URL}/api/activities/daily`).then(r => r.json()),
-    apiFetch(`${API_URL}/api/activities/today`).then(r => r.json()),
-  ]).then(([statsData, dailyData, todayData]) => {
-    setStats(statsData);
-    setDaily(dailyData);
-    setToday(Number(todayData.total));
-    setLoading(false);
-  });
-}, [token]);
+    if (!token) { setLoading(false); return; }
+    Promise.all([
+      apiFetch(`${API_URL}/api/activities/stats/today`).then(r => r.json()),
+      apiFetch(`${API_URL}/api/activities/daily`).then(r => r.json()),
+      apiFetch(`${API_URL}/api/activities/today`).then(r => r.json()),
+    ]).then(([statsData, dailyData, todayData]) => {
+      setStats(statsData);
+      setDaily(dailyData);
+      setToday(Number(todayData.total));
+      setLoading(false);
+    });
+  }, [token]);
 
   const getStat = (type) => stats.find((s) => s.type === type) || { total: 0 };
   const progressPercent = Math.min(Math.round((today / dailyTarget) * 100), 100);
   const circumference = 2 * Math.PI * 34;
+
+  if (loading) return <PageLoader />;
 
   if (!token) {
     return (
@@ -69,8 +72,8 @@ function Dashboard() {
       </div>
     );
   }
-  if (loading) return <PageLoader />;
-  return (  
+
+  return (
     <div className="bg-black p-4 sm:p-6 pb-12">
       <div className="max-w-5xl mx-auto flex flex-col gap-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -116,8 +119,6 @@ function Dashboard() {
           </p>
           <LineChart data={daily} />
         </div>
-
-        <WeeklyTargetHistory />
       </div>
 
       <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>
