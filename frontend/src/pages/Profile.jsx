@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../utils/api';
 import Spinner from '../components/Spinner';
 import PageLoader from '../components/PageLoader';
+import BadgesGrid from '../components/BadgesGrid';
 
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -304,6 +305,11 @@ function Profile() {
           </div>
 
         </div>
+        
+        <div className="mt-8">
+          <BadgesGrid />
+        </div>
+
       </div>
     </div>
   );

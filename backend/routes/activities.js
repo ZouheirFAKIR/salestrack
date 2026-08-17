@@ -169,4 +169,44 @@ router.delete('/batch/:batchId', authMiddleware, async (req, res) => {
   }
 });
 
+router.get('/badge-stats', authMiddleware, async (req, res) => {
+  try {
+    const typeResult = await pool.query(
+      `SELECT type, COUNT(*) as total FROM activities WHERE commercial_id = $1 GROUP BY type`,
+      [req.userId]
+    );
+    const dailyResult = await pool.query(
+      `SELECT TO_CHAR(date_activite, 'YYYY-MM-DD') as jour, COUNT(*) as total
+       FROM activities WHERE commercial_id = $1
+       GROUP BY TO_CHAR(date_activite, 'YYYY-MM-DD') ORDER BY jour DESC`,
+      [req.userId]
+    );
+
+    const typeCounts = { appel: 0, rdv: 0, devis: 0, commande: 0 };
+    let total = 0;
+    typeResult.rows.forEach((r) => {
+      typeCounts[r.type] = Number(r.total);
+      total += Number(r.total);
+    });
+
+    const daySet = new Set(dailyResult.rows.map((r) => r.jour));
+    let streak = 0;
+    let cursor = new Date();
+    while (true) {
+      const key = cursor.toISOString().split('T')[0];
+      if (daySet.has(key)) {
+        streak++;
+        cursor.setDate(cursor.getDate() - 1);
+      } else break;
+    }
+
+    const targetDays = dailyResult.rows.filter((r) => Number(r.total) >= 5).length;
+
+    res.json({ typeCounts, total, streak, targetDays });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 module.exports = router;
