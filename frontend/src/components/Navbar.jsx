@@ -18,6 +18,7 @@ function Navbar() {
     { path: '/nouvelle-activite', label: 'Nouvelle activité', icon: addIcon },
     { path: '/', label: 'Dashboard', icon: dashboardIcon },
     { path: '/feed', label: 'Feed', icon: feedIcon },
+    { path: '/courses', label: 'Formation', icon: null },
     { path: '/badges', label: 'Badges', icon: null },
   ];
 
@@ -53,8 +54,8 @@ function Navbar() {
                 <img src={link.icon} alt="" className="w-4 h-4" style={{ filter: active ? 'brightness(0) invert(1)' : 'brightness(0) invert(1) opacity(0.6)' }} />
               ) : (
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M8.21 13.89L7 23l5-3 5 3-1.21-9.12" />
-                  <circle cx="12" cy="8" r="6" />
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 7v5l3 3" />
                 </svg>
               )}
               <span className="hidden sm:inline">{link.label}</span>
@@ -69,25 +70,21 @@ function Navbar() {
             {user.photo_url ? (
               <img src={user.photo_url} alt="" className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover" />
             ) : (
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-medium" style={{ backgroundColor: ACCENT }}>
-                {user.nom?.charAt(0).toUpperCase()}
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden bg-white flex items-center justify-center p-1">
+                <img src={yealeadLogo} alt="Profil" className="w-full h-full object-contain" />
               </div>
             )}
           </Link>
           <button
             onClick={handleLogout}
             disabled={loggingOut}
-            className="w-8 h-8 sm:w-auto sm:h-auto flex items-center justify-center sm:px-3 sm:py-1.5 rounded-full border border-white/15 text-white/50 hover:text-white hover:border-white/30 transition-all disabled:opacity-60"
+            className="w-8 h-8 sm:w-auto sm:h-auto flex items-center justify-center sm:px-3 sm:py-1.5 rounded-full border border-white/15 text-white/50 hover:text-white hover:border-white/30 transition-all disabled:opacity-60 gap-1.5"
             aria-label="Déconnexion"
           >
             {loggingOut ? (
               <Spinner size={14} color="currentColor" />
             ) : (
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="sm:hidden">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
-              </svg>
+              <img src={yealeadLogo} alt="" className="w-3.5 h-3.5 object-contain sm:hidden" style={{ filter: 'brightness(0) invert(0.6)' }} />
             )}
             <span className="text-xs hidden sm:inline">{loggingOut ? '' : 'Déconnexion'}</span>
           </button>
@@ -98,11 +95,7 @@ function Navbar() {
           className="flex items-center gap-1.5 text-xs sm:text-sm px-3 sm:px-5 py-2 rounded-full text-white transition-all whitespace-nowrap shrink-0 hover:brightness-110 active:scale-95"
           style={{ backgroundColor: ACCENT, boxShadow: `0 2px 12px ${ACCENT}50` }}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-            <polyline points="10 17 15 12 10 7" />
-            <line x1="15" y1="12" x2="3" y2="12" />
-          </svg>
+          <img src={yealeadLogo} alt="" className="w-3.5 h-3.5 object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
           Connexion
         </Link>
       )}

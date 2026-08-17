@@ -7,6 +7,8 @@ import NouvelleActivite from './pages/NouvelleActivite';
 import Feed from './pages/Feed';
 import Profile from './pages/Profile';
 import Badges from './pages/Badges';
+import Courses from './pages/Courses';
+import CourseDetail from './pages/CourseDetail';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import TargetModal from './components/TargetModal';
@@ -68,6 +70,8 @@ function App() {
         <Route path="/feed" element={<AppLayout><Feed /></AppLayout>} />
         <Route path="/profile" element={<AppLayout><Profile /></AppLayout>} />
         <Route path="/badges" element={<AppLayout><Badges /></AppLayout>} />
+        <Route path="/courses" element={<AppLayout><Courses /></AppLayout>} />
+        <Route path="/courses/:id" element={<AppLayout><CourseDetail /></AppLayout>} />
       </Routes>
     </BrowserRouter>
   );

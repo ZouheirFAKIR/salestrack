@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const activitiesRoutes = require('./routes/activities');
 const profileRoutes = require('./routes/profile');
+const coursesRoutes = require('./routes/courses');
 
 const app = express();
 
@@ -11,6 +12,7 @@ app.use(express.json({ limit: '10mb' }));
 
 app.use('/api/activities', activitiesRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/courses', coursesRoutes);
 
 app.get('/', (req, res) => {
   res.send('API Commercial Tracker fonctionne');
