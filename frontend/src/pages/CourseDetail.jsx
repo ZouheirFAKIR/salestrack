@@ -12,7 +12,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-function PdfCanvasPage({ pdfDoc, pageNum, containerWidth }) {
+function PdfCanvasPage({ pdfDoc, pageNum, containerWidth, zoom }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -22,7 +22,7 @@ function PdfCanvasPage({ pdfDoc, pageNum, containerWidth }) {
     pdfDoc.getPage(pageNum).then((page) => {
       if (cancelled) return;
       const baseViewport = page.getViewport({ scale: 1 });
-      const scale = containerWidth / baseViewport.width;
+      const scale = (containerWidth / baseViewport.width) * zoom;
       const viewport = page.getViewport({ scale });
 
       const canvas = canvasRef.current;
@@ -30,26 +30,29 @@ function PdfCanvasPage({ pdfDoc, pageNum, containerWidth }) {
       const context = canvas.getContext('2d');
       canvas.width = viewport.width;
       canvas.height = viewport.height;
-      canvas.style.width = '100%';
+      canvas.style.width = `${viewport.width}px`;
       canvas.style.height = 'auto';
 
       page.render({ canvasContext: context, viewport });
     });
 
     return () => { cancelled = true; };
-  }, [pdfDoc, pageNum, containerWidth]);
+  }, [pdfDoc, pageNum, containerWidth, zoom]);
 
-  return <canvas ref={canvasRef} className="block mb-2 rounded shadow-lg" />;
+  return <canvas ref={canvasRef} className="block mb-2 rounded shadow-lg mx-auto" />;
 }
 
 function PdfViewer({ url }) {
   const containerRef = useRef(null);
+  const wrapperRef = useRef(null);
   const [pdfDoc, setPdfDoc] = useState(null);
   const [numPages, setNumPages] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [zoom, setZoom] = useState(1);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,35 +87,114 @@ function PdfViewer({ url }) {
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
-  }, [measure]);
+  }, [measure, isFullscreen]);
+
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      wrapperRef.current?.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
+  };
+
+  const handleDownload = () => {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '';
+    a.target = '_blank';
+    a.click();
+  };
 
   const pages = Array.from({ length: numPages }, (_, i) => i + 1);
 
   return (
     <div
-      ref={containerRef}
-      className="flex-1 min-h-0 bg-[#0a0a0a] border border-white/10 rounded-xl overflow-y-auto overflow-x-hidden p-2"
-      style={{ scrollbarWidth: 'thin', scrollbarColor: `${ACCENT} #1a1a1a` }}
+      ref={wrapperRef}
+      className="flex-1 min-h-0 flex flex-col bg-[#0a0a0a] border border-white/10 rounded-xl overflow-hidden"
+      style={isFullscreen ? { backgroundColor: '#0a0a0a' } : undefined}
     >
-      {loading && (
-        <div className="h-full flex flex-col items-center justify-center gap-3 py-16">
-          <Spinner size={28} color={ACCENT} />
-          <p className="text-xs text-white/50">Chargement du document...</p>
+      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-white/10 shrink-0 bg-[#0d0d0d]">
+        <span className="text-[11px] text-white/40">{numPages > 0 ? `${numPages} page${numPages > 1 ? 's' : ''}` : ''}</span>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setZoom((z) => Math.max(0.6, +(z - 0.2).toFixed(1)))}
+            title="Réduire"
+            className="w-8 h-8 rounded-lg bg-black/60 border border-white/10 hover:border-white/30 text-white/80 hover:text-white flex items-center justify-center text-sm font-semibold transition-all cursor-pointer"
+          >
+            −
+          </button>
+          <button
+            onClick={() => setZoom(1)}
+            title="Taille standard"
+            className="px-2.5 h-8 rounded-lg bg-black/60 border border-white/10 hover:border-white/30 text-white/70 hover:text-white text-xs font-medium transition-all cursor-pointer"
+          >
+            {Math.round(zoom * 100)}%
+          </button>
+          <button
+            onClick={() => setZoom((z) => Math.min(2.5, +(z + 0.2).toFixed(1)))}
+            title="Agrandir"
+            className="w-8 h-8 rounded-lg bg-black/60 border border-white/10 hover:border-white/30 text-white/80 hover:text-white flex items-center justify-center text-sm font-semibold transition-all cursor-pointer"
+          >
+            +
+          </button>
+          <button
+            onClick={handleDownload}
+            title="Télécharger"
+            className="w-8 h-8 rounded-lg bg-black/60 border border-white/10 hover:border-white/30 text-white/80 hover:text-white flex items-center justify-center transition-all cursor-pointer ml-1"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+          </button>
+          <button
+            onClick={toggleFullscreen}
+            title={isFullscreen ? 'Quitter plein écran' : 'Plein écran'}
+            className="w-8 h-8 rounded-lg bg-black/60 border border-white/10 hover:border-white/30 text-white/80 hover:text-white flex items-center justify-center transition-all cursor-pointer"
+          >
+            {isFullscreen ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M15 3h6v6m0-6-7 7M9 21H3v-6m0 6 7-7" />
+              </svg>
+            )}
+          </button>
         </div>
-      )}
-      {error && (
-        <div className="h-full flex flex-col items-center justify-center text-white/40 text-sm py-16 gap-2 px-4 text-center">
-          <p>Impossible d'afficher le document.</p>
-          <p className="text-white/25 text-xs break-all">{errorMsg}</p>
-        </div>
-      )}
-      {!loading && !error && pdfDoc && containerWidth > 0 && (
-        <div className="flex flex-col items-center">
-          {pages.map((p) => (
-            <PdfCanvasPage key={p} pdfDoc={pdfDoc} pageNum={p} containerWidth={containerWidth} />
-          ))}
-        </div>
-      )}
+      </div>
+
+      <div
+        ref={containerRef}
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-auto p-2"
+        style={{ scrollbarWidth: 'thin', scrollbarColor: `${ACCENT} #1a1a1a` }}
+      >
+        {loading && (
+          <div className="h-full flex flex-col items-center justify-center gap-3 py-16">
+            <Spinner size={28} color={ACCENT} />
+            <p className="text-xs text-white/50">Chargement du document...</p>
+          </div>
+        )}
+        {error && (
+          <div className="h-full flex flex-col items-center justify-center text-white/40 text-sm py-16 gap-2 px-4 text-center">
+            <p>Impossible d'afficher le document.</p>
+            <p className="text-white/25 text-xs break-all">{errorMsg}</p>
+          </div>
+        )}
+        {!loading && !error && pdfDoc && containerWidth > 0 && (
+          <div className="flex flex-col items-center min-w-max mx-auto">
+            {pages.map((p) => (
+              <PdfCanvasPage key={p} pdfDoc={pdfDoc} pageNum={p} containerWidth={containerWidth} zoom={zoom} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -198,9 +280,6 @@ function CourseDetail() {
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-semibold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2.5 py-0.5 rounded-full">
               Formation Yealead
-            </span>
-            <span className="text-[11px] text-white/40 bg-white/5 border border-white/10 px-2 py-0.5 rounded-md">
-              ⏳ ~{course.duration_minutes || 12} min
             </span>
           </div>
         </div>
