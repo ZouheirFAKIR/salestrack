@@ -9,6 +9,8 @@ import Profile from './pages/Profile';
 import Badges from './pages/Badges';
 import Courses from './pages/Courses';
 import CourseDetail from './pages/CourseDetail';
+import AdminCourses from './pages/admin/AdminCourses';
+import AdminRoute from './components/AdminRoute';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import TargetModal from './components/TargetModal';
@@ -45,11 +47,7 @@ function AppLayout({ children }) {
   return (
     <div className="min-h-screen bg-black flex flex-col">
       {showModal && (
-        <TargetModal
-          onClose={() => setShowModal(false)}
-          target={dailyTarget}
-          current={currentToday}
-        />
+        <TargetModal onClose={() => setShowModal(false)} target={dailyTarget} current={currentToday} />
       )}
       {showSuccess && <SuccessModal onClose={() => setShowSuccess(false)} />}
       <Navbar />
@@ -72,6 +70,7 @@ function App() {
         <Route path="/badges" element={<AppLayout><Badges /></AppLayout>} />
         <Route path="/courses" element={<AppLayout><Courses /></AppLayout>} />
         <Route path="/courses/:id" element={<AppLayout><CourseDetail /></AppLayout>} />
+        <Route path="/admin/courses" element={<AdminRoute><AppLayout><AdminCourses /></AppLayout></AdminRoute>} />
       </Routes>
     </BrowserRouter>
   );
