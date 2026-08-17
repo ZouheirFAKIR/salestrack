@@ -1,16 +1,12 @@
 import { useEffect, useState } from 'react';
 import Badge from '../components/Badge';
 import PageLoader from '../components/PageLoader';
+import BadgeUnlockModal from '../components/BadgeUnlockModal';
 import { apiFetch } from '../utils/api';
 import { badgeDefinitions, categoryLabels } from '../data/badgeDefinitions';
-import BadgeUnlockModal from '../components/BadgeUnlockModal';
 
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-const [seenBadges, setSeenBadges] = useState([]);
-const [newlyUnlocked, setNewlyUnlocked] = useState([]);
-const [currentUnlockIndex, setCurrentUnlockIndex] = useState(0);
-
 
 function CategorySection({ cat, badges, value, index }) {
   const sorted = [...badges].sort((a, b) => a.threshold - b.threshold);
@@ -68,6 +64,9 @@ function CategorySection({ cat, badges, value, index }) {
 function Badges() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [seenBadges, setSeenBadges] = useState([]);
+  const [newlyUnlocked, setNewlyUnlocked] = useState([]);
+  const [currentUnlockIndex, setCurrentUnlockIndex] = useState(0);
 
   useEffect(() => {
     Promise.all([
@@ -90,7 +89,7 @@ function Badges() {
       if (newOnes.length > 0) {
         setNewlyUnlocked(newOnes);
       }
-    });
+    }).catch(() => setLoading(false));
   }, []);
 
   const markAsSeen = (badgeIds) => {
@@ -130,17 +129,17 @@ function Badges() {
   const overallPercent = Math.round((unlockedCount / totalCount) * 100);
   const categories = ['total', 'streak', 'target', 'appel', 'rdv', 'devis', 'commande'];
 
-  {newlyUnlocked.length > 0 && (
-  <BadgeUnlockModal
-    badge={newlyUnlocked[currentUnlockIndex]}
-    onClose={handleCloseUnlock}
-    onNext={handleNextUnlock}
-    remaining={newlyUnlocked.length - currentUnlockIndex - 1}
-  />
-)}
-
   return (
     <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
+      {newlyUnlocked.length > 0 && (
+        <BadgeUnlockModal
+          badge={newlyUnlocked[currentUnlockIndex]}
+          onClose={handleCloseUnlock}
+          onNext={handleNextUnlock}
+          remaining={newlyUnlocked.length - currentUnlockIndex - 1}
+        />
+      )}
+
       <div className="max-w-3xl mx-auto flex flex-col gap-5">
 
         <div className="rounded-2xl p-6 text-center" style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}>

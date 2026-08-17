@@ -4,7 +4,9 @@ import Confetti from '../components/Confetti';
 import SuccessModal from '../components/SuccessModal';
 import Spinner from '../components/Spinner';
 import PageLoader from '../components/PageLoader';
+import BadgeUnlockModal from '../components/BadgeUnlockModal';
 import { apiFetch } from '../utils/api';
+import { badgeDefinitions } from '../data/badgeDefinitions';
 import phoneIcon from '../assets/Phone.png';
 import calendarIcon from '../assets/calendar.png';
 import documentIcon from '../assets/document.png';
@@ -27,6 +29,8 @@ function NouvelleActivite() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
+  const [newlyUnlocked, setNewlyUnlocked] = useState([]);
+  const [currentUnlockIndex, setCurrentUnlockIndex] = useState(0);
 
   const dailyTarget = 5;
   const token = localStorage.getItem('token');
@@ -81,6 +85,54 @@ function NouvelleActivite() {
     return false;
   };
 
+  const checkForNewBadges = async () => {
+    try {
+      const [badgeStatsRes, seenRes] = await Promise.all([
+        apiFetch(`${API_URL}/api/activities/badge-stats`),
+        apiFetch(`${API_URL}/api/activities/seen-badges`),
+      ]);
+      const badgeStats = await badgeStatsRes.json();
+      const seenData = await seenRes.json();
+
+      const getValue = (category) => {
+        if (category === 'total') return badgeStats.total;
+        if (category === 'streak') return badgeStats.streak;
+        if (category === 'target') return badgeStats.targetDays;
+        return badgeStats.typeCounts[category] || 0;
+      };
+
+      const unlocked = badgeDefinitions.filter((b) => getValue(b.category) >= b.threshold);
+      const newOnes = unlocked.filter((b) => !seenData.includes(b.id));
+      if (newOnes.length > 0) {
+        setNewlyUnlocked(newOnes);
+        setCurrentUnlockIndex(0);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const markAsSeen = (badgeIds) => {
+    apiFetch(`${API_URL}/api/activities/seen-badges`, {
+      method: 'POST',
+      body: JSON.stringify({ badgeIds }),
+    });
+  };
+
+  const handleCloseUnlock = () => {
+    markAsSeen(newlyUnlocked.map((b) => b.id));
+    setNewlyUnlocked([]);
+    setCurrentUnlockIndex(0);
+  };
+
+  const handleNextUnlock = () => {
+    if (currentUnlockIndex < newlyUnlocked.length - 1) {
+      setCurrentUnlockIndex((i) => i + 1);
+    } else {
+      handleCloseUnlock();
+    }
+  };
+
   const handleSubmit = async () => {
     if (!token) { navigate('/login'); return; }
     if (!canSubmit()) return;
@@ -110,6 +162,8 @@ function NouvelleActivite() {
         loadStats();
         setTimeout(() => setShowConfetti(false), 1300);
         setTimeout(() => setMessage(''), 2500);
+
+        checkForNewBadges();
       }
     } catch (err) {
       setShake(true);
@@ -129,6 +183,14 @@ function NouvelleActivite() {
     <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 flex items-center justify-center">
       <Confetti show={showConfetti} />
       {showSuccess && <SuccessModal onClose={() => setShowSuccess(false)} />}
+      {newlyUnlocked.length > 0 && (
+        <BadgeUnlockModal
+          badge={newlyUnlocked[currentUnlockIndex]}
+          onClose={handleCloseUnlock}
+          onNext={handleNextUnlock}
+          remaining={newlyUnlocked.length - currentUnlockIndex - 1}
+        />
+      )}
 
       <div className="max-w-4xl w-full grid grid-cols-1 lg:grid-cols-3 gap-5">
 
