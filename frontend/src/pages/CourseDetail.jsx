@@ -16,30 +16,54 @@ function PdfCanvasPage({ pdfDoc, pageNum, containerWidth, zoom }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
+    let renderTask = null;
     let cancelled = false;
     if (!pdfDoc || !containerWidth) return;
 
     pdfDoc.getPage(pageNum).then((page) => {
       if (cancelled) return;
+
+      // 1. Détecter la densité de pixels de l'écran mobile (Retina = 2x ou 3x)
+      const dpr = Math.min(window.devicePixelRatio || 1, 3);
+
+      // 2. Calcul de l'échelle d'affichage de base
       const baseViewport = page.getViewport({ scale: 1 });
-      const scale = (containerWidth / baseViewport.width) * zoom;
-      const viewport = page.getViewport({ scale });
+      const cssScale = (containerWidth / baseViewport.width) * zoom;
+
+      // 3. Viewport haute résolution pour le moteur de rendu
+      const renderViewport = page.getViewport({ scale: cssScale * dpr });
 
       const canvas = canvasRef.current;
       if (!canvas) return;
-      const context = canvas.getContext('2d');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      canvas.style.width = `${viewport.width}px`;
+      const context = canvas.getContext('2d', { alpha: false });
+
+      // 4. Dimensions réelles (buffer HD)
+      canvas.width = Math.floor(renderViewport.width);
+      canvas.height = Math.floor(renderViewport.height);
+
+      // 5. Dimensions CSS (affichage à l'écran)
+      canvas.style.width = `${Math.floor(baseViewport.width * cssScale)}px`;
       canvas.style.height = 'auto';
 
-      page.render({ canvasContext: context, viewport });
+      renderTask = page.render({
+        canvasContext: context,
+        viewport: renderViewport,
+      });
+
+      renderTask.promise.catch((err) => {
+        if (err?.name !== 'RenderingCancelledException') {
+          console.error(err);
+        }
+      });
     });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (renderTask) renderTask.cancel();
+    };
   }, [pdfDoc, pageNum, containerWidth, zoom]);
 
-  return <canvas ref={canvasRef} className="block mb-2 rounded shadow-lg mx-auto" />;
+  return <canvas ref={canvasRef} className="block mb-3 rounded-lg shadow-xl mx-auto bg-white" />;
 }
 
 function PdfViewer({ url }) {
