@@ -257,11 +257,9 @@ function Profile() {
               {earnedBadges.length === 0 ? (
                 <p className="text-white/35 text-xs">Aucun badge débloqué pour l'instant</p>
               ) : (
-                <div className="flex gap-3 overflow-x-auto pb-1">
-                  {earnedBadges.slice(0, 8).map((b) => (
-                    <div key={b.id} className="shrink-0">
-                      <Badge category={b.category} unlocked={true} label={null} size={48} />
-                    </div>
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
+                  {earnedBadges.slice(0, 12).map((b) => (
+                    <Badge key={b.id} category={b.category} unlocked={true} label={null} size={48} />
                   ))}
                 </div>
               )}
