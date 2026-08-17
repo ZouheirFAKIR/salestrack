@@ -40,7 +40,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
     let options = [];
     if (questionIds.length > 0) {
       const optionsResult = await pool.query(
-        'SELECT id, question_id, option_text FROM quiz_options WHERE question_id = ANY($1::int[])',
+        'SELECT id, question_id, option_text, is_correct FROM quiz_options WHERE question_id = ANY($1::int[])',
         [questionIds]
       );
       options = optionsResult.rows;
