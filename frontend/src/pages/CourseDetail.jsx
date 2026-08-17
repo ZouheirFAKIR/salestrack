@@ -49,20 +49,27 @@ function PdfViewer({ url }) {
   const [containerWidth, setContainerWidth] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(false);
-    pdfjsLib.getDocument(url).promise
+    setErrorMsg('');
+    pdfjsLib.getDocument({ url, disableStream: true, disableRange: true }).promise
       .then((doc) => {
         if (cancelled) return;
         setPdfDoc(doc);
         setNumPages(doc.numPages);
         setLoading(false);
       })
-      .catch(() => {
-        if (!cancelled) { setError(true); setLoading(false); }
+      .catch((err) => {
+        console.error('Erreur PDF.js :', err);
+        if (!cancelled) {
+          setError(true);
+          setErrorMsg(err?.message || String(err));
+          setLoading(false);
+        }
       });
     return () => { cancelled = true; };
   }, [url]);
@@ -94,8 +101,9 @@ function PdfViewer({ url }) {
         </div>
       )}
       {error && (
-        <div className="h-full flex items-center justify-center text-white/40 text-sm py-16">
-          Impossible d'afficher le document.
+        <div className="h-full flex flex-col items-center justify-center text-white/40 text-sm py-16 gap-2 px-4 text-center">
+          <p>Impossible d'afficher le document.</p>
+          <p className="text-white/25 text-xs break-all">{errorMsg}</p>
         </div>
       )}
       {!loading && !error && pdfDoc && containerWidth > 0 && (
@@ -175,7 +183,7 @@ function CourseDetail() {
   const totalQuestions = course.questions?.length || 0;
 
   return (
-    <div className="bg-black text-white min-h-[calc(100dvh-64px)] flex flex-col p-3 sm:p-5">
+    <div className="bg-black text-white h-[calc(100dvh-64px)] overflow-hidden flex flex-col p-3 sm:p-5">
       <div className="max-w-5xl w-full mx-auto flex-1 flex flex-col min-h-0 gap-2.5">
         <div className="flex items-center justify-between gap-3 flex-wrap shrink-0">
           <Link
