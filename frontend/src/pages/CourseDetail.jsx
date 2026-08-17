@@ -1,220 +1,110 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import * as pdfjsLib from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
 import { apiFetch } from '../utils/api';
 import PageLoader from '../components/PageLoader';
 import Spinner from '../components/Spinner';
 import Confetti from '../components/Confetti';
 
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-function PdfCanvasPage({ pdfDoc, pageNum, zoomScale }) {
+function PdfCanvasPage({ pdfDoc, pageNum, containerWidth }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
-    let renderTask = null;
-    let isCancelled = false;
+    let cancelled = false;
+    if (!pdfDoc || !containerWidth) return;
 
-    async function renderPage() {
-      if (!pdfDoc || !canvasRef.current) return;
-      try {
-        const page = await pdfDoc.getPage(pageNum);
-        if (isCancelled || !canvasRef.current) return;
+    pdfDoc.getPage(pageNum).then((page) => {
+      if (cancelled) return;
+      const baseViewport = page.getViewport({ scale: 1 });
+      const scale = containerWidth / baseViewport.width;
+      const viewport = page.getViewport({ scale });
 
-        const canvas = canvasRef.current;
-        const context = canvas.getContext('2d');
-        const unscaledViewport = page.getViewport({ scale: 1 });
-        const parentWidth = canvas.parentElement?.clientWidth || 750;
-        const baseWidth = Math.min(parentWidth - 32, 750);
-        const baseScale = baseWidth / unscaledViewport.width;
-        const finalScale = Math.max(baseScale * zoomScale, 0.8);
-        const viewport = page.getViewport({ scale: finalScale });
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const context = canvas.getContext('2d');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      canvas.style.width = '100%';
+      canvas.style.height = 'auto';
 
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
+      page.render({ canvasContext: context, viewport });
+    });
 
-        renderTask = page.render({ canvasContext: context, viewport });
-        await renderTask.promise;
-      } catch (err) {
-        if (err?.name !== 'RenderingCancelledException') {
-          console.error(`Erreur rendu page ${pageNum}:`, err);
-        }
-      }
-    }
+    return () => { cancelled = true; };
+  }, [pdfDoc, pageNum, containerWidth]);
 
-    renderPage();
-
-    return () => {
-      isCancelled = true;
-      if (renderTask) renderTask.cancel();
-    };
-  }, [pdfDoc, pageNum, zoomScale]);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      className="mx-auto rounded-xl mb-4 shadow-2xl border border-white/5 block bg-white transition-transform duration-200"
-    />
-  );
+  return <canvas ref={canvasRef} className="block mb-2 rounded shadow-lg" />;
 }
 
-function PdfScrollableContainer({ url }) {
+function PdfViewer({ url }) {
   const containerRef = useRef(null);
   const [pdfDoc, setPdfDoc] = useState(null);
-  const [pages, setPages] = useState([]);
+  const [numPages, setNumPages] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [zoomScale, setZoomScale] = useState(1.1);
-  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
-    let isCancelled = false;
-
-    async function loadPdf() {
-      try {
-        setLoading(true);
-        setError(false);
-
-        if (!window.pdfjsLib) {
-          await new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-            script.onload = resolve;
-            script.onerror = reject;
-            document.head.appendChild(script);
-          });
-          window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        }
-
-        const doc = await window.pdfjsLib.getDocument(url).promise;
-        if (!isCancelled) {
-          setPdfDoc(doc);
-          setPages(Array.from({ length: doc.numPages }, (_, i) => i + 1));
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error('Erreur chargement PDF:', err);
-        if (!isCancelled) {
-          setError(true);
-          setLoading(false);
-        }
-      }
-    }
-
-    if (url) loadPdf();
-
-    return () => {
-      isCancelled = true;
-    };
+    let cancelled = false;
+    setLoading(true);
+    setError(false);
+    pdfjsLib.getDocument(url).promise
+      .then((doc) => {
+        if (cancelled) return;
+        setPdfDoc(doc);
+        setNumPages(doc.numPages);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) { setError(true); setLoading(false); }
+      });
+    return () => { cancelled = true; };
   }, [url]);
 
-  const handleZoomIn = () => setZoomScale((prev) => Math.min(prev + 0.2, 2.2));
-  const handleZoomOut = () => setZoomScale((prev) => Math.max(prev - 0.2, 0.7));
-  const handleResetZoom = () => setZoomScale(1.1);
-
-  const toggleFullscreen = () => {
-    if (!containerRef.current) return;
-    if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen().catch(() => {});
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen().catch(() => {});
-      setIsFullscreen(false);
+  const measure = useCallback(() => {
+    if (containerRef.current) {
+      setContainerWidth(containerRef.current.clientWidth - 16);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    const handleFsChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFsChange);
-    return () => document.removeEventListener('fullscreenchange', handleFsChange);
-  }, []);
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [measure]);
+
+  const pages = Array.from({ length: numPages }, (_, i) => i + 1);
 
   return (
     <div
       ref={containerRef}
-      className={`flex-1 w-full bg-[#111111] border border-white/10 rounded-2xl flex flex-col min-h-0 overflow-hidden shadow-2xl ${
-        isFullscreen ? 'p-6 fixed inset-0 z-50 rounded-none' : ''
-      }`}
+      className="flex-1 min-h-0 bg-[#0a0a0a] border border-white/10 rounded-xl overflow-y-auto overflow-x-hidden p-2"
+      style={{ scrollbarWidth: 'thin', scrollbarColor: `${ACCENT} #1a1a1a` }}
     >
-      <div className="bg-white/5 px-4 py-2.5 border-b border-white/10 flex items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-white/50 font-medium">
-            {pages.length > 0 ? `${pages.length} pages` : 'Document'}
-          </span>
-          <span className="text-xs text-white/30">•</span>
-          <span className="text-xs text-white/60 font-mono">
-            {Math.round(zoomScale * 100)}%
-          </span>
+      {loading && (
+        <div className="h-full flex flex-col items-center justify-center gap-3 py-16">
+          <Spinner size={28} color={ACCENT} />
+          <p className="text-xs text-white/50">Chargement du document...</p>
         </div>
-
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={handleZoomOut}
-            title="Réduire"
-            className="w-8 h-8 rounded-lg bg-black/60 border border-white/10 hover:border-white/30 text-white/80 hover:text-white flex items-center justify-center text-sm font-semibold transition-all cursor-pointer"
-          >
-            −
-          </button>
-          <button
-            onClick={handleResetZoom}
-            title="Taille standard"
-            className="px-2.5 h-8 rounded-lg bg-black/60 border border-white/10 hover:border-white/30 text-white/70 hover:text-white text-xs font-medium transition-all cursor-pointer"
-          >
-            100%
-          </button>
-          <button
-            onClick={handleZoomIn}
-            title="Agrandir"
-            className="w-8 h-8 rounded-lg bg-black/60 border border-white/10 hover:border-white/30 text-white/80 hover:text-white flex items-center justify-center text-sm font-semibold transition-all cursor-pointer"
-          >
-            +
-          </button>
-          <button
-            onClick={toggleFullscreen}
-            title={isFullscreen ? 'Quitter plein écran' : 'Plein écran'}
-            className="w-8 h-8 rounded-lg bg-black/60 border border-white/10 hover:border-white/30 text-white/80 hover:text-white flex items-center justify-center text-xs transition-all cursor-pointer ml-1"
-          >
-            {isFullscreen ? (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
-              </svg>
-            ) : (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M15 3h6v6m0-6-7 7M9 21H3v-6m0 6 7-7" />
-              </svg>
-            )}
-          </button>
+      )}
+      {error && (
+        <div className="h-full flex items-center justify-center text-white/40 text-sm py-16">
+          Impossible d'afficher le document.
         </div>
-      </div>
-
-      <div
-        className="flex-1 p-4 overflow-y-auto overflow-x-auto"
-        style={{ scrollbarWidth: 'thin', scrollbarColor: `${ACCENT} #1a1a1a` }}
-      >
-        {loading && (
-          <div className="h-full flex flex-col items-center justify-center gap-3 py-16">
-            <Spinner size={32} color={ACCENT} />
-            <p className="text-xs text-white/50">Chargement du document...</p>
-          </div>
-        )}
-
-        {error && (
-          <div className="h-full flex items-center justify-center text-white/40 text-sm">
-            <p>Impossible d'afficher le document.</p>
-          </div>
-        )}
-
-        {!loading && !error && pdfDoc && (
-          <div className="flex flex-col items-center min-w-max mx-auto">
-            {pages.map((p) => (
-              <PdfCanvasPage key={p} pdfDoc={pdfDoc} pageNum={p} zoomScale={zoomScale} />
-            ))}
-          </div>
-        )}
-      </div>
+      )}
+      {!loading && !error && pdfDoc && containerWidth > 0 && (
+        <div className="flex flex-col items-center">
+          {pages.map((p) => (
+            <PdfCanvasPage key={p} pdfDoc={pdfDoc} pageNum={p} containerWidth={containerWidth} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -233,10 +123,7 @@ function CourseDetail() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!token) {
-      navigate('/login');
-      return;
-    }
+    if (!token) { navigate('/login'); return; }
     apiFetch(`${API_URL}/api/courses/${id}`)
       .then((r) => r.json())
       .then((data) => {
@@ -288,9 +175,9 @@ function CourseDetail() {
   const totalQuestions = course.questions?.length || 0;
 
   return (
-    <div className="bg-black text-white h-[calc(100vh-64px)] overflow-hidden flex flex-col p-3 sm:p-5">
-      <div className="max-w-5xl w-full mx-auto flex-1 flex flex-col min-h-0">
-        <div className="flex items-center justify-between gap-3 mb-2 shrink-0">
+    <div className="bg-black text-white min-h-[calc(100dvh-64px)] flex flex-col p-3 sm:p-5">
+      <div className="max-w-5xl w-full mx-auto flex-1 flex flex-col min-h-0 gap-2.5">
+        <div className="flex items-center justify-between gap-3 flex-wrap shrink-0">
           <Link
             to="/courses"
             className="text-white/40 text-xs hover:text-white transition-colors inline-flex items-center gap-1.5"
@@ -314,10 +201,10 @@ function CourseDetail() {
           <div className="flex-1 flex flex-col min-h-0 gap-2.5 animate-[fadeIn_0.25s_ease]">
             <div className="shrink-0">
               <h1 className="text-base sm:text-lg font-bold text-white leading-tight">{course.title}</h1>
-              <p className="text-xs text-white/50 truncate mt-0.5">{course.description}</p>
+              <p className="text-xs text-white/50 mt-0.5">{course.description}</p>
             </div>
 
-            <PdfScrollableContainer url={course.content_url || '/Strategie-prescription.pdf'} />
+            <PdfViewer url={course.content_url || '/Strategie-prescription.pdf'} />
 
             <button
               onClick={() => setStep('quiz')}
@@ -341,7 +228,7 @@ function CourseDetail() {
               </div>
               <button
                 onClick={handleRestart}
-                className="text-xs px-2.5 py-1 rounded-lg border border-white/15 text-white/60 hover:text-white transition-all cursor-pointer"
+                className="text-xs px-2.5 py-1 rounded-lg border border-white/15 text-white/60 hover:text-white transition-all cursor-pointer shrink-0"
               >
                 Recommencer
               </button>
@@ -372,11 +259,9 @@ function CourseDetail() {
 
                         if (isAnswered) {
                           if (isChosen) {
-                            if (isCorrect) {
-                              optionStyle = 'bg-emerald-950/60 border-emerald-500 text-emerald-300 font-medium cursor-default ring-1 ring-emerald-500';
-                            } else {
-                              optionStyle = 'bg-rose-950/60 border-rose-500 text-rose-300 font-medium cursor-default ring-1 ring-rose-500';
-                            }
+                            optionStyle = isCorrect
+                              ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 font-medium cursor-default ring-1 ring-emerald-500'
+                              : 'bg-rose-950/60 border-rose-500 text-rose-300 font-medium cursor-default ring-1 ring-rose-500';
                           } else if (isCorrect) {
                             optionStyle = 'bg-emerald-950/30 border-emerald-500/70 text-emerald-400 font-medium cursor-default';
                           } else {

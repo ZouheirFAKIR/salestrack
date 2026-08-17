@@ -7,8 +7,10 @@ router.get('/', authMiddleware, async (req, res) => {
   try {
     const courses = await pool.query('SELECT * FROM courses ORDER BY id ASC');
     const attempts = await pool.query(
-      `SELECT course_id, MAX(score) as best_score, MAX(max_score) as max_score
-       FROM quiz_attempts WHERE commercial_id = $1 GROUP BY course_id`,
+      `SELECT DISTINCT ON (course_id) course_id, score as best_score, max_score
+       FROM quiz_attempts
+       WHERE commercial_id = $1
+       ORDER BY course_id, score DESC, completed_at DESC`,
       [req.userId]
     );
     const attemptMap = {};
@@ -17,8 +19,8 @@ router.get('/', authMiddleware, async (req, res) => {
     const result = courses.rows.map((c) => ({
       ...c,
       completed: !!attemptMap[c.id],
-      best_score: attemptMap[c.id]?.best_score || null,
-      max_score: attemptMap[c.id]?.max_score || null,
+      best_score: attemptMap[c.id]?.best_score ?? null,
+      max_score: attemptMap[c.id]?.max_score ?? null,
     }));
     res.json(result);
   } catch (err) {
