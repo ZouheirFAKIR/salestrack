@@ -35,7 +35,7 @@ function CourseDetail() {
     setAnswers((prev) => ({ ...prev, [questionId]: optionId }));
   };
 
-  const allAnswered = course?.questions.every((q) => answers[q.id]);
+  const allAnswered = course?.questions?.every((q) => answers[q.id]);
 
   const handleSubmit = async () => {
     if (!allAnswered) {
@@ -63,7 +63,7 @@ function CourseDetail() {
 
   return (
     <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-4xl mx-auto">
 
         <Link to="/courses" className="text-white/40 text-sm hover:text-white transition-colors flex items-center gap-1 mb-5">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -74,27 +74,43 @@ function CourseDetail() {
 
         {step === 'reading' && (
           <>
-            <h1 className="text-lg font-semibold text-white mb-1">{course.title}</h1>
+            <h1 className="text-xl font-semibold text-white mb-1">{course.title}</h1>
             <p className="text-white/40 text-sm mb-6">{course.description}</p>
 
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-5">
+            <div className="bg-[#111] border border-white/10 rounded-2xl overflow-hidden mb-6 shadow-2xl">
               {course.content_type === 'pdf' && course.content_url ? (
-                <iframe
-                  src={course.content_url}
-                  title={course.title}
-                  className="w-full rounded-lg"
-                  style={{ height: '60vh', border: 'none' }}
-                />
+                <object
+                  data={`${course.content_url}#toolbar=0&navpanes=0`}
+                  type="application/pdf"
+                  className="w-full rounded-2xl"
+                  style={{ height: '70vh' }}
+                >
+                  {/* Alternative si le navigateur ne supporte pas l'affichage direct */}
+                  <div className="p-8 text-center text-white/60">
+                    <p className="mb-4">Document PDF prêt pour la lecture.</p>
+                    <a
+                      href={course.content_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-medium text-sm transition-all hover:brightness-110"
+                      style={{ backgroundColor: ACCENT }}
+                    >
+                      Ouvrir le document dans un nouvel onglet
+                    </a>
+                  </div>
+                </object>
               ) : (
-                <p className="text-white/60 text-sm leading-relaxed whitespace-pre-wrap">
-                  {course.content_url || 'Contenu du cours non disponible.'}
-                </p>
+                <div className="p-6">
+                  <p className="text-white/70 text-sm leading-relaxed whitespace-pre-wrap">
+                    {course.content_url || 'Contenu du cours non disponible.'}
+                  </p>
+                </div>
               )}
             </div>
 
             <button
               onClick={() => setStep('quiz')}
-              className="w-full text-white p-3 rounded-lg font-medium transition-all hover:brightness-110 active:scale-95"
+              className="w-full text-white p-3.5 rounded-xl font-medium transition-all hover:brightness-110 active:scale-[0.99] shadow-lg cursor-pointer"
               style={{ backgroundColor: ACCENT }}
             >
               J'ai terminé la lecture, passer au quiz
@@ -116,7 +132,7 @@ function CourseDetail() {
                       <button
                         key={opt.id}
                         onClick={() => handleSelectAnswer(q.id, opt.id)}
-                        className="text-left p-3 rounded-lg text-sm border transition-all"
+                        className="text-left p-3 rounded-lg text-sm border transition-all cursor-pointer"
                         style={answers[q.id] === opt.id
                           ? { backgroundColor: ACCENT, borderColor: ACCENT, color: '#fff', fontWeight: 500 }
                           : { backgroundColor: '#000', borderColor: 'rgba(255,255,255,0.15)', color: '#fff' }}
@@ -134,7 +150,7 @@ function CourseDetail() {
             <button
               onClick={handleSubmit}
               disabled={submitting}
-              className="w-full mt-5 text-white p-3 rounded-lg font-medium transition-all hover:brightness-110 active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
+              className="w-full mt-5 text-white p-3 rounded-lg font-medium transition-all hover:brightness-110 active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer"
               style={{ backgroundColor: ACCENT }}
             >
               {submitting && <Spinner size={15} color="#fff" />}
