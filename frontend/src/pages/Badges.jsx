@@ -7,6 +7,10 @@ import BadgeUnlockModal from '../components/BadgeUnlockModal';
 
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const [seenBadges, setSeenBadges] = useState([]);
+const [newlyUnlocked, setNewlyUnlocked] = useState([]);
+const [currentUnlockIndex, setCurrentUnlockIndex] = useState(0);
+
 
 function CategorySection({ cat, badges, value, index }) {
   const sorted = [...badges].sort((a, b) => a.threshold - b.threshold);
