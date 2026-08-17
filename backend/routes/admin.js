@@ -143,5 +143,108 @@ router.delete('/questions/:id', async (req, res) => {
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
+// Liste tous les commerciaux avec leurs stats
+router.get('/commercials', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        u.id, u.nom, u.email, u.role, u.photo_url,
+        COALESCE(q.daily_target, 5) as daily_target,
+        COUNT(a.id) as total_activities,
+        COUNT(a.id) FILTER (WHERE DATE(a.date_activite) = CURRENT_DATE) as today_activities
+      FROM users u
+      LEFT JOIN quotas q ON q.commercial_id = u.id
+      LEFT JOIN activities a ON a.commercial_id = u.id
+      WHERE u.role != 'admin' OR u.role IS NULL
+      GROUP BY u.id, q.daily_target
+      ORDER BY u.nom ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Détail d'un commercial (activités par type + par jour)
+router.get('/commercials/:id', async (req, res) => {
+  try {
+    const user = await pool.query('SELECT id, nom, email, photo_url FROM users WHERE id = $1', [req.params.id]);
+    if (user.rows.length === 0) return res.status(404).json({ error: 'Introuvable' });
+
+    const stats = await pool.query(
+      `SELECT type, COUNT(*) as total FROM activities WHERE commercial_id = $1 GROUP BY type`,
+      [req.params.id]
+    );
+    const daily = await pool.query(
+      `SELECT TO_CHAR(d, 'YYYY-MM-DD') as jour, COALESCE(COUNT(a.id), 0) as total
+       FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') d
+       LEFT JOIN activities a ON DATE(a.date_activite) = d AND a.commercial_id = $1
+       GROUP BY d ORDER BY d ASC`,
+      [req.params.id]
+    );
+    const quota = await pool.query('SELECT daily_target FROM quotas WHERE commercial_id = $1', [req.params.id]);
+
+    res.json({
+      user: user.rows[0],
+      stats: stats.rows,
+      daily: daily.rows,
+      daily_target: quota.rows[0]?.daily_target || 5,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Définir/modifier le quota d'un commercial
+router.put('/commercials/:id/quota', async (req, res) => {
+  const { daily_target } = req.body;
+  if (!daily_target || daily_target < 1) return res.status(400).json({ error: 'Quota invalide' });
+
+  try {
+    await pool.query(
+      `INSERT INTO quotas (commercial_id, daily_target) VALUES ($1, $2)
+       ON CONFLICT (commercial_id) DO UPDATE SET daily_target = $2, updated_at = NOW()`,
+      [req.params.id, daily_target]
+    );
+    res.json({ message: 'Quota mis à jour' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Rapport CSV téléchargeable : niveau d'atteinte des quotas
+router.get('/report/quotas', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        u.nom, u.email,
+        COALESCE(q.daily_target, 5) as objectif_quotidien,
+        COUNT(a.id) FILTER (WHERE DATE(a.date_activite) = CURRENT_DATE) as activites_aujourdhui,
+        COUNT(a.id) as activites_total
+      FROM users u
+      LEFT JOIN quotas q ON q.commercial_id = u.id
+      LEFT JOIN activities a ON a.commercial_id = u.id
+      WHERE u.role != 'admin' OR u.role IS NULL
+      GROUP BY u.id, q.daily_target
+      ORDER BY u.nom ASC
+    `);
+
+    let csv = 'Nom,Email,Objectif quotidien,Activites aujourd\'hui,Taux atteinte (%),Activites total\n';
+    result.rows.forEach((r) => {
+      const taux = Math.min(Math.round((r.activites_aujourdhui / r.objectif_quotidien) * 100), 100);
+      csv += `"${r.nom}","${r.email}",${r.objectif_quotidien},${r.activites_aujourdhui},${taux}%,${r.activites_total}\n`;
+    });
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="rapport_quotas.csv"');
+    res.send('\uFEFF' + csv);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
 
 module.exports = router;

@@ -16,6 +16,7 @@ import Signup from './pages/Signup';
 import TargetModal from './components/TargetModal';
 import SuccessModal from './components/SuccessModal';
 import { apiFetch } from './utils/api';
+import AdminDashboard from './pages/admin/AdminDashboard';
 
 const dailyTarget = 5;
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -71,6 +72,7 @@ function App() {
         <Route path="/courses" element={<AppLayout><Courses /></AppLayout>} />
         <Route path="/courses/:id" element={<AppLayout><CourseDetail /></AppLayout>} />
         <Route path="/admin/courses" element={<AdminRoute><AppLayout><AdminCourses /></AppLayout></AdminRoute>} />
+        <Route path="/admin" element={<AdminRoute><AppLayout><AdminDashboard /></AppLayout></AdminRoute>} />
       </Routes>
     </BrowserRouter>
   );
