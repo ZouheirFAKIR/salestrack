@@ -1,18 +1,19 @@
 const tiers = [1, 5, 10, 25, 50, 100, 250, 500];
 
-const activityBadges = (category, label) =>
+const makeLabels = (singular, plural) =>
   tiers.map((t) => ({
-    id: `${category}-${t}`,
-    category,
     threshold: t,
-    label: t === 1 ? `Premier ${label}` : `${t} ${label}s`,
+    label: t === 1 ? `Premier ${singular}` : `${t} ${plural}`,
   }));
 
+const activityBadges = (category, singular, plural) =>
+  makeLabels(singular, plural).map((l) => ({ id: `${category}-${l.threshold}`, category, ...l }));
+
 export const badgeDefinitions = [
-  ...activityBadges('appel', 'appel'),
-  ...activityBadges('rdv', 'rendez-vous'),
-  ...activityBadges('devis', 'devis'),
-  ...activityBadges('commande', 'commande'),
+  ...activityBadges('appel', 'appel', 'appels'),
+  ...activityBadges('rdv', 'rendez-vous', 'rendez-vous'),
+  ...activityBadges('devis', 'devis', 'devis'),
+  ...activityBadges('commande', 'commande', 'commandes'),
 
   { id: 'total-1', category: 'total', threshold: 1, label: 'Première activité' },
   { id: 'total-10', category: 'total', threshold: 10, label: '10 activités' },
@@ -44,4 +45,4 @@ export const categoryLabels = {
   total: 'Activités totales',
   streak: 'Séries',
   target: 'Objectifs quotidiens',
-};  
+};

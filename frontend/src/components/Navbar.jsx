@@ -18,6 +18,7 @@ function Navbar() {
     { path: '/nouvelle-activite', label: 'Nouvelle activité', icon: addIcon },
     { path: '/', label: 'Dashboard', icon: dashboardIcon },
     { path: '/feed', label: 'Feed', icon: feedIcon },
+    { path: '/badges', label: 'Badges', icon: null },
   ];
 
   const handleLogout = () => {
@@ -48,7 +49,14 @@ function Navbar() {
               onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = '#fff'; }}
               onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = 'rgba(255,255,255,0.55)'; }}
             >
-              <img src={link.icon} alt="" className="w-4 h-4" style={{ filter: active ? 'brightness(0) invert(1)' : 'brightness(0) invert(1) opacity(0.6)' }} />
+              {link.icon ? (
+                <img src={link.icon} alt="" className="w-4 h-4" style={{ filter: active ? 'brightness(0) invert(1)' : 'brightness(0) invert(1) opacity(0.6)' }} />
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8.21 13.89L7 23l5-3 5 3-1.21-9.12" />
+                  <circle cx="12" cy="8" r="6" />
+                </svg>
+              )}
               <span className="hidden sm:inline">{link.label}</span>
             </Link>
           );

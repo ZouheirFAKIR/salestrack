@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import NouvelleActivite from './pages/NouvelleActivite';
 import Feed from './pages/Feed';
 import Profile from './pages/Profile';
+import Badges from './pages/Badges';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import TargetModal from './components/TargetModal';
@@ -66,6 +67,7 @@ function App() {
         <Route path="/nouvelle-activite" element={<AppLayout><NouvelleActivite /></AppLayout>} />
         <Route path="/feed" element={<AppLayout><Feed /></AppLayout>} />
         <Route path="/profile" element={<AppLayout><Profile /></AppLayout>} />
+        <Route path="/badges" element={<AppLayout><Badges /></AppLayout>} />
       </Routes>
     </BrowserRouter>
   );

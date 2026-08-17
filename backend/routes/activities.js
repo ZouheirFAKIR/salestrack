@@ -209,4 +209,35 @@ router.get('/badge-stats', authMiddleware, async (req, res) => {
   }
 });
 
+router.get('/seen-badges', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT badge_id FROM seen_badges WHERE commercial_id = $1',
+      [req.userId]
+    );
+    res.json(result.rows.map((r) => r.badge_id));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.post('/seen-badges', authMiddleware, async (req, res) => {
+  const { badgeIds } = req.body;
+  if (!Array.isArray(badgeIds) || badgeIds.length === 0) {
+    return res.status(400).json({ error: 'badgeIds requis' });
+  }
+  try {
+    const values = badgeIds.map((_, i) => `($1, $${i + 2})`).join(',');
+    await pool.query(
+      `INSERT INTO seen_badges (commercial_id, badge_id) VALUES ${values} ON CONFLICT DO NOTHING`,
+      [req.userId, ...badgeIds]
+    );
+    res.json({ message: 'ok' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 module.exports = router;

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { apiFetch } from '../utils/api';
 import Spinner from '../components/Spinner';
 import PageLoader from '../components/PageLoader';
-import BadgesGrid from '../components/BadgesGrid';
+import Badge from '../components/Badge';
+import { badgeDefinitions } from '../data/badgeDefinitions';
 
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -31,6 +32,8 @@ function Profile() {
   const [passwordError, setPasswordError] = useState('');
   const [passwordMessage, setPasswordMessage] = useState('');
 
+  const [badgeStats, setBadgeStats] = useState(null);
+
   useEffect(() => {
     if (!token) { navigate('/login'); return; }
     apiFetch(`${API_URL}/api/profile`)
@@ -45,6 +48,20 @@ function Profile() {
       })
       .catch(() => setPageLoading(false));
   }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    apiFetch(`${API_URL}/api/activities/badge-stats`).then((r) => r.json()).then(setBadgeStats);
+  }, [token]);
+
+  const getBadgeValue = (category) => {
+    if (!badgeStats) return 0;
+    if (category === 'total') return badgeStats.total;
+    if (category === 'streak') return badgeStats.streak;
+    if (category === 'target') return badgeStats.targetDays;
+    return badgeStats.typeCounts[category] || 0;
+  };
+  const earnedBadges = badgeStats ? badgeDefinitions.filter((b) => getBadgeValue(b.category) >= b.threshold) : [];
 
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
@@ -233,6 +250,24 @@ function Profile() {
             </div>
 
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-semibold text-white">Mes badges</p>
+                <Link to="/badges" className="text-xs font-medium" style={{ color: ACCENT }}>Voir tout →</Link>
+              </div>
+              {earnedBadges.length === 0 ? (
+                <p className="text-white/35 text-xs">Aucun badge débloqué pour l'instant</p>
+              ) : (
+                <div className="flex gap-3 overflow-x-auto pb-1">
+                  {earnedBadges.slice(0, 8).map((b) => (
+                    <div key={b.id} className="shrink-0">
+                      <Badge category={b.category} unlocked={true} label={null} size={48} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
               <div className="flex items-center justify-between mb-1">
                 <p className="text-sm font-medium text-white">Sécurité</p>
                 {!showPasswordForm && (
@@ -305,11 +340,6 @@ function Profile() {
           </div>
 
         </div>
-        
-        <div className="mt-8">
-          <BadgesGrid />
-        </div>
-
       </div>
     </div>
   );
