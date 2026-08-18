@@ -143,20 +143,25 @@ router.delete('/questions/:id', async (req, res) => {
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
+
 // Liste tous les commerciaux avec leurs stats
 router.get('/commercials', async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
         u.id, u.nom, u.email, u.role, u.photo_url,
-        COALESCE(q.daily_target, 5) as daily_target,
+        COALESCE(tq.total_target, 9) as daily_target,
         COUNT(a.id) as total_activities,
         COUNT(a.id) FILTER (WHERE DATE(a.date_activite) = CURRENT_DATE) as today_activities
       FROM users u
-      LEFT JOIN quotas q ON q.commercial_id = u.id
+      LEFT JOIN (
+        SELECT commercial_id, SUM(daily_target) as total_target
+        FROM type_quotas
+        GROUP BY commercial_id
+      ) tq ON tq.commercial_id = u.id
       LEFT JOIN activities a ON a.commercial_id = u.id
       WHERE u.role != 'admin' OR u.role IS NULL
-      GROUP BY u.id, q.daily_target
+      GROUP BY u.id, tq.total_target
       ORDER BY u.nom ASC
     `);
     res.json(result.rows);
@@ -183,13 +188,16 @@ router.get('/commercials/:id', async (req, res) => {
        GROUP BY d ORDER BY d ASC`,
       [req.params.id]
     );
-    const quota = await pool.query('SELECT daily_target FROM quotas WHERE commercial_id = $1', [req.params.id]);
+    const typeQuotaTotal = await pool.query(
+      'SELECT COALESCE(SUM(daily_target), 9) as total_target FROM type_quotas WHERE commercial_id = $1',
+      [req.params.id]
+    );
 
     res.json({
       user: user.rows[0],
       stats: stats.rows,
       daily: daily.rows,
-      daily_target: quota.rows[0]?.daily_target || 5,
+      daily_target: typeQuotaTotal.rows[0].total_target,
     });
   } catch (err) {
     console.error(err);
@@ -197,7 +205,7 @@ router.get('/commercials/:id', async (req, res) => {
   }
 });
 
-// Définir/modifier le quota d'un commercial
+// Définir/modifier le quota d'un commercial (legacy, non utilisé par l'UI actuelle)
 router.put('/commercials/:id/quota', async (req, res) => {
   const { daily_target } = req.body;
   if (!daily_target || daily_target < 1) return res.status(400).json({ error: 'Quota invalide' });
@@ -221,14 +229,18 @@ router.get('/report/quotas', async (req, res) => {
     const result = await pool.query(`
       SELECT 
         u.nom, u.email,
-        COALESCE(q.daily_target, 5) as objectif_quotidien,
+        COALESCE(tq.total_target, 9) as objectif_quotidien,
         COUNT(a.id) FILTER (WHERE DATE(a.date_activite) = CURRENT_DATE) as activites_aujourdhui,
         COUNT(a.id) as activites_total
       FROM users u
-      LEFT JOIN quotas q ON q.commercial_id = u.id
+      LEFT JOIN (
+        SELECT commercial_id, SUM(daily_target) as total_target
+        FROM type_quotas
+        GROUP BY commercial_id
+      ) tq ON tq.commercial_id = u.id
       LEFT JOIN activities a ON a.commercial_id = u.id
       WHERE u.role != 'admin' OR u.role IS NULL
-      GROUP BY u.id, q.daily_target
+      GROUP BY u.id, tq.total_target
       ORDER BY u.nom ASC
     `);
 
