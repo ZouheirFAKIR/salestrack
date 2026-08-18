@@ -151,17 +151,17 @@ function Profile() {
   if (pageLoading) return <PageLoader />;
 
   return (
-    <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6">
+    <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-20">
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
           <h1 className="text-lg font-semibold text-white">Mon profil</h1>
           <p className="text-white/40 text-xs">Gère tes informations personnelles</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
 
-          <div className="lg:col-span-1">
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col items-center text-center sticky top-20">
+          <div className="lg:col-span-1 flex flex-col gap-4 lg:sticky lg:top-20">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col items-center text-center">
               <div className="relative mb-4">
                 {photoLoading ? (
                   <div className="w-24 h-24 rounded-full bg-black border border-white/10 flex items-center justify-center">
@@ -193,6 +193,26 @@ function Profile() {
               )}
               <p className="text-white/35 text-xs mt-3 break-all">{email}</p>
               {phone && <p className="text-white/35 text-xs mt-1">{phone}</p>}
+            </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+              <p className="text-xs text-white/40 uppercase tracking-wide mb-3">Résumé</p>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-white/60">Badges débloqués</span>
+                  <span className="text-sm font-semibold text-white">{earnedBadges.length}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-white/60">Statut du compte</span>
+                  <span className="text-sm font-semibold" style={{ color: ACCENT }}>{role === 'admin' ? 'Administrateur' : 'Commercial'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl p-5 text-center" style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}>
+              <p className="text-xl mb-1">💡</p>
+              <p className="text-white text-xs font-medium">Garde ton profil à jour</p>
+              <p className="text-white/70 text-[11px] mt-1">Une photo et un rôle renseigné facilitent le suivi de l'équipe</p>
             </div>
           </div>
 
@@ -334,6 +354,21 @@ function Profile() {
 
               <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
             </div>
+
+            {role === 'admin' && (
+              <div className="bg-white/5 border border-orange-500/20 rounded-2xl p-6">
+                <p className="text-sm font-semibold text-white mb-1">Espace administrateur</p>
+                <p className="text-white/40 text-xs mb-4">Gère les commerciaux, les quotas et les formations</p>
+                <div className="flex gap-2 flex-wrap">
+                  <Link to="/admin" className="text-xs px-4 py-2 rounded-lg text-white font-medium" style={{ backgroundColor: ACCENT }}>
+                    Dashboard admin
+                  </Link>
+                  <Link to="/admin/courses" className="text-xs px-4 py-2 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
+                    Gérer les formations
+                  </Link>
+                </div>
+              </div>
+            )}
 
           </div>
 

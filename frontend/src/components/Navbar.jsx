@@ -31,11 +31,6 @@ function Navbar() {
         </>
       ),
     },
-    ...(user?.role === 'admin' ? [{
-      path: '/admin', label: 'Admin', svgIcon: (
-        <path d="M12 2 3 7v6c0 5 3.8 9.4 9 11 5.2-1.6 9-6 9-11V7Z" />
-      ),
-    }] : []),
   ];
 
   const handleLogout = () => {
