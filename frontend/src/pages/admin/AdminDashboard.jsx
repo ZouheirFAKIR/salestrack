@@ -14,8 +14,8 @@ const TYPE_ICONS = { appel: '📞', rdv: '📅', devis: '📄', commande: '🛒'
 function TypeQuotasForm({ commercialId, onSaved }) {
   const [quotas, setQuotas] = useState({ appel: 5, rdv: 2, devis: 1, commande: 1 });
   const [loading, setLoading] = useState(true);
-  const [savingType, setSavingType] = useState(null);
-  const [saved, setSaved] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     apiFetch(`${API_URL}/api/admin/commercials/${commercialId}/type-quotas`)
@@ -25,46 +25,54 @@ function TypeQuotasForm({ commercialId, onSaved }) {
 
   const handleChange = (type, value) => {
     setQuotas((prev) => ({ ...prev, [type]: value }));
+    setSaved(false);
   };
 
-  const handleSave = async (type) => {
-    setSavingType(type);
-    setSaved(null);
-    await apiFetch(`${API_URL}/api/admin/commercials/${commercialId}/type-quotas`, {
-      method: 'PUT',
-      body: JSON.stringify({ type, daily_target: Number(quotas[type]) }),
-    });
-    setSavingType(null);
-    setSaved(type);
+  const handleSaveAll = async () => {
+    setSaving(true);
+    await Promise.all(
+      Object.keys(TYPE_LABELS).map((type) =>
+        apiFetch(`${API_URL}/api/admin/commercials/${commercialId}/type-quotas`, {
+          method: 'PUT',
+          body: JSON.stringify({ type, daily_target: Number(quotas[type]) }),
+        })
+      )
+    );
+    setSaving(false);
+    setSaved(true);
     onSaved();
-    setTimeout(() => setSaved(null), 1500);
+    setTimeout(() => setSaved(false), 2000);
   };
 
   if (loading) return <Spinner size={18} color={ACCENT} />;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      {Object.keys(TYPE_LABELS).map((type) => (
-        <div key={type} className="bg-black/40 border border-white/10 rounded-lg p-3 flex items-center gap-2">
-          <span className="text-lg shrink-0">{TYPE_ICONS[type]}</span>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs text-white/50">{TYPE_LABELS[type]} / jour</p>
-            <input
-              type="number" min="0" value={quotas[type]}
-              onChange={(e) => handleChange(type, e.target.value)}
-              className="w-full bg-transparent text-white text-sm font-semibold outline-none border-b border-white/10 focus:border-orange-500/60 mt-1"
-            />
+    <div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+        {Object.keys(TYPE_LABELS).map((type) => (
+          <div key={type} className="bg-black/40 border border-white/10 rounded-lg p-3 flex items-center gap-2">
+            <span className="text-lg shrink-0">{TYPE_ICONS[type]}</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-white/50">{TYPE_LABELS[type]} / jour</p>
+              <input
+                type="number" min="0" value={quotas[type]}
+                onChange={(e) => handleChange(type, e.target.value)}
+                className="w-full bg-transparent text-white text-sm font-semibold outline-none border-b border-white/10 focus:border-orange-500/60 mt-1"
+              />
+            </div>
           </div>
-          <button
-            onClick={() => handleSave(type)}
-            disabled={savingType === type}
-            className="text-[11px] px-2.5 py-1.5 rounded-md text-white shrink-0 disabled:opacity-50"
-            style={{ backgroundColor: saved === type ? '#22c55e' : ACCENT }}
-          >
-            {savingType === type ? <Spinner size={11} color="#fff" /> : saved === type ? '✓' : 'OK'}
-          </button>
-        </div>
-      ))}
+        ))}
+      </div>
+
+      <button
+        onClick={handleSaveAll}
+        disabled={saving}
+        className="w-full text-white text-sm font-medium py-2.5 rounded-lg disabled:opacity-60 flex items-center justify-center gap-2"
+        style={{ backgroundColor: saved ? '#22c55e' : ACCENT }}
+      >
+        {saving && <Spinner size={13} color="#fff" />}
+        {saving ? 'Enregistrement...' : saved ? '✓ Objectifs enregistrés' : 'Enregistrer les objectifs'}
+      </button>
     </div>
   );
 }
