@@ -14,8 +14,6 @@ import cartIcon from '../assets/Cart.png';
 
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-const [completedType, setCompletedType] = useState(null);
-
 
 function NouvelleActivite() {
   const navigate = useNavigate();
@@ -34,6 +32,7 @@ function NouvelleActivite() {
   const [newlyUnlocked, setNewlyUnlocked] = useState([]);
   const [currentUnlockIndex, setCurrentUnlockIndex] = useState(0);
   const [typeQuotas, setTypeQuotas] = useState({ appel: 5, rdv: 2, devis: 1, commande: 1 });
+  const [completedType, setCompletedType] = useState(null);
 
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -142,6 +141,8 @@ function NouvelleActivite() {
     }
   };
 
+  const getStat = (key) => todayStats.find((s) => s.type === key)?.total || 0;
+
   const handleSubmit = async () => {
     if (!token) { navigate('/login'); return; }
     if (!canSubmit()) return;
@@ -163,6 +164,7 @@ function NouvelleActivite() {
         const beforeCount = getStat(type);
         const afterCount = beforeCount + data.count;
         const target = typeQuotas[type] || 5;
+        const justCompletedType = type;
 
         resetForm();
         loadStats();
@@ -171,10 +173,9 @@ function NouvelleActivite() {
         checkForNewBadges();
 
         if (beforeCount < target && afterCount >= target) {
-          setTimeout(() => setCompletedType({ type, count: afterCount, target }), 1400);
+          setTimeout(() => setCompletedType({ type: justCompletedType, count: afterCount, target }), 1400);
         }
       }
-      
     } catch (err) {
       setShake(true);
       setMessage("Erreur lors de l'enregistrement");
@@ -183,15 +184,22 @@ function NouvelleActivite() {
     setSubmitting(false);
   };
 
-  const getStat = (key) => todayStats.find((s) => s.type === key)?.total || 0;
   const totalToday = todayStats.reduce((sum, s) => sum + Number(s.total), 0);
   const totalObjectif = Object.values(typeQuotas).reduce((sum, v) => sum + Number(v), 0);
+
   if (pageLoading) return <PageLoader />;
 
   return (
     <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 flex items-center justify-center">
       <Confetti show={showConfetti} />
       {showSuccess && <SuccessModal onClose={() => setShowSuccess(false)} />}
+      {completedType && (
+        <SuccessModal
+          onClose={() => setCompletedType(null)}
+          title={`Objectif ${labels[completedType.type]} atteint !`}
+          message={`Tu as fait ${completedType.count} sur ${completedType.target} — excellent travail !`}
+        />
+      )}
       {newlyUnlocked.length > 0 && (
         <BadgeUnlockModal
           badge={newlyUnlocked[currentUnlockIndex]}
