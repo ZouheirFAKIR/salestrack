@@ -209,16 +209,15 @@ function Profile() {
               </div>
             </div>
 
-            <div className="rounded-2xl p-5 text-center" style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}>
-              <p className="text-xl mb-1">💡</p>
-              <p className="text-white text-xs font-medium">Garde ton profil à jour</p>
-              <p className="text-white/70 text-[11px] mt-1">Une photo et un rôle renseigné facilitent le suivi de l'équipe</p>
+            <div className="rounded-xl p-5 flex items-center gap-2" style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}>
+              <span className="text-base shrink-0">💡</span>
+              <p className="text-white text-[11px] leading-tight">Garde ton profil à jour pour faciliter le suivi de l'équipe</p>
             </div>
           </div>
 
-          <div className="lg:col-span-2 flex flex-col gap-5">
+          <div className="lg:col-span-2 flex flex-col gap-3">
 
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
               {error && <p className="text-red-400 text-xs mb-4 bg-red-500/10 px-3 py-2 rounded-lg">{error}</p>}
               {message && <p className="text-xs mb-4 px-3 py-2 rounded-lg" style={{ backgroundColor: `${ACCENT}15`, color: ACCENT }}>{message}</p>}
 
@@ -269,7 +268,7 @@ function Profile() {
               </button>
             </div>
 
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm font-semibold text-white">Mes badges</p>
                 <Link to="/badges" className="text-xs font-medium" style={{ color: ACCENT }}>Voir tout →</Link>
@@ -277,16 +276,18 @@ function Profile() {
               {earnedBadges.length === 0 ? (
                 <p className="text-white/35 text-xs">Aucun badge débloqué pour l'instant</p>
               ) : (
-                <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
-                  {earnedBadges.slice(0, 12).map((b) => (
-                    <Badge key={b.id} category={b.category} unlocked={true} label={null} size={48} />
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {earnedBadges.slice(0, 8).map((b) => (
+                    <div key={b.id} className="shrink-0">
+                      <Badge category={b.category} unlocked={true} label={null} size={36} />
+                    </div>
                   ))}
                 </div>
               )}
             </div>
 
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-1">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-2">
+              <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-white">Sécurité</p>
                 {!showPasswordForm && (
                   <button
@@ -356,7 +357,7 @@ function Profile() {
             </div>
 
             {role === 'admin' && (
-              <div className="bg-white/5 border border-orange-500/20 rounded-2xl p-6">
+              <div className="bg-white/5 border border-orange-500/20 rounded-2xl p-5">
                 <p className="text-sm font-semibold text-white mb-1">Espace administrateur</p>
                 <p className="text-white/40 text-xs mb-4">Gère les commerciaux, les quotas et les formations</p>
                 <div className="flex gap-2 flex-wrap">

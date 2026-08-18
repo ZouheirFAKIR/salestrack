@@ -240,4 +240,18 @@ router.post('/seen-badges', authMiddleware, async (req, res) => {
   }
 });
 
+router.get('/my-quota', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT daily_target FROM quotas WHERE commercial_id = $1',
+      [req.userId]
+    );
+    res.json({ daily_target: result.rows[0]?.daily_target || 5 });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+
 module.exports = router;

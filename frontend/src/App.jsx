@@ -10,22 +10,29 @@ import Badges from './pages/Badges';
 import Courses from './pages/Courses';
 import CourseDetail from './pages/CourseDetail';
 import AdminCourses from './pages/admin/AdminCourses';
+import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminRoute from './components/AdminRoute';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import TargetModal from './components/TargetModal';
 import SuccessModal from './components/SuccessModal';
 import { apiFetch } from './utils/api';
-import AdminDashboard from './pages/admin/AdminDashboard';
 
-const dailyTarget = 5;
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 function AppLayout({ children }) {
   const [showModal, setShowModal] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [currentToday, setCurrentToday] = useState(0);
+  const [dailyTarget, setDailyTarget] = useState(5);
   const token = localStorage.getItem('token');
+
+  useEffect(() => {
+    if (!token) return;
+    apiFetch(`${API_URL}/api/activities/my-quota`)
+      .then((r) => r.json())
+      .then((d) => setDailyTarget(d.daily_target));
+  }, [token]);
 
   useEffect(() => {
     if (!token) return;
@@ -43,7 +50,7 @@ function AppLayout({ children }) {
         }
         sessionStorage.setItem('popupShownThisSession', 'true');
       });
-  }, [token]);
+  }, [token, dailyTarget]);
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
@@ -52,7 +59,7 @@ function AppLayout({ children }) {
       )}
       {showSuccess && <SuccessModal onClose={() => setShowSuccess(false)} />}
       <Navbar />
-      <main className="flex-1">{children}</main>
+      <main className="flex-1 pb-6">{children}</main>
       <Footer />
     </div>
   );
@@ -71,8 +78,8 @@ function App() {
         <Route path="/badges" element={<AppLayout><Badges /></AppLayout>} />
         <Route path="/courses" element={<AppLayout><Courses /></AppLayout>} />
         <Route path="/courses/:id" element={<AppLayout><CourseDetail /></AppLayout>} />
-        <Route path="/admin/courses" element={<AdminRoute><AppLayout><AdminCourses /></AppLayout></AdminRoute>} />
         <Route path="/admin" element={<AdminRoute><AppLayout><AdminDashboard /></AppLayout></AdminRoute>} />
+        <Route path="/admin/courses" element={<AdminRoute><AppLayout><AdminCourses /></AppLayout></AdminRoute>} />
       </Routes>
     </BrowserRouter>
   );

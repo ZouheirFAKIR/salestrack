@@ -94,6 +94,7 @@ frontend/
     pages/
       admin/
         AdminCourses.jsx
+        AdminDashboard.jsx
       Badges.jsx
       CourseDetail.jsx
       Courses.jsx
@@ -159,156 +160,6 @@ function authMiddleware(req, res, next) {
 }
 
 module.exports = authMiddleware;
-</file>
-
-<file path="backend/routes/admin.js">
-const express = require('express');
-const router = express.Router();
-const pool = require('../db');
-const authMiddleware = require('../middleware/authMiddleware');
-const adminMiddleware = require('../middleware/adminMiddleware');
-
-router.use(authMiddleware, adminMiddleware);
-
-router.get('/courses', async (req, res) => {
-  try {
-    const courses = await pool.query(`
-      SELECT c.*, COUNT(q.id) as question_count
-      FROM courses c
-      LEFT JOIN quiz_questions q ON q.course_id = c.id
-      GROUP BY c.id ORDER BY c.id ASC
-    `);
-    res.json(courses.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-router.get('/courses/:id', async (req, res) => {
-  try {
-    const course = await pool.query('SELECT * FROM courses WHERE id = $1', [req.params.id]);
-    if (course.rows.length === 0) return res.status(404).json({ error: 'Cours introuvable' });
-
-    const questions = await pool.query(
-      'SELECT * FROM quiz_questions WHERE course_id = $1 ORDER BY order_index ASC',
-      [req.params.id]
-    );
-    const questionIds = questions.rows.map((q) => q.id);
-    let options = [];
-    if (questionIds.length > 0) {
-      const optRes = await pool.query(
-        'SELECT * FROM quiz_options WHERE question_id = ANY($1::int[]) ORDER BY id ASC',
-        [questionIds]
-      );
-      options = optRes.rows;
-    }
-    const questionsWithOptions = questions.rows.map((q) => ({
-      ...q,
-      options: options.filter((o) => o.question_id === q.id),
-    }));
-
-    res.json({ ...course.rows[0], questions: questionsWithOptions });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-router.post('/courses', async (req, res) => {
-  const { title, description, content_type, content_url, duration_minutes } = req.body;
-  if (!title) return res.status(400).json({ error: 'Le titre est obligatoire' });
-
-  try {
-    const result = await pool.query(
-      `INSERT INTO courses (title, description, content_type, content_url, duration_minutes)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [title, description || null, content_type || 'pdf', content_url || null, duration_minutes || null]
-    );
-    res.status(201).json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-router.put('/courses/:id', async (req, res) => {
-  const { title, description, content_type, content_url, duration_minutes } = req.body;
-  try {
-    const result = await pool.query(
-      `UPDATE courses SET
-        title = COALESCE($1, title),
-        description = COALESCE($2, description),
-        content_type = COALESCE($3, content_type),
-        content_url = COALESCE($4, content_url),
-        duration_minutes = COALESCE($5, duration_minutes)
-       WHERE id = $6 RETURNING *`,
-      [title, description, content_type, content_url, duration_minutes, req.params.id]
-    );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Cours introuvable' });
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-router.delete('/courses/:id', async (req, res) => {
-  try {
-    await pool.query('DELETE FROM courses WHERE id = $1', [req.params.id]);
-    res.json({ message: 'Cours supprimé' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-router.post('/courses/:id/questions', async (req, res) => {
-  const { question, points, options } = req.body;
-  if (!question || !options || options.length < 2) {
-    return res.status(400).json({ error: 'Question et au moins 2 options requises' });
-  }
-  const hasCorrect = options.some((o) => o.is_correct);
-  if (!hasCorrect) return res.status(400).json({ error: 'Une réponse correcte doit être sélectionnée' });
-
-  try {
-    const orderResult = await pool.query(
-      'SELECT COALESCE(MAX(order_index), 0) + 1 as next_order FROM quiz_questions WHERE course_id = $1',
-      [req.params.id]
-    );
-    const nextOrder = orderResult.rows[0].next_order;
-
-    const qResult = await pool.query(
-      'INSERT INTO quiz_questions (course_id, question, points, order_index) VALUES ($1, $2, $3, $4) RETURNING id',
-      [req.params.id, question, points || 10, nextOrder]
-    );
-    const questionId = qResult.rows[0].id;
-
-    for (const opt of options) {
-      await pool.query(
-        'INSERT INTO quiz_options (question_id, option_text, is_correct) VALUES ($1, $2, $3)',
-        [questionId, opt.option_text, !!opt.is_correct]
-      );
-    }
-
-    res.status(201).json({ message: 'Question ajoutée', questionId });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-router.delete('/questions/:id', async (req, res) => {
-  try {
-    await pool.query('DELETE FROM quiz_questions WHERE id = $1', [req.params.id]);
-    res.json({ message: 'Question supprimée' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-module.exports = router;
 </file>
 
 <file path="backend/.gitignore">
@@ -1062,6 +913,209 @@ function AdminCourses() {
 export default AdminCourses;
 </file>
 
+<file path="frontend/src/pages/admin/AdminDashboard.jsx">
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { apiFetch } from '../../utils/api';
+import PageLoader from '../../components/PageLoader';
+import Spinner from '../../components/Spinner';
+import LineChart from '../../components/LineChart';
+
+const ACCENT = '#f86635';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+function CommercialDetail({ commercial, onClose, onQuotaUpdated }) {
+  const [detail, setDetail] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [newQuota, setNewQuota] = useState(5);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    apiFetch(`${API_URL}/api/admin/commercials/${commercial.id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setDetail(data);
+        setNewQuota(data.daily_target);
+        setLoading(false);
+      });
+  }, [commercial.id]);
+
+  const handleSaveQuota = async () => {
+    setSaving(true);
+    await apiFetch(`${API_URL}/api/admin/commercials/${commercial.id}/quota`, {
+      method: 'PUT',
+      body: JSON.stringify({ daily_target: Number(newQuota) }),
+    });
+    setSaving(false);
+    onQuotaUpdated();
+  };
+
+  const icons = { appel: '📞', rdv: '📅', devis: '📄', commande: '🛒' };
+  const labels = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50" onClick={onClose}>
+      <div
+        className="bg-[#0d0d0d] border border-white/10 rounded-2xl p-6 max-w-2xl w-full max-h-[85vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <p className="text-white font-semibold">{commercial.nom}</p>
+            <p className="text-white/40 text-xs">{commercial.email}</p>
+          </div>
+          <button onClick={onClose} className="text-white/40 hover:text-white text-xl">×</button>
+        </div>
+
+        {loading && <Spinner size={24} color={ACCENT} />}
+
+        {!loading && detail && (
+          <>
+            <div className="grid grid-cols-4 gap-3 mb-5">
+              {['appel', 'rdv', 'devis', 'commande'].map((type) => {
+                const stat = detail.stats.find((s) => s.type === type);
+                return (
+                  <div key={type} className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                    <p className="text-xl">{icons[type]}</p>
+                    <p className="text-xl font-semibold text-white mt-1">{stat?.total || 0}</p>
+                    <p className="text-[11px] text-white/40">{labels[type]}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-5">
+              <p className="text-sm text-white/50 mb-3">Activités (7 derniers jours)</p>
+              <LineChart data={detail.daily} />
+            </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+              <p className="text-sm font-medium text-white mb-3">Objectif quotidien (quota)</p>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number" min="1" value={newQuota}
+                  onChange={(e) => setNewQuota(e.target.value)}
+                  className="w-24 p-2 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60"
+                />
+                <button
+                  onClick={handleSaveQuota}
+                  disabled={saving}
+                  className="px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-60 flex items-center gap-2"
+                  style={{ backgroundColor: ACCENT }}
+                >
+                  {saving && <Spinner size={12} color="#fff" />}
+                  Enregistrer
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AdminDashboard() {
+  const [commercials, setCommercials] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState(null);
+
+  const loadCommercials = () => {
+    apiFetch(`${API_URL}/api/admin/commercials`)
+      .then((r) => r.json())
+      .then((data) => { setCommercials(data); setLoading(false); });
+  };
+
+  useEffect(() => { loadCommercials(); }, []);
+
+  const handleDownloadReport = () => {
+    const token = localStorage.getItem('token');
+    fetch(`${API_URL}/api/admin/report/quotas`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.blob())
+      .then((blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'rapport_quotas.csv';
+        a.click();
+        window.URL.revokeObjectURL(url);
+      });
+  };
+
+  if (loading) return <PageLoader />;
+
+  return (
+    <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
+      <div className="max-w-4xl mx-auto flex flex-col gap-5">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h1 className="text-lg font-semibold text-white">Administration — Commerciaux</h1>
+            <p className="text-white/40 text-xs">Activité, quotas et rapports</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link to="/admin/courses" className="text-xs px-3 py-2 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
+              Gérer les cours
+            </Link>
+            <button
+              onClick={handleDownloadReport}
+              className="text-xs px-3 py-2 rounded-lg text-white font-medium flex items-center gap-1.5"
+              style={{ backgroundColor: ACCENT }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Télécharger le rapport
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          {commercials.length === 0 && (
+            <p className="text-white/30 text-sm text-center mt-10">Aucun commercial pour l'instant</p>
+          )}
+          {commercials.map((c) => {
+            const percent = Math.min(Math.round((c.today_activities / c.daily_target) * 100), 100);
+            return (
+              <button
+                key={c.id}
+                onClick={() => setSelected(c)}
+                className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:border-orange-400/50 transition-all text-left flex items-center gap-4"
+              >
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0" style={{ backgroundColor: ACCENT }}>
+                  {c.nom?.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-medium">{c.nom}</p>
+                  <p className="text-white/40 text-xs">{c.total_activities} activités au total</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-sm font-semibold" style={{ color: ACCENT }}>{c.today_activities}/{c.daily_target}</p>
+                  <div className="w-20 bg-white/10 rounded-full h-1.5 mt-1">
+                    <div className="h-1.5 rounded-full" style={{ width: `${percent}%`, backgroundColor: ACCENT }} />
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {selected && (
+        <CommercialDetail
+          commercial={selected}
+          onClose={() => setSelected(null)}
+          onQuotaUpdated={() => { loadCommercials(); setSelected(null); }}
+        />
+      )}
+    </div>
+  );
+}
+
+export default AdminDashboard;
+</file>
+
 <file path="frontend/src/pages/Courses.jsx">
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -1446,6 +1500,259 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
 })
+</file>
+
+<file path="backend/routes/admin.js">
+const express = require('express');
+const router = express.Router();
+const pool = require('../db');
+const authMiddleware = require('../middleware/authMiddleware');
+const adminMiddleware = require('../middleware/adminMiddleware');
+
+router.use(authMiddleware, adminMiddleware);
+
+router.get('/courses', async (req, res) => {
+  try {
+    const courses = await pool.query(`
+      SELECT c.*, COUNT(q.id) as question_count
+      FROM courses c
+      LEFT JOIN quiz_questions q ON q.course_id = c.id
+      GROUP BY c.id ORDER BY c.id ASC
+    `);
+    res.json(courses.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/courses/:id', async (req, res) => {
+  try {
+    const course = await pool.query('SELECT * FROM courses WHERE id = $1', [req.params.id]);
+    if (course.rows.length === 0) return res.status(404).json({ error: 'Cours introuvable' });
+
+    const questions = await pool.query(
+      'SELECT * FROM quiz_questions WHERE course_id = $1 ORDER BY order_index ASC',
+      [req.params.id]
+    );
+    const questionIds = questions.rows.map((q) => q.id);
+    let options = [];
+    if (questionIds.length > 0) {
+      const optRes = await pool.query(
+        'SELECT * FROM quiz_options WHERE question_id = ANY($1::int[]) ORDER BY id ASC',
+        [questionIds]
+      );
+      options = optRes.rows;
+    }
+    const questionsWithOptions = questions.rows.map((q) => ({
+      ...q,
+      options: options.filter((o) => o.question_id === q.id),
+    }));
+
+    res.json({ ...course.rows[0], questions: questionsWithOptions });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.post('/courses', async (req, res) => {
+  const { title, description, content_type, content_url, duration_minutes } = req.body;
+  if (!title) return res.status(400).json({ error: 'Le titre est obligatoire' });
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO courses (title, description, content_type, content_url, duration_minutes)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [title, description || null, content_type || 'pdf', content_url || null, duration_minutes || null]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.put('/courses/:id', async (req, res) => {
+  const { title, description, content_type, content_url, duration_minutes } = req.body;
+  try {
+    const result = await pool.query(
+      `UPDATE courses SET
+        title = COALESCE($1, title),
+        description = COALESCE($2, description),
+        content_type = COALESCE($3, content_type),
+        content_url = COALESCE($4, content_url),
+        duration_minutes = COALESCE($5, duration_minutes)
+       WHERE id = $6 RETURNING *`,
+      [title, description, content_type, content_url, duration_minutes, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Cours introuvable' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.delete('/courses/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM courses WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Cours supprimé' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.post('/courses/:id/questions', async (req, res) => {
+  const { question, points, options } = req.body;
+  if (!question || !options || options.length < 2) {
+    return res.status(400).json({ error: 'Question et au moins 2 options requises' });
+  }
+  const hasCorrect = options.some((o) => o.is_correct);
+  if (!hasCorrect) return res.status(400).json({ error: 'Une réponse correcte doit être sélectionnée' });
+
+  try {
+    const orderResult = await pool.query(
+      'SELECT COALESCE(MAX(order_index), 0) + 1 as next_order FROM quiz_questions WHERE course_id = $1',
+      [req.params.id]
+    );
+    const nextOrder = orderResult.rows[0].next_order;
+
+    const qResult = await pool.query(
+      'INSERT INTO quiz_questions (course_id, question, points, order_index) VALUES ($1, $2, $3, $4) RETURNING id',
+      [req.params.id, question, points || 10, nextOrder]
+    );
+    const questionId = qResult.rows[0].id;
+
+    for (const opt of options) {
+      await pool.query(
+        'INSERT INTO quiz_options (question_id, option_text, is_correct) VALUES ($1, $2, $3)',
+        [questionId, opt.option_text, !!opt.is_correct]
+      );
+    }
+
+    res.status(201).json({ message: 'Question ajoutée', questionId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.delete('/questions/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM quiz_questions WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Question supprimée' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+// Liste tous les commerciaux avec leurs stats
+router.get('/commercials', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        u.id, u.nom, u.email, u.role, u.photo_url,
+        COALESCE(q.daily_target, 5) as daily_target,
+        COUNT(a.id) as total_activities,
+        COUNT(a.id) FILTER (WHERE DATE(a.date_activite) = CURRENT_DATE) as today_activities
+      FROM users u
+      LEFT JOIN quotas q ON q.commercial_id = u.id
+      LEFT JOIN activities a ON a.commercial_id = u.id
+      WHERE u.role != 'admin' OR u.role IS NULL
+      GROUP BY u.id, q.daily_target
+      ORDER BY u.nom ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Détail d'un commercial (activités par type + par jour)
+router.get('/commercials/:id', async (req, res) => {
+  try {
+    const user = await pool.query('SELECT id, nom, email, photo_url FROM users WHERE id = $1', [req.params.id]);
+    if (user.rows.length === 0) return res.status(404).json({ error: 'Introuvable' });
+
+    const stats = await pool.query(
+      `SELECT type, COUNT(*) as total FROM activities WHERE commercial_id = $1 GROUP BY type`,
+      [req.params.id]
+    );
+    const daily = await pool.query(
+      `SELECT TO_CHAR(d, 'YYYY-MM-DD') as jour, COALESCE(COUNT(a.id), 0) as total
+       FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') d
+       LEFT JOIN activities a ON DATE(a.date_activite) = d AND a.commercial_id = $1
+       GROUP BY d ORDER BY d ASC`,
+      [req.params.id]
+    );
+    const quota = await pool.query('SELECT daily_target FROM quotas WHERE commercial_id = $1', [req.params.id]);
+
+    res.json({
+      user: user.rows[0],
+      stats: stats.rows,
+      daily: daily.rows,
+      daily_target: quota.rows[0]?.daily_target || 5,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Définir/modifier le quota d'un commercial
+router.put('/commercials/:id/quota', async (req, res) => {
+  const { daily_target } = req.body;
+  if (!daily_target || daily_target < 1) return res.status(400).json({ error: 'Quota invalide' });
+
+  try {
+    await pool.query(
+      `INSERT INTO quotas (commercial_id, daily_target) VALUES ($1, $2)
+       ON CONFLICT (commercial_id) DO UPDATE SET daily_target = $2, updated_at = NOW()`,
+      [req.params.id, daily_target]
+    );
+    res.json({ message: 'Quota mis à jour' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Rapport CSV téléchargeable : niveau d'atteinte des quotas
+router.get('/report/quotas', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        u.nom, u.email,
+        COALESCE(q.daily_target, 5) as objectif_quotidien,
+        COUNT(a.id) FILTER (WHERE DATE(a.date_activite) = CURRENT_DATE) as activites_aujourdhui,
+        COUNT(a.id) as activites_total
+      FROM users u
+      LEFT JOIN quotas q ON q.commercial_id = u.id
+      LEFT JOIN activities a ON a.commercial_id = u.id
+      WHERE u.role != 'admin' OR u.role IS NULL
+      GROUP BY u.id, q.daily_target
+      ORDER BY u.nom ASC
+    `);
+
+    let csv = 'Nom,Email,Objectif quotidien,Activites aujourd\'hui,Taux atteinte (%),Activites total\n';
+    result.rows.forEach((r) => {
+      const taux = Math.min(Math.round((r.activites_aujourdhui / r.objectif_quotidien) * 100), 100);
+      csv += `"${r.nom}","${r.email}",${r.objectif_quotidien},${r.activites_aujourdhui},${taux}%,${r.activites_total}\n`;
+    });
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="rapport_quotas.csv"');
+    res.send('\uFEFF' + csv);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+module.exports = router;
 </file>
 
 <file path="backend/routes/profile.js">
@@ -2435,6 +2742,138 @@ function Login() {
 export default Login;
 </file>
 
+<file path="frontend/src/pages/Dashboard.jsx">
+import { useEffect, useState } from 'react';
+import LineChart from '../components/LineChart';
+import PageLoader from '../components/PageLoader';
+import { apiFetch } from '../utils/api';
+import phoneIcon from '../assets/Phone.png';
+import calendarIcon from '../assets/calendar.png';
+import documentIcon from '../assets/document.png';
+import cartIcon from '../assets/Cart.png';
+
+const ACCENT = '#f86635';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+function AnimatedNumber({ value }) {
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    let start = 0;
+    const step = Math.max(1, Math.ceil(value / 20));
+    const interval = setInterval(() => {
+      start += step;
+      if (start >= value) { setDisplay(value); clearInterval(interval); }
+      else setDisplay(start);
+    }, 30);
+    return () => clearInterval(interval);
+  }, [value]);
+  return <>{display}</>;
+}
+
+function Dashboard() {
+  const [stats, setStats] = useState([]);
+  const [daily, setDaily] = useState([]);
+  const [today, setToday] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const dailyTarget = 5;
+
+  const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const prenom = user?.nom?.split(' ')[0];
+
+  const icons = { appel: phoneIcon, rdv: calendarIcon, devis: documentIcon, commande: cartIcon };
+  const labels = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
+  const allTypes = ['appel', 'rdv', 'devis', 'commande'];
+
+  useEffect(() => {
+    if (!token) { setLoading(false); return; }
+    Promise.all([
+      apiFetch(`${API_URL}/api/activities/stats/today`).then(r => r.json()),
+      apiFetch(`${API_URL}/api/activities/daily`).then(r => r.json()),
+      apiFetch(`${API_URL}/api/activities/today`).then(r => r.json()),
+    ]).then(([statsData, dailyData, todayData]) => {
+      setStats(statsData);
+      setDaily(dailyData);
+      setToday(Number(todayData.total));
+      setLoading(false);
+    });
+  }, [token]);
+
+  const getStat = (type) => stats.find((s) => s.type === type) || { total: 0 };
+  const progressPercent = Math.min(Math.round((today / dailyTarget) * 100), 100);
+  const circumference = 2 * Math.PI * 34;
+
+  if (loading) return <PageLoader />;
+
+  if (!token) {
+    return (
+      <div className="bg-black min-h-screen flex flex-col items-center justify-center p-6 text-center">
+        <span className="text-4xl mb-4">🔒</span>
+        <h1 className="text-xl font-semibold text-white mb-2">Connecte-toi pour voir ton dashboard</h1>
+        <p className="text-white/40 text-sm mb-6">Tes statistiques personnelles apparaîtront ici</p>
+        <a href="/login" className="text-white px-5 py-2.5 rounded-lg font-medium" style={{ backgroundColor: ACCENT }}>
+          Se connecter
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-black p-4 sm:p-6 pb-12">
+      <div className="max-w-5xl mx-auto flex flex-col gap-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-lg sm:text-xl font-semibold text-white">Salut {prenom} 👋</h1>
+            <p className="text-white/40 text-sm">Voici ton activité récente</p>
+          </div>
+          <div className="relative w-16 h-16 sm:w-20 sm:h-20 shrink-0 self-start sm:self-auto">
+            <svg viewBox="0 0 80 80" className="w-16 h-16 sm:w-20 sm:h-20 -rotate-90">
+              <circle cx="40" cy="40" r="34" stroke="rgba(255,255,255,0.1)" strokeWidth="6" fill="none" />
+              <circle
+                cx="40" cy="40" r="34" stroke={ACCENT} strokeWidth="6" fill="none" strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={circumference - (progressPercent / 100) * circumference}
+                style={{ transition: 'stroke-dashoffset 0.8s ease' }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-xs sm:text-sm font-semibold text-white">{today}/{dailyTarget}</span>
+              <span className="text-[9px] sm:text-[10px] text-white/40">objectif</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {allTypes.map((type, i) => {
+            const s = getStat(type);
+            return (
+              <div key={type} className="bg-white/5 border border-white/10 rounded-xl p-4 hover:border-orange-400/50 hover:-translate-y-1 transition-all"
+                style={{ animation: `popIn 0.4s ease ${i * 0.06}s both` }}>
+                <img src={icons[type]} alt={type} className="w-6 h-6" />
+                <p className="text-xl sm:text-2xl font-semibold text-white mt-2"><AnimatedNumber value={Number(s.total)} /></p>
+                <p className="text-xs text-white/50">{labels[type]}</p>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4 sm:p-5">
+          <p className="text-sm text-white/50 mb-1">Activités par jour (7 derniers jours)</p>
+          <p className="text-xl sm:text-2xl font-semibold text-white mb-4">
+            {daily.reduce((sum, d) => sum + Number(d.total), 0)} activités
+          </p>
+          <LineChart data={daily} />
+        </div>
+      </div>
+
+      <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>
+    </div>
+  );
+}
+
+export default Dashboard;
+</file>
+
 <file path="frontend/src/pages/Profile.jsx">
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
@@ -2589,17 +3028,17 @@ function Profile() {
   if (pageLoading) return <PageLoader />;
 
   return (
-    <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6">
+    <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-20">
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
           <h1 className="text-lg font-semibold text-white">Mon profil</h1>
           <p className="text-white/40 text-xs">Gère tes informations personnelles</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
 
-          <div className="lg:col-span-1">
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col items-center text-center sticky top-20">
+          <div className="lg:col-span-1 flex flex-col gap-4 lg:sticky lg:top-20">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col items-center text-center">
               <div className="relative mb-4">
                 {photoLoading ? (
                   <div className="w-24 h-24 rounded-full bg-black border border-white/10 flex items-center justify-center">
@@ -2632,11 +3071,30 @@ function Profile() {
               <p className="text-white/35 text-xs mt-3 break-all">{email}</p>
               {phone && <p className="text-white/35 text-xs mt-1">{phone}</p>}
             </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+              <p className="text-xs text-white/40 uppercase tracking-wide mb-3">Résumé</p>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-white/60">Badges débloqués</span>
+                  <span className="text-sm font-semibold text-white">{earnedBadges.length}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-white/60">Statut du compte</span>
+                  <span className="text-sm font-semibold" style={{ color: ACCENT }}>{role === 'admin' ? 'Administrateur' : 'Commercial'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl p-5 flex items-center gap-2" style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}>
+              <span className="text-base shrink-0">💡</span>
+              <p className="text-white text-[11px] leading-tight">Garde ton profil à jour pour faciliter le suivi de l'équipe</p>
+            </div>
           </div>
 
-          <div className="lg:col-span-2 flex flex-col gap-5">
+          <div className="lg:col-span-2 flex flex-col gap-3">
 
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
               {error && <p className="text-red-400 text-xs mb-4 bg-red-500/10 px-3 py-2 rounded-lg">{error}</p>}
               {message && <p className="text-xs mb-4 px-3 py-2 rounded-lg" style={{ backgroundColor: `${ACCENT}15`, color: ACCENT }}>{message}</p>}
 
@@ -2687,7 +3145,7 @@ function Profile() {
               </button>
             </div>
 
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm font-semibold text-white">Mes badges</p>
                 <Link to="/badges" className="text-xs font-medium" style={{ color: ACCENT }}>Voir tout →</Link>
@@ -2695,16 +3153,18 @@ function Profile() {
               {earnedBadges.length === 0 ? (
                 <p className="text-white/35 text-xs">Aucun badge débloqué pour l'instant</p>
               ) : (
-                <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
-                  {earnedBadges.slice(0, 12).map((b) => (
-                    <Badge key={b.id} category={b.category} unlocked={true} label={null} size={48} />
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {earnedBadges.slice(0, 8).map((b) => (
+                    <div key={b.id} className="shrink-0">
+                      <Badge category={b.category} unlocked={true} label={null} size={36} />
+                    </div>
                   ))}
                 </div>
               )}
             </div>
 
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-1">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-2">
+              <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-white">Sécurité</p>
                 {!showPasswordForm && (
                   <button
@@ -2773,6 +3233,21 @@ function Profile() {
               <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
             </div>
 
+            {role === 'admin' && (
+              <div className="bg-white/5 border border-orange-500/20 rounded-2xl p-5">
+                <p className="text-sm font-semibold text-white mb-1">Espace administrateur</p>
+                <p className="text-white/40 text-xs mb-4">Gère les commerciaux, les quotas et les formations</p>
+                <div className="flex gap-2 flex-wrap">
+                  <Link to="/admin" className="text-xs px-4 py-2 rounded-lg text-white font-medium" style={{ backgroundColor: ACCENT }}>
+                    Dashboard admin
+                  </Link>
+                  <Link to="/admin/courses" className="text-xs px-4 py-2 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
+                    Gérer les formations
+                  </Link>
+                </div>
+              </div>
+            )}
+
           </div>
 
         </div>
@@ -2782,138 +3257,6 @@ function Profile() {
 }
 
 export default Profile;
-</file>
-
-<file path="frontend/src/pages/Dashboard.jsx">
-import { useEffect, useState } from 'react';
-import LineChart from '../components/LineChart';
-import PageLoader from '../components/PageLoader';
-import { apiFetch } from '../utils/api';
-import phoneIcon from '../assets/Phone.png';
-import calendarIcon from '../assets/calendar.png';
-import documentIcon from '../assets/document.png';
-import cartIcon from '../assets/Cart.png';
-
-const ACCENT = '#f86635';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-function AnimatedNumber({ value }) {
-  const [display, setDisplay] = useState(0);
-  useEffect(() => {
-    let start = 0;
-    const step = Math.max(1, Math.ceil(value / 20));
-    const interval = setInterval(() => {
-      start += step;
-      if (start >= value) { setDisplay(value); clearInterval(interval); }
-      else setDisplay(start);
-    }, 30);
-    return () => clearInterval(interval);
-  }, [value]);
-  return <>{display}</>;
-}
-
-function Dashboard() {
-  const [stats, setStats] = useState([]);
-  const [daily, setDaily] = useState([]);
-  const [today, setToday] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const dailyTarget = 5;
-
-  const token = localStorage.getItem('token');
-  const user = JSON.parse(localStorage.getItem('user') || 'null');
-  const prenom = user?.nom?.split(' ')[0];
-
-  const icons = { appel: phoneIcon, rdv: calendarIcon, devis: documentIcon, commande: cartIcon };
-  const labels = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
-  const allTypes = ['appel', 'rdv', 'devis', 'commande'];
-
-  useEffect(() => {
-    if (!token) { setLoading(false); return; }
-    Promise.all([
-      apiFetch(`${API_URL}/api/activities/stats/today`).then(r => r.json()),
-      apiFetch(`${API_URL}/api/activities/daily`).then(r => r.json()),
-      apiFetch(`${API_URL}/api/activities/today`).then(r => r.json()),
-    ]).then(([statsData, dailyData, todayData]) => {
-      setStats(statsData);
-      setDaily(dailyData);
-      setToday(Number(todayData.total));
-      setLoading(false);
-    });
-  }, [token]);
-
-  const getStat = (type) => stats.find((s) => s.type === type) || { total: 0 };
-  const progressPercent = Math.min(Math.round((today / dailyTarget) * 100), 100);
-  const circumference = 2 * Math.PI * 34;
-
-  if (loading) return <PageLoader />;
-
-  if (!token) {
-    return (
-      <div className="bg-black min-h-screen flex flex-col items-center justify-center p-6 text-center">
-        <span className="text-4xl mb-4">🔒</span>
-        <h1 className="text-xl font-semibold text-white mb-2">Connecte-toi pour voir ton dashboard</h1>
-        <p className="text-white/40 text-sm mb-6">Tes statistiques personnelles apparaîtront ici</p>
-        <a href="/login" className="text-white px-5 py-2.5 rounded-lg font-medium" style={{ backgroundColor: ACCENT }}>
-          Se connecter
-        </a>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-black p-4 sm:p-6 pb-12">
-      <div className="max-w-5xl mx-auto flex flex-col gap-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-lg sm:text-xl font-semibold text-white">Salut {prenom} 👋</h1>
-            <p className="text-white/40 text-sm">Voici ton activité récente</p>
-          </div>
-          <div className="relative w-16 h-16 sm:w-20 sm:h-20 shrink-0 self-start sm:self-auto">
-            <svg viewBox="0 0 80 80" className="w-16 h-16 sm:w-20 sm:h-20 -rotate-90">
-              <circle cx="40" cy="40" r="34" stroke="rgba(255,255,255,0.1)" strokeWidth="6" fill="none" />
-              <circle
-                cx="40" cy="40" r="34" stroke={ACCENT} strokeWidth="6" fill="none" strokeLinecap="round"
-                strokeDasharray={circumference}
-                strokeDashoffset={circumference - (progressPercent / 100) * circumference}
-                style={{ transition: 'stroke-dashoffset 0.8s ease' }}
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xs sm:text-sm font-semibold text-white">{today}/{dailyTarget}</span>
-              <span className="text-[9px] sm:text-[10px] text-white/40">objectif</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {allTypes.map((type, i) => {
-            const s = getStat(type);
-            return (
-              <div key={type} className="bg-white/5 border border-white/10 rounded-xl p-4 hover:border-orange-400/50 hover:-translate-y-1 transition-all"
-                style={{ animation: `popIn 0.4s ease ${i * 0.06}s both` }}>
-                <img src={icons[type]} alt={type} className="w-6 h-6" />
-                <p className="text-xl sm:text-2xl font-semibold text-white mt-2"><AnimatedNumber value={Number(s.total)} /></p>
-                <p className="text-xs text-white/50">{labels[type]}</p>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="bg-white/5 border border-white/10 rounded-xl p-4 sm:p-5">
-          <p className="text-sm text-white/50 mb-1">Activités par jour (7 derniers jours)</p>
-          <p className="text-xl sm:text-2xl font-semibold text-white mb-4">
-            {daily.reduce((sum, d) => sum + Number(d.total), 0)} activités
-          </p>
-          <LineChart data={daily} />
-        </div>
-      </div>
-
-      <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>
-    </div>
-  );
-}
-
-export default Dashboard;
 </file>
 
 <file path="backend/routes/activities.js">
@@ -3643,6 +3986,7 @@ import Signup from './pages/Signup';
 import TargetModal from './components/TargetModal';
 import SuccessModal from './components/SuccessModal';
 import { apiFetch } from './utils/api';
+import AdminDashboard from './pages/admin/AdminDashboard';
 
 const dailyTarget = 5;
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -3678,7 +4022,7 @@ function AppLayout({ children }) {
       )}
       {showSuccess && <SuccessModal onClose={() => setShowSuccess(false)} />}
       <Navbar />
-      <main className="flex-1">{children}</main>
+      <main className="flex-1 pb-6">{children}</main>
       <Footer />
     </div>
   );
@@ -3698,136 +4042,13 @@ function App() {
         <Route path="/courses" element={<AppLayout><Courses /></AppLayout>} />
         <Route path="/courses/:id" element={<AppLayout><CourseDetail /></AppLayout>} />
         <Route path="/admin/courses" element={<AdminRoute><AppLayout><AdminCourses /></AppLayout></AdminRoute>} />
+        <Route path="/admin" element={<AdminRoute><AppLayout><AdminDashboard /></AppLayout></AdminRoute>} />
       </Routes>
     </BrowserRouter>
   );
 }
 
 export default App;
-</file>
-
-<file path="frontend/src/components/Navbar.jsx">
-import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import yealeadLogo from '../assets/yealead.png';
-import addIcon from '../assets/add.png';
-import dashboardIcon from '../assets/dashboard.png';
-import feedIcon from '../assets/feed.png';
-import Spinner from './Spinner';
-
-const ACCENT = '#f86635';
-
-function Navbar() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('user') || 'null');
-  const [loggingOut, setLoggingOut] = useState(false);
-
-  const links = [
-    { path: '/nouvelle-activite', label: 'Nouvelle activité', icon: addIcon },
-    { path: '/', label: 'Dashboard', icon: dashboardIcon },
-    { path: '/feed', label: 'Feed', icon: feedIcon },
-    {
-      path: '/courses', label: 'Formation', svgIcon: (
-        <path d="M22 10v6M2 10l10-5 10 5-10 5-10-5Z M6 12v5c3 3 9 3 12 0v-5" />
-      ),
-    },
-    {
-      path: '/badges', label: 'Badges', svgIcon: (
-        <>
-          <circle cx="12" cy="8" r="6" />
-          <path d="M8.21 13.89L7 23l5-3 5 3-1.21-9.12" />
-        </>
-      ),
-    },
-    ...(user?.role === 'admin' ? [{
-      path: '/admin/courses', label: 'Admin', svgIcon: (
-        <path d="M12 2 3 7v6c0 5 3.8 9.4 9 11 5.2-1.6 9-6 9-11V7Z" />
-      ),
-    }] : []),
-  ];
-
-  const handleLogout = () => {
-    setLoggingOut(true);
-    setTimeout(() => {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      navigate('/login');
-    }, 300);
-  };
-
-  return (
-    <nav className="bg-black border-b border-white/10 px-3 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-20 gap-2">
-      <Link to="/nouvelle-activite" className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">
-        <img src={yealeadLogo} alt="Yealead" className="w-8 h-8 sm:w-9 sm:h-9 object-contain" />
-        <span className="text-white font-semibold text-base sm:text-lg hidden sm:inline">SalesTrack</span>
-      </Link>
-
-      <div className="flex gap-1 bg-white/5 rounded-full p-1 overflow-x-auto max-w-full">
-        {links.map((link) => {
-          const active = location.pathname === link.path;
-          return (
-            <Link
-              key={link.path}
-              to={link.path}
-              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-full text-xs sm:text-sm transition-all duration-200 whitespace-nowrap shrink-0"
-              style={active ? { backgroundColor: ACCENT, color: '#fff', fontWeight: 500, boxShadow: `0 0 16px ${ACCENT}66` } : { color: 'rgba(255,255,255,0.55)' }}
-              onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = '#fff'; }}
-              onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = 'rgba(255,255,255,0.55)'; }}
-            >
-              {link.icon ? (
-                <img src={link.icon} alt="" className="w-4 h-4 shrink-0" style={{ filter: active ? 'brightness(0) invert(1)' : 'brightness(0) invert(1) opacity(0.6)' }} />
-              ) : (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-                  {link.svgIcon}
-                </svg>
-              )}
-              <span className="hidden sm:inline">{link.label}</span>
-            </Link>
-          );
-        })}
-      </div>
-
-      {user ? (
-        <div className="flex items-center gap-2 shrink-0">
-          <Link to="/profile" className="hover:opacity-80 transition-opacity">
-            {user.photo_url ? (
-              <img src={user.photo_url} alt="" className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover" />
-            ) : (
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden bg-white flex items-center justify-center p-1">
-                <img src={yealeadLogo} alt="Profil" className="w-full h-full object-contain" />
-              </div>
-            )}
-          </Link>
-          <button
-            onClick={handleLogout}
-            disabled={loggingOut}
-            className="w-8 h-8 sm:w-auto sm:h-auto flex items-center justify-center sm:px-3 sm:py-1.5 rounded-full border border-white/15 text-white/50 hover:text-white hover:border-white/30 transition-all disabled:opacity-60 gap-1.5 shrink-0"
-            aria-label="Déconnexion"
-          >
-            {loggingOut ? (
-              <Spinner size={14} color="currentColor" />
-            ) : (
-              <img src={yealeadLogo} alt="" className="w-4 h-4 object-contain" style={{ filter: 'brightness(0) invert(0.7)' }} />
-            )}
-            <span className="text-xs hidden sm:inline">{loggingOut ? '' : 'Déconnexion'}</span>
-          </button>
-        </div>
-      ) : (
-        <Link
-          to="/login"
-          className="flex items-center gap-1.5 text-xs sm:text-sm px-3 sm:px-5 py-2 rounded-full text-white transition-all whitespace-nowrap shrink-0 hover:brightness-110 active:scale-95"
-          style={{ backgroundColor: ACCENT, boxShadow: `0 2px 12px ${ACCENT}50` }}
-        >
-          <img src={yealeadLogo} alt="" className="w-4 h-4 object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
-          Connexion
-        </Link>
-      )}
-    </nav>
-  );
-}
-
-export default Navbar;
 </file>
 
 <file path="frontend/src/pages/Feed.jsx">
@@ -4589,6 +4810,125 @@ function NouvelleActivite() {
 }
 
 export default NouvelleActivite;
+</file>
+
+<file path="frontend/src/components/Navbar.jsx">
+import { useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import yealeadLogo from '../assets/yealead.png';
+import addIcon from '../assets/add.png';
+import dashboardIcon from '../assets/dashboard.png';
+import feedIcon from '../assets/feed.png';
+import Spinner from './Spinner';
+
+const ACCENT = '#f86635';
+
+function Navbar() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const links = [
+    { path: '/nouvelle-activite', label: 'Nouvelle activité', icon: addIcon },
+    { path: '/', label: 'Dashboard', icon: dashboardIcon },
+    { path: '/feed', label: 'Feed', icon: feedIcon },
+    {
+      path: '/courses', label: 'Formation', svgIcon: (
+        <path d="M22 10v6M2 10l10-5 10 5-10 5-10-5Z M6 12v5c3 3 9 3 12 0v-5" />
+      ),
+    },
+    {
+      path: '/badges', label: 'Badges', svgIcon: (
+        <>
+          <circle cx="12" cy="8" r="6" />
+          <path d="M8.21 13.89L7 23l5-3 5 3-1.21-9.12" />
+        </>
+      ),
+    },
+  ];
+
+  const handleLogout = () => {
+    setLoggingOut(true);
+    setTimeout(() => {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      navigate('/login');
+    }, 300);
+  };
+
+  return (
+    <nav className="bg-black border-b border-white/10 px-3 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-20 gap-2">
+      <Link to="/nouvelle-activite" className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">
+        <img src={yealeadLogo} alt="Yealead" className="w-8 h-8 sm:w-9 sm:h-9 object-contain" />
+        <span className="text-white font-semibold text-base sm:text-lg hidden sm:inline">SalesTrack</span>
+      </Link>
+
+      <div className="flex gap-1 bg-white/5 rounded-full p-1 overflow-x-auto max-w-full">
+        {links.map((link) => {
+          const active = location.pathname === link.path;
+          return (
+            <Link
+              key={link.path}
+              to={link.path}
+              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-full text-xs sm:text-sm transition-all duration-200 whitespace-nowrap shrink-0"
+              style={active ? { backgroundColor: ACCENT, color: '#fff', fontWeight: 500, boxShadow: `0 0 16px ${ACCENT}66` } : { color: 'rgba(255,255,255,0.55)' }}
+              onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = '#fff'; }}
+              onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = 'rgba(255,255,255,0.55)'; }}
+            >
+              {link.icon ? (
+                <img src={link.icon} alt="" className="w-4 h-4 shrink-0" style={{ filter: active ? 'brightness(0) invert(1)' : 'brightness(0) invert(1) opacity(0.6)' }} />
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                  {link.svgIcon}
+                </svg>
+              )}
+              <span className="hidden sm:inline">{link.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+
+      {user ? (
+        <div className="flex items-center gap-2 shrink-0">
+          <Link to="/profile" className="hover:opacity-80 transition-opacity">
+            {user.photo_url ? (
+              <img src={user.photo_url} alt="" className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover" />
+            ) : (
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden bg-white flex items-center justify-center p-1">
+                <img src={yealeadLogo} alt="Profil" className="w-full h-full object-contain" />
+              </div>
+            )}
+          </Link>
+          <button
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="w-8 h-8 sm:w-auto sm:h-auto flex items-center justify-center sm:px-3 sm:py-1.5 rounded-full border border-white/15 text-white/50 hover:text-white hover:border-white/30 transition-all disabled:opacity-60 gap-1.5 shrink-0"
+            aria-label="Déconnexion"
+          >
+            {loggingOut ? (
+              <Spinner size={14} color="currentColor" />
+            ) : (
+              <img src={yealeadLogo} alt="" className="w-4 h-4 object-contain" style={{ filter: 'brightness(0) invert(0.7)' }} />
+            )}
+            <span className="text-xs hidden sm:inline">{loggingOut ? '' : 'Déconnexion'}</span>
+          </button>
+        </div>
+      ) : (
+        <Link
+          to="/login"
+          className="flex items-center gap-1.5 text-xs sm:text-sm px-3 sm:px-5 py-2 rounded-full text-white transition-all whitespace-nowrap shrink-0 hover:brightness-110 active:scale-95"
+          style={{ backgroundColor: ACCENT, boxShadow: `0 2px 12px ${ACCENT}50` }}
+        >
+          <img src={yealeadLogo} alt="" className="w-4 h-4 object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
+          Connexion
+        </Link>
+      )}
+    </nav>
+  );
+}
+
+export default Navbar;
 </file>
 
 </files>
