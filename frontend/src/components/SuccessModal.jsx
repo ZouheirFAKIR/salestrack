@@ -3,7 +3,7 @@ import Confetti from './Confetti';
 
 const ACCENT = '#f86635';
 
-function SuccessModal({ onClose }) {
+function SuccessModal({ onClose, title, message }) {
   const [visible, setVisible] = useState(false);
   useEffect(() => { setTimeout(() => setVisible(true), 100); }, []);
 
@@ -28,9 +28,9 @@ function SuccessModal({ onClose }) {
             <path d="M7 5a3 3 0 0 1-3 3" />
           </svg>
         </div>
-        <h2 className="text-xl font-semibold text-black mb-2">Objectif atteint</h2>
+        <h2 className="text-xl font-semibold text-black mb-2">{title || 'Objectif atteint'}</h2>
         <p className="text-black/50 text-sm mb-6">
-          Tu as complété ton objectif du jour. Excellent travail, continue sur cette lancée.
+          {message || 'Tu as complété ton objectif du jour. Excellent travail, continue sur cette lancée.'}
         </p>
         <button
           onClick={handleClose}

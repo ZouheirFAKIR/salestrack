@@ -14,6 +14,8 @@ import cartIcon from '../assets/Cart.png';
 
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const [completedType, setCompletedType] = useState(null);
+
 
 function NouvelleActivite() {
   const navigate = useNavigate();
@@ -157,12 +159,22 @@ function NouvelleActivite() {
         setCombo(newCombo);
         setShowConfetti(true);
         setMessage(`Bien joué ! ${data.count} activité${data.count > 1 ? 's' : ''} enregistrée${data.count > 1 ? 's' : ''} 🔥`);
+
+        const beforeCount = getStat(type);
+        const afterCount = beforeCount + data.count;
+        const target = typeQuotas[type] || 5;
+
         resetForm();
         loadStats();
         setTimeout(() => setShowConfetti(false), 1300);
         setTimeout(() => setMessage(''), 2500);
         checkForNewBadges();
+
+        if (beforeCount < target && afterCount >= target) {
+          setTimeout(() => setCompletedType({ type, count: afterCount, target }), 1400);
+        }
       }
+      
     } catch (err) {
       setShake(true);
       setMessage("Erreur lors de l'enregistrement");
@@ -173,7 +185,7 @@ function NouvelleActivite() {
 
   const getStat = (key) => todayStats.find((s) => s.type === key)?.total || 0;
   const totalToday = todayStats.reduce((sum, s) => sum + Number(s.total), 0);
-
+  const totalObjectif = Object.values(typeQuotas).reduce((sum, v) => sum + Number(v), 0);
   if (pageLoading) return <PageLoader />;
 
   return (
@@ -331,7 +343,7 @@ function NouvelleActivite() {
 
         <div className="lg:col-span-1 flex flex-col gap-3">
           <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-3 mb-4">
               <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-semibold" style={{ backgroundColor: ACCENT }}>
                 {prenom.charAt(0).toUpperCase()}
               </div>
@@ -340,8 +352,10 @@ function NouvelleActivite() {
                 <p className="text-white/40 text-xs">Aujourd'hui</p>
               </div>
             </div>
-            <p className="text-2xl font-semibold text-white">{totalToday}</p>
-            <p className="text-xs text-white/40">activités enregistrées</p>
+            <p className="text-4xl font-bold" style={{ color: ACCENT }}>
+              {totalToday}<span className="text-xl text-white/30 font-medium"> / {totalObjectif}</span>
+            </p>
+            <p className="text-xs text-white/40 mt-1">activités enregistrées aujourd'hui</p>
           </div>
 
           <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
