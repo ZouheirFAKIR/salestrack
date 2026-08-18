@@ -253,5 +253,29 @@ router.get('/my-quota', authMiddleware, async (req, res) => {
   }
 });
 
+router.get('/my-type-quotas', authMiddleware, async (req, res) => {
+  try {
+    const quotasResult = await pool.query(
+      'SELECT type, daily_target FROM type_quotas WHERE commercial_id = $1',
+      [req.userId]
+    );
+    const quotas = { appel: 5, rdv: 2, devis: 1, commande: 1 };
+    quotasResult.rows.forEach((r) => { quotas[r.type] = r.daily_target; });
+
+    const todayResult = await pool.query(
+      `SELECT type, COUNT(*) as total FROM activities
+       WHERE commercial_id = $1 AND DATE(date_activite) = CURRENT_DATE
+       GROUP BY type`,
+      [req.userId]
+    );
+    const today = { appel: 0, rdv: 0, devis: 0, commande: 0 };
+    todayResult.rows.forEach((r) => { today[r.type] = Number(r.total); });
+
+    res.json({ quotas, today });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
 
 module.exports = router;

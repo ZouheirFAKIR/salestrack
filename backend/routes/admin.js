@@ -247,4 +247,41 @@ router.get('/report/quotas', async (req, res) => {
   }
 });
 
+// Récupère les 4 objectifs (par type) d'un commercial
+router.get('/commercials/:id/type-quotas', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT type, daily_target FROM type_quotas WHERE commercial_id = $1',
+      [req.params.id]
+    );
+    const quotas = { appel: 5, rdv: 2, devis: 1, commande: 1 };
+    result.rows.forEach((r) => { quotas[r.type] = r.daily_target; });
+    res.json(quotas);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Modifie un objectif précis (un seul type à la fois)
+router.put('/commercials/:id/type-quotas', async (req, res) => {
+  const { type, daily_target } = req.body;
+  const validTypes = ['appel', 'rdv', 'devis', 'commande'];
+
+  if (!validTypes.includes(type)) return res.status(400).json({ error: 'Type invalide' });
+  if (!daily_target || daily_target < 0) return res.status(400).json({ error: 'Objectif invalide' });
+
+  try {
+    await pool.query(
+      `INSERT INTO type_quotas (commercial_id, type, daily_target) VALUES ($1, $2, $3)
+       ON CONFLICT (commercial_id, type) DO UPDATE SET daily_target = $3`,
+      [req.params.id, type, daily_target]
+    );
+    res.json({ message: 'Objectif mis à jour' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 module.exports = router;

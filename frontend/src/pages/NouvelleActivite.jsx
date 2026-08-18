@@ -31,7 +31,7 @@ function NouvelleActivite() {
   const [pageLoading, setPageLoading] = useState(true);
   const [newlyUnlocked, setNewlyUnlocked] = useState([]);
   const [currentUnlockIndex, setCurrentUnlockIndex] = useState(0);
-  const [dailyTarget, setDailyTarget] = useState(5);
+  const [typeQuotas, setTypeQuotas] = useState({ appel: 5, rdv: 2, devis: 1, commande: 1 });
 
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -70,9 +70,9 @@ function NouvelleActivite() {
 
   useEffect(() => {
     if (!token) return;
-    apiFetch(`${API_URL}/api/activities/my-quota`)
+    apiFetch(`${API_URL}/api/activities/my-type-quotas`)
       .then((r) => r.json())
-      .then((d) => setDailyTarget(d.daily_target || 5));
+      .then((d) => setTypeQuotas(d.quotas));
   }, [token]);
 
   const resetForm = () => { setType(null); setSens(null); setStatut(null); setNombre(1); };
@@ -158,18 +158,9 @@ function NouvelleActivite() {
         setShowConfetti(true);
         setMessage(`Bien joué ! ${data.count} activité${data.count > 1 ? 's' : ''} enregistrée${data.count > 1 ? 's' : ''} 🔥`);
         resetForm();
-
-        const totalBefore = todayStats.reduce((sum, s) => sum + Number(s.total), 0);
-        const totalAfter = totalBefore + data.count;
-
-        if (totalBefore < dailyTarget && totalAfter >= dailyTarget) {
-          setTimeout(() => setShowSuccess(true), 1400);
-        }
-
         loadStats();
         setTimeout(() => setShowConfetti(false), 1300);
         setTimeout(() => setMessage(''), 2500);
-
         checkForNewBadges();
       }
     } catch (err) {
@@ -182,7 +173,6 @@ function NouvelleActivite() {
 
   const getStat = (key) => todayStats.find((s) => s.type === key)?.total || 0;
   const totalToday = todayStats.reduce((sum, s) => sum + Number(s.total), 0);
-  const progressPercent = Math.min(Math.round((totalToday / dailyTarget) * 100), 100);
 
   if (pageLoading) return <PageLoader />;
 
@@ -354,29 +344,30 @@ function NouvelleActivite() {
             <p className="text-xs text-white/40">activités enregistrées</p>
           </div>
 
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-xs text-white/50">Objectif du jour</span>
-              <span className="text-xs font-semibold" style={{ color: ACCENT }}>{totalToday} / {dailyTarget}</span>
-            </div>
-            <div className="w-full bg-white/10 rounded-full h-2">
-              <div
-                className="h-2 rounded-full transition-all duration-700"
-                style={{ width: `${progressPercent}%`, backgroundColor: ACCENT }}
-              />
-            </div>
-          </div>
-
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-2.5">
-            {activityTypes.map((t) => (
-              <div key={t.key} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <img src={icons[t.key]} alt={t.key} className="w-4 h-4 opacity-60" />
-                  <span className="text-xs text-white/60">{labels[t.key]}</span>
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
+            <p className="text-xs text-white/50 uppercase tracking-wide">Objectifs du jour</p>
+            {activityTypes.map((t) => {
+              const current = getStat(t.key);
+              const target = typeQuotas[t.key] || 5;
+              const percent = Math.min(Math.round((current / target) * 100), 100);
+              return (
+                <div key={t.key}>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <img src={icons[t.key]} alt={t.key} className="w-4 h-4 opacity-60" />
+                      <span className="text-xs text-white/60">{labels[t.key]}</span>
+                    </div>
+                    <span className="text-xs font-medium text-white">{current}/{target}</span>
+                  </div>
+                  <div className="w-full bg-white/10 rounded-full h-1.5">
+                    <div
+                      className="h-1.5 rounded-full transition-all duration-500"
+                      style={{ width: `${percent}%`, backgroundColor: ACCENT }}
+                    />
+                  </div>
                 </div>
-                <span className="text-sm font-medium text-white">{getStat(t.key)}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="rounded-2xl p-4 text-center" style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}>

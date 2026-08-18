@@ -28,9 +28,8 @@ function AnimatedNumber({ value }) {
 function Dashboard() {
   const [stats, setStats] = useState([]);
   const [daily, setDaily] = useState([]);
-  const [today, setToday] = useState(0);
+  const [typeQuotas, setTypeQuotas] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [dailyTarget, setDailyTarget] = useState(5);
 
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -45,20 +44,16 @@ function Dashboard() {
     Promise.all([
       apiFetch(`${API_URL}/api/activities/stats/today`).then(r => r.json()),
       apiFetch(`${API_URL}/api/activities/daily`).then(r => r.json()),
-      apiFetch(`${API_URL}/api/activities/today`).then(r => r.json()),
-      apiFetch(`${API_URL}/api/activities/my-quota`).then(r => r.json()),
-    ]).then(([statsData, dailyData, todayData, quotaData]) => {
+      apiFetch(`${API_URL}/api/activities/my-type-quotas`).then(r => r.json()),
+    ]).then(([statsData, dailyData, quotasData]) => {
       setStats(statsData);
       setDaily(dailyData);
-      setToday(Number(todayData.total));
-      setDailyTarget(quotaData.daily_target || 5);
+      setTypeQuotas(quotasData);
       setLoading(false);
     });
   }, [token]);
 
   const getStat = (type) => stats.find((s) => s.type === type) || { total: 0 };
-  const progressPercent = Math.min(Math.round((today / dailyTarget) * 100), 100);
-  const circumference = 2 * Math.PI * 34;
 
   if (loading) return <PageLoader />;
 
@@ -76,42 +71,49 @@ function Dashboard() {
   }
 
   return (
-    <div className="bg-black p-4 sm:p-3 pb-12">
+    <div className="bg-black p-4 sm:p-6 pb-12">
       <div className="max-w-5xl mx-auto flex flex-col gap-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-lg sm:text-xl font-semibold text-white">Salut {prenom} 👋</h1>
-            <p className="text-white/40 text-sm">Voici ton activité récente</p>
-          </div>
-          <div className="relative w-16 h-16 sm:w-20 sm:h-20 shrink-0 self-start sm:self-auto">
-            <svg viewBox="0 0 80 80" className="w-16 h-16 sm:w-20 sm:h-20 -rotate-90">
-              <circle cx="40" cy="40" r="34" stroke="rgba(255,255,255,0.1)" strokeWidth="6" fill="none" />
-              <circle
-                cx="40" cy="40" r="34" stroke={ACCENT} strokeWidth="6" fill="none" strokeLinecap="round"
-                strokeDasharray={circumference}
-                strokeDashoffset={circumference - (progressPercent / 100) * circumference}
-                style={{ transition: 'stroke-dashoffset 0.8s ease' }}
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xs sm:text-sm font-semibold text-white">{today}/{dailyTarget}</span>
-              <span className="text-[9px] sm:text-[10px] text-white/40">objectif</span>
-            </div>
-          </div>
+        <div>
+          <h1 className="text-lg sm:text-xl font-semibold text-white">Salut {prenom} 👋</h1>
+          <p className="text-white/40 text-sm">Voici ton activité récente</p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {allTypes.map((type, i) => {
-            const s = getStat(type);
-            return (
-              <div key={type} className="bg-white/5 border border-white/10 rounded-xl p-4 hover:border-orange-400/50 hover:-translate-y-1 transition-all"
-                style={{ animation: `popIn 0.4s ease ${i * 0.06}s both` }}>
-                <img src={icons[type]} alt={type} className="w-6 h-6" />
-                <p className="text-xl sm:text-2xl font-semibold text-white mt-2"><AnimatedNumber value={Number(s.total)} /></p>
-                <p className="text-xs text-white/50">{labels[type]}</p>
-              </div>
-            );
-          })}
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4 sm:p-5">
+          <p className="text-sm text-white/50 mb-4">Objectifs du jour</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {allTypes.map((type, i) => {
+              const s = getStat(type);
+              const current = Number(s.total);
+              const target = typeQuotas?.quotas[type] || 5;
+              const percent = Math.min(Math.round((current / target) * 100), 100);
+              const circumference = 2 * Math.PI * 26;
+
+              return (
+                <div
+                  key={type}
+                  className="bg-black/40 border border-white/10 rounded-xl p-3 flex flex-col items-center text-center hover:border-orange-400/40 transition-all"
+                  style={{ animation: `popIn 0.4s ease ${i * 0.06}s both` }}
+                >
+                  <div className="relative w-16 h-16 mb-2">
+                    <svg viewBox="0 0 64 64" className="w-16 h-16 -rotate-90">
+                      <circle cx="32" cy="32" r="26" stroke="rgba(255,255,255,0.1)" strokeWidth="5" fill="none" />
+                      <circle
+                        cx="32" cy="32" r="26" stroke={ACCENT} strokeWidth="5" fill="none" strokeLinecap="round"
+                        strokeDasharray={circumference}
+                        strokeDashoffset={circumference - (percent / 100) * circumference}
+                        style={{ transition: 'stroke-dashoffset 0.8s ease' }}
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <img src={icons[type]} alt={type} className="w-5 h-5 opacity-80" />
+                    </div>
+                  </div>
+                  <p className="text-sm font-semibold text-white"><AnimatedNumber value={current} />/{target}</p>
+                  <p className="text-[11px] text-white/40">{labels[type]}</p>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         <div className="bg-white/5 border border-white/10 rounded-xl p-4 sm:p-5">

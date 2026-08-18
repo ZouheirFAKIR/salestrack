@@ -8,31 +8,79 @@ import LineChart from '../../components/LineChart';
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+const TYPE_LABELS = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
+const TYPE_ICONS = { appel: '📞', rdv: '📅', devis: '📄', commande: '🛒' };
+
+function TypeQuotasForm({ commercialId, onSaved }) {
+  const [quotas, setQuotas] = useState({ appel: 5, rdv: 2, devis: 1, commande: 1 });
+  const [loading, setLoading] = useState(true);
+  const [savingType, setSavingType] = useState(null);
+  const [saved, setSaved] = useState(null);
+
+  useEffect(() => {
+    apiFetch(`${API_URL}/api/admin/commercials/${commercialId}/type-quotas`)
+      .then((r) => r.json())
+      .then((data) => { setQuotas(data); setLoading(false); });
+  }, [commercialId]);
+
+  const handleChange = (type, value) => {
+    setQuotas((prev) => ({ ...prev, [type]: value }));
+  };
+
+  const handleSave = async (type) => {
+    setSavingType(type);
+    setSaved(null);
+    await apiFetch(`${API_URL}/api/admin/commercials/${commercialId}/type-quotas`, {
+      method: 'PUT',
+      body: JSON.stringify({ type, daily_target: Number(quotas[type]) }),
+    });
+    setSavingType(null);
+    setSaved(type);
+    onSaved();
+    setTimeout(() => setSaved(null), 1500);
+  };
+
+  if (loading) return <Spinner size={18} color={ACCENT} />;
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {Object.keys(TYPE_LABELS).map((type) => (
+        <div key={type} className="bg-black/40 border border-white/10 rounded-lg p-3 flex items-center gap-2">
+          <span className="text-lg shrink-0">{TYPE_ICONS[type]}</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-white/50">{TYPE_LABELS[type]} / jour</p>
+            <input
+              type="number" min="0" value={quotas[type]}
+              onChange={(e) => handleChange(type, e.target.value)}
+              className="w-full bg-transparent text-white text-sm font-semibold outline-none border-b border-white/10 focus:border-orange-500/60 mt-1"
+            />
+          </div>
+          <button
+            onClick={() => handleSave(type)}
+            disabled={savingType === type}
+            className="text-[11px] px-2.5 py-1.5 rounded-md text-white shrink-0 disabled:opacity-50"
+            style={{ backgroundColor: saved === type ? '#22c55e' : ACCENT }}
+          >
+            {savingType === type ? <Spinner size={11} color="#fff" /> : saved === type ? '✓' : 'OK'}
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function CommercialDetail({ commercial, onClose, onQuotaUpdated }) {
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [newQuota, setNewQuota] = useState(5);
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     apiFetch(`${API_URL}/api/admin/commercials/${commercial.id}`)
       .then((r) => r.json())
       .then((data) => {
         setDetail(data);
-        setNewQuota(data.daily_target);
         setLoading(false);
       });
   }, [commercial.id]);
-
-  const handleSaveQuota = async () => {
-    setSaving(true);
-    await apiFetch(`${API_URL}/api/admin/commercials/${commercial.id}/quota`, {
-      method: 'PUT',
-      body: JSON.stringify({ daily_target: Number(newQuota) }),
-    });
-    setSaving(false);
-    onQuotaUpdated();
-  };
 
   const icons = { appel: '📞', rdv: '📅', devis: '📄', commande: '🛒' };
   const labels = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
@@ -74,23 +122,8 @@ function CommercialDetail({ commercial, onClose, onQuotaUpdated }) {
             </div>
 
             <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-              <p className="text-sm font-medium text-white mb-3">Objectif quotidien (quota)</p>
-              <div className="flex items-center gap-3">
-                <input
-                  type="number" min="1" value={newQuota}
-                  onChange={(e) => setNewQuota(e.target.value)}
-                  className="w-24 p-2 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60"
-                />
-                <button
-                  onClick={handleSaveQuota}
-                  disabled={saving}
-                  className="px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-60 flex items-center gap-2"
-                  style={{ backgroundColor: ACCENT }}
-                >
-                  {saving && <Spinner size={12} color="#fff" />}
-                  Enregistrer
-                </button>
-              </div>
+              <p className="text-sm font-medium text-white mb-3">Objectifs quotidiens par type</p>
+              <TypeQuotasForm commercialId={commercial.id} onSaved={onQuotaUpdated} />
             </div>
           </>
         )}
@@ -136,7 +169,7 @@ function AdminDashboard() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-lg font-semibold text-white">Administration — Commerciaux</h1>
-            <p className="text-white/40 text-xs">Activité, quotas et rapports</p>
+            <p className="text-white/40 text-xs">Activité, objectifs et rapports</p>
           </div>
           <div className="flex items-center gap-2">
             <Link to="/admin/courses" className="text-xs px-3 py-2 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
@@ -190,7 +223,7 @@ function AdminDashboard() {
         <CommercialDetail
           commercial={selected}
           onClose={() => setSelected(null)}
-          onQuotaUpdated={() => { loadCommercials(); setSelected(null); }}
+          onQuotaUpdated={loadCommercials}
         />
       )}
     </div>
