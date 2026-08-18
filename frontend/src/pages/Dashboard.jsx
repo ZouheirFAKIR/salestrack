@@ -32,13 +32,6 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [dailyTarget, setDailyTarget] = useState(5);
 
-  useEffect(() => {
-    if (!token) return;
-    apiFetch(`${API_URL}/api/activities/my-quota`)
-      .then((r) => r.json())
-      .then((d) => setDailyTarget(d.daily_target));
-  }, [token]);
-
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   const prenom = user?.nom?.split(' ')[0];
@@ -53,10 +46,12 @@ function Dashboard() {
       apiFetch(`${API_URL}/api/activities/stats/today`).then(r => r.json()),
       apiFetch(`${API_URL}/api/activities/daily`).then(r => r.json()),
       apiFetch(`${API_URL}/api/activities/today`).then(r => r.json()),
-    ]).then(([statsData, dailyData, todayData]) => {
+      apiFetch(`${API_URL}/api/activities/my-quota`).then(r => r.json()),
+    ]).then(([statsData, dailyData, todayData, quotaData]) => {
       setStats(statsData);
       setDaily(dailyData);
       setToday(Number(todayData.total));
+      setDailyTarget(quotaData.daily_target || 5);
       setLoading(false);
     });
   }, [token]);
@@ -81,7 +76,7 @@ function Dashboard() {
   }
 
   return (
-    <div className="bg-black p-4 sm:p-6 pb-12">
+    <div className="bg-black p-4 sm:p-3 pb-12">
       <div className="max-w-5xl mx-auto flex flex-col gap-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
