@@ -41,8 +41,11 @@ router.get('/:id', authMiddleware, async (req, res) => {
     const questionIds = questions.rows.map((q) => q.id);
     let options = [];
     if (questionIds.length > 0) {
+      // is_correct volontairement exclu : cette route est appelée AVANT
+      // que le commercial réponde. La correction se fait via
+      // POST /questions/:questionId/answer (instantané) et /:id/submit (final).
       const optionsResult = await pool.query(
-        'SELECT id, question_id, option_text, is_correct FROM quiz_options WHERE question_id = ANY($1::int[])',
+        'SELECT id, question_id, option_text FROM quiz_options WHERE question_id = ANY($1::int[])',
         [questionIds]
       );
       options = optionsResult.rows;
@@ -54,6 +57,38 @@ router.get('/:id', authMiddleware, async (req, res) => {
     }));
 
     res.json({ ...course.rows[0], questions: questionsWithOptions });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Vérifie une réponse en direct (feedback instantané vert/rouge),
+// sans jamais exposer les bonnes réponses avant que l'utilisateur ait cliqué.
+router.post('/questions/:questionId/answer', authMiddleware, async (req, res) => {
+  const { optionId } = req.body;
+  if (!optionId) return res.status(400).json({ error: 'optionId requis' });
+
+  try {
+    const optionsResult = await pool.query(
+      'SELECT id, is_correct FROM quiz_options WHERE question_id = $1',
+      [req.params.questionId]
+    );
+    if (optionsResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Question introuvable' });
+    }
+
+    const correctOption = optionsResult.rows.find((o) => o.is_correct);
+    const chosenOption = optionsResult.rows.find((o) => o.id === optionId);
+
+    if (!chosenOption) {
+      return res.status(400).json({ error: 'Option invalide' });
+    }
+
+    res.json({
+      correct: !!chosenOption.is_correct,
+      correctOptionId: correctOption ? correctOption.id : null,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur' });

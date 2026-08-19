@@ -504,56 +504,6 @@ function Spinner({ size = 16, color = 'currentColor' }) {
 export default Spinner;
 </file>
 
-<file path="frontend/src/components/SuccessModal.jsx">
-import { useEffect, useState } from 'react';
-import Confetti from './Confetti';
-
-const ACCENT = '#f86635';
-
-function SuccessModal({ onClose }) {
-  const [visible, setVisible] = useState(false);
-  useEffect(() => { setTimeout(() => setVisible(true), 100); }, []);
-
-  const handleClose = () => {
-    setVisible(false);
-    setTimeout(onClose, 200);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4">
-      <Confetti show={true} />
-      <div
-        className="bg-white rounded-2xl p-8 max-w-sm w-full text-center transition-all duration-300"
-        style={{ transform: visible ? 'scale(1)' : 'scale(0.85)', opacity: visible ? 1 : 0 }}
-      >
-        <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ backgroundColor: '#fff0e8' }}>
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M8 21h8" />
-            <path d="M12 17v4" />
-            <path d="M7 4h10v5a5 5 0 0 1-10 0V4Z" />
-            <path d="M17 5a3 3 0 0 0 3 3" />
-            <path d="M7 5a3 3 0 0 1-3 3" />
-          </svg>
-        </div>
-        <h2 className="text-xl font-semibold text-black mb-2">Objectif atteint</h2>
-        <p className="text-black/50 text-sm mb-6">
-          Tu as complété ton objectif du jour. Excellent travail, continue sur cette lancée.
-        </p>
-        <button
-          onClick={handleClose}
-          className="w-full text-white p-3 rounded-xl font-medium transition-transform active:scale-95 hover:scale-[1.02]"
-          style={{ backgroundColor: ACCENT }}
-        >
-          Continuer
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export default SuccessModal;
-</file>
-
 <file path="frontend/src/components/TargetModal.jsx">
 import { useEffect, useState } from 'react';
 
@@ -911,209 +861,6 @@ function AdminCourses() {
 }
 
 export default AdminCourses;
-</file>
-
-<file path="frontend/src/pages/admin/AdminDashboard.jsx">
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { apiFetch } from '../../utils/api';
-import PageLoader from '../../components/PageLoader';
-import Spinner from '../../components/Spinner';
-import LineChart from '../../components/LineChart';
-
-const ACCENT = '#f86635';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-function CommercialDetail({ commercial, onClose, onQuotaUpdated }) {
-  const [detail, setDetail] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [newQuota, setNewQuota] = useState(5);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    apiFetch(`${API_URL}/api/admin/commercials/${commercial.id}`)
-      .then((r) => r.json())
-      .then((data) => {
-        setDetail(data);
-        setNewQuota(data.daily_target);
-        setLoading(false);
-      });
-  }, [commercial.id]);
-
-  const handleSaveQuota = async () => {
-    setSaving(true);
-    await apiFetch(`${API_URL}/api/admin/commercials/${commercial.id}/quota`, {
-      method: 'PUT',
-      body: JSON.stringify({ daily_target: Number(newQuota) }),
-    });
-    setSaving(false);
-    onQuotaUpdated();
-  };
-
-  const icons = { appel: '📞', rdv: '📅', devis: '📄', commande: '🛒' };
-  const labels = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
-
-  return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50" onClick={onClose}>
-      <div
-        className="bg-[#0d0d0d] border border-white/10 rounded-2xl p-6 max-w-2xl w-full max-h-[85vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <p className="text-white font-semibold">{commercial.nom}</p>
-            <p className="text-white/40 text-xs">{commercial.email}</p>
-          </div>
-          <button onClick={onClose} className="text-white/40 hover:text-white text-xl">×</button>
-        </div>
-
-        {loading && <Spinner size={24} color={ACCENT} />}
-
-        {!loading && detail && (
-          <>
-            <div className="grid grid-cols-4 gap-3 mb-5">
-              {['appel', 'rdv', 'devis', 'commande'].map((type) => {
-                const stat = detail.stats.find((s) => s.type === type);
-                return (
-                  <div key={type} className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-                    <p className="text-xl">{icons[type]}</p>
-                    <p className="text-xl font-semibold text-white mt-1">{stat?.total || 0}</p>
-                    <p className="text-[11px] text-white/40">{labels[type]}</p>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-5">
-              <p className="text-sm text-white/50 mb-3">Activités (7 derniers jours)</p>
-              <LineChart data={detail.daily} />
-            </div>
-
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-              <p className="text-sm font-medium text-white mb-3">Objectif quotidien (quota)</p>
-              <div className="flex items-center gap-3">
-                <input
-                  type="number" min="1" value={newQuota}
-                  onChange={(e) => setNewQuota(e.target.value)}
-                  className="w-24 p-2 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60"
-                />
-                <button
-                  onClick={handleSaveQuota}
-                  disabled={saving}
-                  className="px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-60 flex items-center gap-2"
-                  style={{ backgroundColor: ACCENT }}
-                >
-                  {saving && <Spinner size={12} color="#fff" />}
-                  Enregistrer
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function AdminDashboard() {
-  const [commercials, setCommercials] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState(null);
-
-  const loadCommercials = () => {
-    apiFetch(`${API_URL}/api/admin/commercials`)
-      .then((r) => r.json())
-      .then((data) => { setCommercials(data); setLoading(false); });
-  };
-
-  useEffect(() => { loadCommercials(); }, []);
-
-  const handleDownloadReport = () => {
-    const token = localStorage.getItem('token');
-    fetch(`${API_URL}/api/admin/report/quotas`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.blob())
-      .then((blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'rapport_quotas.csv';
-        a.click();
-        window.URL.revokeObjectURL(url);
-      });
-  };
-
-  if (loading) return <PageLoader />;
-
-  return (
-    <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
-      <div className="max-w-4xl mx-auto flex flex-col gap-5">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-lg font-semibold text-white">Administration — Commerciaux</h1>
-            <p className="text-white/40 text-xs">Activité, quotas et rapports</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link to="/admin/courses" className="text-xs px-3 py-2 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
-              Gérer les cours
-            </Link>
-            <button
-              onClick={handleDownloadReport}
-              className="text-xs px-3 py-2 rounded-lg text-white font-medium flex items-center gap-1.5"
-              style={{ backgroundColor: ACCENT }}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              Télécharger le rapport
-            </button>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3">
-          {commercials.length === 0 && (
-            <p className="text-white/30 text-sm text-center mt-10">Aucun commercial pour l'instant</p>
-          )}
-          {commercials.map((c) => {
-            const percent = Math.min(Math.round((c.today_activities / c.daily_target) * 100), 100);
-            return (
-              <button
-                key={c.id}
-                onClick={() => setSelected(c)}
-                className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:border-orange-400/50 transition-all text-left flex items-center gap-4"
-              >
-                <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0" style={{ backgroundColor: ACCENT }}>
-                  {c.nom?.charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-medium">{c.nom}</p>
-                  <p className="text-white/40 text-xs">{c.total_activities} activités au total</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-sm font-semibold" style={{ color: ACCENT }}>{c.today_activities}/{c.daily_target}</p>
-                  <div className="w-20 bg-white/10 rounded-full h-1.5 mt-1">
-                    <div className="h-1.5 rounded-full" style={{ width: `${percent}%`, backgroundColor: ACCENT }} />
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {selected && (
-        <CommercialDetail
-          commercial={selected}
-          onClose={() => setSelected(null)}
-          onQuotaUpdated={() => { loadCommercials(); setSelected(null); }}
-        />
-      )}
-    </div>
-  );
-}
-
-export default AdminDashboard;
 </file>
 
 <file path="frontend/src/pages/Courses.jsx">
@@ -1502,259 +1249,6 @@ export default defineConfig({
 })
 </file>
 
-<file path="backend/routes/admin.js">
-const express = require('express');
-const router = express.Router();
-const pool = require('../db');
-const authMiddleware = require('../middleware/authMiddleware');
-const adminMiddleware = require('../middleware/adminMiddleware');
-
-router.use(authMiddleware, adminMiddleware);
-
-router.get('/courses', async (req, res) => {
-  try {
-    const courses = await pool.query(`
-      SELECT c.*, COUNT(q.id) as question_count
-      FROM courses c
-      LEFT JOIN quiz_questions q ON q.course_id = c.id
-      GROUP BY c.id ORDER BY c.id ASC
-    `);
-    res.json(courses.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-router.get('/courses/:id', async (req, res) => {
-  try {
-    const course = await pool.query('SELECT * FROM courses WHERE id = $1', [req.params.id]);
-    if (course.rows.length === 0) return res.status(404).json({ error: 'Cours introuvable' });
-
-    const questions = await pool.query(
-      'SELECT * FROM quiz_questions WHERE course_id = $1 ORDER BY order_index ASC',
-      [req.params.id]
-    );
-    const questionIds = questions.rows.map((q) => q.id);
-    let options = [];
-    if (questionIds.length > 0) {
-      const optRes = await pool.query(
-        'SELECT * FROM quiz_options WHERE question_id = ANY($1::int[]) ORDER BY id ASC',
-        [questionIds]
-      );
-      options = optRes.rows;
-    }
-    const questionsWithOptions = questions.rows.map((q) => ({
-      ...q,
-      options: options.filter((o) => o.question_id === q.id),
-    }));
-
-    res.json({ ...course.rows[0], questions: questionsWithOptions });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-router.post('/courses', async (req, res) => {
-  const { title, description, content_type, content_url, duration_minutes } = req.body;
-  if (!title) return res.status(400).json({ error: 'Le titre est obligatoire' });
-
-  try {
-    const result = await pool.query(
-      `INSERT INTO courses (title, description, content_type, content_url, duration_minutes)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [title, description || null, content_type || 'pdf', content_url || null, duration_minutes || null]
-    );
-    res.status(201).json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-router.put('/courses/:id', async (req, res) => {
-  const { title, description, content_type, content_url, duration_minutes } = req.body;
-  try {
-    const result = await pool.query(
-      `UPDATE courses SET
-        title = COALESCE($1, title),
-        description = COALESCE($2, description),
-        content_type = COALESCE($3, content_type),
-        content_url = COALESCE($4, content_url),
-        duration_minutes = COALESCE($5, duration_minutes)
-       WHERE id = $6 RETURNING *`,
-      [title, description, content_type, content_url, duration_minutes, req.params.id]
-    );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Cours introuvable' });
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-router.delete('/courses/:id', async (req, res) => {
-  try {
-    await pool.query('DELETE FROM courses WHERE id = $1', [req.params.id]);
-    res.json({ message: 'Cours supprimé' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-router.post('/courses/:id/questions', async (req, res) => {
-  const { question, points, options } = req.body;
-  if (!question || !options || options.length < 2) {
-    return res.status(400).json({ error: 'Question et au moins 2 options requises' });
-  }
-  const hasCorrect = options.some((o) => o.is_correct);
-  if (!hasCorrect) return res.status(400).json({ error: 'Une réponse correcte doit être sélectionnée' });
-
-  try {
-    const orderResult = await pool.query(
-      'SELECT COALESCE(MAX(order_index), 0) + 1 as next_order FROM quiz_questions WHERE course_id = $1',
-      [req.params.id]
-    );
-    const nextOrder = orderResult.rows[0].next_order;
-
-    const qResult = await pool.query(
-      'INSERT INTO quiz_questions (course_id, question, points, order_index) VALUES ($1, $2, $3, $4) RETURNING id',
-      [req.params.id, question, points || 10, nextOrder]
-    );
-    const questionId = qResult.rows[0].id;
-
-    for (const opt of options) {
-      await pool.query(
-        'INSERT INTO quiz_options (question_id, option_text, is_correct) VALUES ($1, $2, $3)',
-        [questionId, opt.option_text, !!opt.is_correct]
-      );
-    }
-
-    res.status(201).json({ message: 'Question ajoutée', questionId });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-router.delete('/questions/:id', async (req, res) => {
-  try {
-    await pool.query('DELETE FROM quiz_questions WHERE id = $1', [req.params.id]);
-    res.json({ message: 'Question supprimée' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-// Liste tous les commerciaux avec leurs stats
-router.get('/commercials', async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT 
-        u.id, u.nom, u.email, u.role, u.photo_url,
-        COALESCE(q.daily_target, 5) as daily_target,
-        COUNT(a.id) as total_activities,
-        COUNT(a.id) FILTER (WHERE DATE(a.date_activite) = CURRENT_DATE) as today_activities
-      FROM users u
-      LEFT JOIN quotas q ON q.commercial_id = u.id
-      LEFT JOIN activities a ON a.commercial_id = u.id
-      WHERE u.role != 'admin' OR u.role IS NULL
-      GROUP BY u.id, q.daily_target
-      ORDER BY u.nom ASC
-    `);
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-// Détail d'un commercial (activités par type + par jour)
-router.get('/commercials/:id', async (req, res) => {
-  try {
-    const user = await pool.query('SELECT id, nom, email, photo_url FROM users WHERE id = $1', [req.params.id]);
-    if (user.rows.length === 0) return res.status(404).json({ error: 'Introuvable' });
-
-    const stats = await pool.query(
-      `SELECT type, COUNT(*) as total FROM activities WHERE commercial_id = $1 GROUP BY type`,
-      [req.params.id]
-    );
-    const daily = await pool.query(
-      `SELECT TO_CHAR(d, 'YYYY-MM-DD') as jour, COALESCE(COUNT(a.id), 0) as total
-       FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') d
-       LEFT JOIN activities a ON DATE(a.date_activite) = d AND a.commercial_id = $1
-       GROUP BY d ORDER BY d ASC`,
-      [req.params.id]
-    );
-    const quota = await pool.query('SELECT daily_target FROM quotas WHERE commercial_id = $1', [req.params.id]);
-
-    res.json({
-      user: user.rows[0],
-      stats: stats.rows,
-      daily: daily.rows,
-      daily_target: quota.rows[0]?.daily_target || 5,
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-// Définir/modifier le quota d'un commercial
-router.put('/commercials/:id/quota', async (req, res) => {
-  const { daily_target } = req.body;
-  if (!daily_target || daily_target < 1) return res.status(400).json({ error: 'Quota invalide' });
-
-  try {
-    await pool.query(
-      `INSERT INTO quotas (commercial_id, daily_target) VALUES ($1, $2)
-       ON CONFLICT (commercial_id) DO UPDATE SET daily_target = $2, updated_at = NOW()`,
-      [req.params.id, daily_target]
-    );
-    res.json({ message: 'Quota mis à jour' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-// Rapport CSV téléchargeable : niveau d'atteinte des quotas
-router.get('/report/quotas', async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT 
-        u.nom, u.email,
-        COALESCE(q.daily_target, 5) as objectif_quotidien,
-        COUNT(a.id) FILTER (WHERE DATE(a.date_activite) = CURRENT_DATE) as activites_aujourdhui,
-        COUNT(a.id) as activites_total
-      FROM users u
-      LEFT JOIN quotas q ON q.commercial_id = u.id
-      LEFT JOIN activities a ON a.commercial_id = u.id
-      WHERE u.role != 'admin' OR u.role IS NULL
-      GROUP BY u.id, q.daily_target
-      ORDER BY u.nom ASC
-    `);
-
-    let csv = 'Nom,Email,Objectif quotidien,Activites aujourd\'hui,Taux atteinte (%),Activites total\n';
-    result.rows.forEach((r) => {
-      const taux = Math.min(Math.round((r.activites_aujourdhui / r.objectif_quotidien) * 100), 100);
-      csv += `"${r.nom}","${r.email}",${r.objectif_quotidien},${r.activites_aujourdhui},${taux}%,${r.activites_total}\n`;
-    });
-
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="rapport_quotas.csv"');
-    res.send('\uFEFF' + csv);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-module.exports = router;
-</file>
-
 <file path="backend/routes/profile.js">
 const express = require('express');
 const bcrypt = require('bcrypt');
@@ -1951,6 +1445,56 @@ function BadgesGrid() {
 }
 
 export default BadgesGrid;
+</file>
+
+<file path="frontend/src/components/SuccessModal.jsx">
+import { useEffect, useState } from 'react';
+import Confetti from './Confetti';
+
+const ACCENT = '#f86635';
+
+function SuccessModal({ onClose, title, message }) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => { setTimeout(() => setVisible(true), 100); }, []);
+
+  const handleClose = () => {
+    setVisible(false);
+    setTimeout(onClose, 200);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4">
+      <Confetti show={true} />
+      <div
+        className="bg-white rounded-2xl p-8 max-w-sm w-full text-center transition-all duration-300"
+        style={{ transform: visible ? 'scale(1)' : 'scale(0.85)', opacity: visible ? 1 : 0 }}
+      >
+        <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ backgroundColor: '#fff0e8' }}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 21h8" />
+            <path d="M12 17v4" />
+            <path d="M7 4h10v5a5 5 0 0 1-10 0V4Z" />
+            <path d="M17 5a3 3 0 0 0 3 3" />
+            <path d="M7 5a3 3 0 0 1-3 3" />
+          </svg>
+        </div>
+        <h2 className="text-xl font-semibold text-black mb-2">{title || 'Objectif atteint'}</h2>
+        <p className="text-black/50 text-sm mb-6">
+          {message || 'Tu as complété ton objectif du jour. Excellent travail, continue sur cette lancée.'}
+        </p>
+        <button
+          onClick={handleClose}
+          className="w-full text-white p-3 rounded-xl font-medium transition-transform active:scale-95 hover:scale-[1.02]"
+          style={{ backgroundColor: ACCENT }}
+        >
+          Continuer
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default SuccessModal;
 </file>
 
 <file path="frontend/src/data/badgeDefinitions.js">
@@ -2386,6 +1930,250 @@ function WeeklyTargetHistory() {
 export default WeeklyTargetHistory;
 </file>
 
+<file path="frontend/src/pages/admin/AdminDashboard.jsx">
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { apiFetch } from '../../utils/api';
+import PageLoader from '../../components/PageLoader';
+import Spinner from '../../components/Spinner';
+import LineChart from '../../components/LineChart';
+
+const ACCENT = '#f86635';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+const TYPE_LABELS = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
+const TYPE_ICONS = { appel: '📞', rdv: '📅', devis: '📄', commande: '🛒' };
+
+function TypeQuotasForm({ commercialId, onSaved }) {
+  const [quotas, setQuotas] = useState({ appel: 5, rdv: 2, devis: 1, commande: 1 });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    apiFetch(`${API_URL}/api/admin/commercials/${commercialId}/type-quotas`)
+      .then((r) => r.json())
+      .then((data) => { setQuotas(data); setLoading(false); });
+  }, [commercialId]);
+
+  const handleChange = (type, value) => {
+    setQuotas((prev) => ({ ...prev, [type]: value }));
+    setSaved(false);
+  };
+
+  const handleSaveAll = async () => {
+    setSaving(true);
+    await Promise.all(
+      Object.keys(TYPE_LABELS).map((type) =>
+        apiFetch(`${API_URL}/api/admin/commercials/${commercialId}/type-quotas`, {
+          method: 'PUT',
+          body: JSON.stringify({ type, daily_target: Number(quotas[type]) }),
+        })
+      )
+    );
+    setSaving(false);
+    setSaved(true);
+    onSaved();
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  if (loading) return <Spinner size={18} color={ACCENT} />;
+
+  return (
+    <div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+        {Object.keys(TYPE_LABELS).map((type) => (
+          <div key={type} className="bg-black/40 border border-white/10 rounded-lg p-3 flex items-center gap-2">
+            <span className="text-lg shrink-0">{TYPE_ICONS[type]}</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-white/50">{TYPE_LABELS[type]} / jour</p>
+              <input
+                type="number" min="0" value={quotas[type]}
+                onChange={(e) => handleChange(type, e.target.value)}
+                className="w-full bg-transparent text-white text-sm font-semibold outline-none border-b border-white/10 focus:border-orange-500/60 mt-1"
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <button
+        onClick={handleSaveAll}
+        disabled={saving}
+        className="w-full text-white text-sm font-medium py-2.5 rounded-lg disabled:opacity-60 flex items-center justify-center gap-2"
+        style={{ backgroundColor: saved ? '#22c55e' : ACCENT }}
+      >
+        {saving && <Spinner size={13} color="#fff" />}
+        {saving ? 'Enregistrement...' : saved ? '✓ Objectifs enregistrés' : 'Enregistrer les objectifs'}
+      </button>
+    </div>
+  );
+}
+
+function CommercialDetail({ commercial, onClose, onQuotaUpdated }) {
+  const [detail, setDetail] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    apiFetch(`${API_URL}/api/admin/commercials/${commercial.id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setDetail(data);
+        setLoading(false);
+      });
+  }, [commercial.id]);
+
+  const icons = { appel: '📞', rdv: '📅', devis: '📄', commande: '🛒' };
+  const labels = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50" onClick={onClose}>
+      <div
+        className="bg-[#0d0d0d] border border-white/10 rounded-2xl p-6 max-w-2xl w-full max-h-[85vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <p className="text-white font-semibold">{commercial.nom}</p>
+            <p className="text-white/40 text-xs">{commercial.email}</p>
+          </div>
+          <button onClick={onClose} className="text-white/40 hover:text-white text-xl">×</button>
+        </div>
+
+        {loading && <Spinner size={24} color={ACCENT} />}
+
+        {!loading && detail && (
+          <>
+            <div className="grid grid-cols-4 gap-3 mb-5">
+              {['appel', 'rdv', 'devis', 'commande'].map((type) => {
+                const stat = detail.stats.find((s) => s.type === type);
+                return (
+                  <div key={type} className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                    <p className="text-xl">{icons[type]}</p>
+                    <p className="text-xl font-semibold text-white mt-1">{stat?.total || 0}</p>
+                    <p className="text-[11px] text-white/40">{labels[type]}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-5">
+              <p className="text-sm text-white/50 mb-3">Activités (7 derniers jours)</p>
+              <LineChart data={detail.daily} />
+            </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+              <p className="text-sm font-medium text-white mb-3">Objectifs quotidiens par type</p>
+              <TypeQuotasForm commercialId={commercial.id} onSaved={onQuotaUpdated} />
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AdminDashboard() {
+  const [commercials, setCommercials] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState(null);
+
+  const loadCommercials = () => {
+    apiFetch(`${API_URL}/api/admin/commercials`)
+      .then((r) => r.json())
+      .then((data) => { setCommercials(data); setLoading(false); });
+  };
+
+  useEffect(() => { loadCommercials(); }, []);
+
+  const handleDownloadReport = () => {
+    const token = localStorage.getItem('token');
+    fetch(`${API_URL}/api/admin/report/quotas`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.blob())
+      .then((blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'rapport_quotas.csv';
+        a.click();
+        window.URL.revokeObjectURL(url);
+      });
+  };
+
+  if (loading) return <PageLoader />;
+
+  return (
+    <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
+      <div className="max-w-4xl mx-auto flex flex-col gap-5">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h1 className="text-lg font-semibold text-white">Administration — Commerciaux</h1>
+            <p className="text-white/40 text-xs">Activité, objectifs et rapports</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link to="/admin/courses" className="text-xs px-3 py-2 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
+              Gérer les cours
+            </Link>
+            <button
+              onClick={handleDownloadReport}
+              className="text-xs px-3 py-2 rounded-lg text-white font-medium flex items-center gap-1.5"
+              style={{ backgroundColor: ACCENT }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Télécharger le rapport
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          {commercials.length === 0 && (
+            <p className="text-white/30 text-sm text-center mt-10">Aucun commercial pour l'instant</p>
+          )}
+          {commercials.map((c) => {
+            const percent = Math.min(Math.round((c.today_activities / c.daily_target) * 100), 100);
+            return (
+              <button
+                key={c.id}
+                onClick={() => setSelected(c)}
+                className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:border-orange-400/50 transition-all text-left flex items-center gap-4"
+              >
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0" style={{ backgroundColor: ACCENT }}>
+                  {c.nom?.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-medium">{c.nom}</p>
+                  <p className="text-white/40 text-xs">{c.total_activities} activités au total</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-sm font-semibold" style={{ color: ACCENT }}>{c.today_activities}/{c.daily_target}</p>
+                  <div className="w-20 bg-white/10 rounded-full h-1.5 mt-1">
+                    <div className="h-1.5 rounded-full" style={{ width: `${percent}%`, backgroundColor: ACCENT }} />
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {selected && (
+        <CommercialDetail
+          commercial={selected}
+          onClose={() => setSelected(null)}
+          onQuotaUpdated={loadCommercials}
+        />
+      )}
+    </div>
+  );
+}
+
+export default AdminDashboard;
+</file>
+
 <file path="frontend/src/pages/Badges.jsx">
 import { useEffect, useState } from 'react';
 import Badge from '../components/Badge';
@@ -2558,6 +2346,308 @@ function Badges() {
 }
 
 export default Badges;
+</file>
+
+<file path="backend/routes/admin.js">
+const express = require('express');
+const router = express.Router();
+const pool = require('../db');
+const authMiddleware = require('../middleware/authMiddleware');
+const adminMiddleware = require('../middleware/adminMiddleware');
+
+router.use(authMiddleware, adminMiddleware);
+
+router.get('/courses', async (req, res) => {
+  try {
+    const courses = await pool.query(`
+      SELECT c.*, COUNT(q.id) as question_count
+      FROM courses c
+      LEFT JOIN quiz_questions q ON q.course_id = c.id
+      GROUP BY c.id ORDER BY c.id ASC
+    `);
+    res.json(courses.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/courses/:id', async (req, res) => {
+  try {
+    const course = await pool.query('SELECT * FROM courses WHERE id = $1', [req.params.id]);
+    if (course.rows.length === 0) return res.status(404).json({ error: 'Cours introuvable' });
+
+    const questions = await pool.query(
+      'SELECT * FROM quiz_questions WHERE course_id = $1 ORDER BY order_index ASC',
+      [req.params.id]
+    );
+    const questionIds = questions.rows.map((q) => q.id);
+    let options = [];
+    if (questionIds.length > 0) {
+      const optRes = await pool.query(
+        'SELECT * FROM quiz_options WHERE question_id = ANY($1::int[]) ORDER BY id ASC',
+        [questionIds]
+      );
+      options = optRes.rows;
+    }
+    const questionsWithOptions = questions.rows.map((q) => ({
+      ...q,
+      options: options.filter((o) => o.question_id === q.id),
+    }));
+
+    res.json({ ...course.rows[0], questions: questionsWithOptions });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.post('/courses', async (req, res) => {
+  const { title, description, content_type, content_url, duration_minutes } = req.body;
+  if (!title) return res.status(400).json({ error: 'Le titre est obligatoire' });
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO courses (title, description, content_type, content_url, duration_minutes)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [title, description || null, content_type || 'pdf', content_url || null, duration_minutes || null]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.put('/courses/:id', async (req, res) => {
+  const { title, description, content_type, content_url, duration_minutes } = req.body;
+  try {
+    const result = await pool.query(
+      `UPDATE courses SET
+        title = COALESCE($1, title),
+        description = COALESCE($2, description),
+        content_type = COALESCE($3, content_type),
+        content_url = COALESCE($4, content_url),
+        duration_minutes = COALESCE($5, duration_minutes)
+       WHERE id = $6 RETURNING *`,
+      [title, description, content_type, content_url, duration_minutes, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Cours introuvable' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.delete('/courses/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM courses WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Cours supprimé' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.post('/courses/:id/questions', async (req, res) => {
+  const { question, points, options } = req.body;
+  if (!question || !options || options.length < 2) {
+    return res.status(400).json({ error: 'Question et au moins 2 options requises' });
+  }
+  const hasCorrect = options.some((o) => o.is_correct);
+  if (!hasCorrect) return res.status(400).json({ error: 'Une réponse correcte doit être sélectionnée' });
+
+  try {
+    const orderResult = await pool.query(
+      'SELECT COALESCE(MAX(order_index), 0) + 1 as next_order FROM quiz_questions WHERE course_id = $1',
+      [req.params.id]
+    );
+    const nextOrder = orderResult.rows[0].next_order;
+
+    const qResult = await pool.query(
+      'INSERT INTO quiz_questions (course_id, question, points, order_index) VALUES ($1, $2, $3, $4) RETURNING id',
+      [req.params.id, question, points || 10, nextOrder]
+    );
+    const questionId = qResult.rows[0].id;
+
+    for (const opt of options) {
+      await pool.query(
+        'INSERT INTO quiz_options (question_id, option_text, is_correct) VALUES ($1, $2, $3)',
+        [questionId, opt.option_text, !!opt.is_correct]
+      );
+    }
+
+    res.status(201).json({ message: 'Question ajoutée', questionId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.delete('/questions/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM quiz_questions WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Question supprimée' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Liste tous les commerciaux avec leurs stats
+router.get('/commercials', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        u.id, u.nom, u.email, u.role, u.photo_url,
+        COALESCE(tq.total_target, 9) as daily_target,
+        COUNT(a.id) as total_activities,
+        COUNT(a.id) FILTER (WHERE DATE(a.date_activite) = CURRENT_DATE) as today_activities
+      FROM users u
+      LEFT JOIN (
+        SELECT commercial_id, SUM(daily_target) as total_target
+        FROM type_quotas
+        GROUP BY commercial_id
+      ) tq ON tq.commercial_id = u.id
+      LEFT JOIN activities a ON a.commercial_id = u.id
+      WHERE u.role != 'admin' OR u.role IS NULL
+      GROUP BY u.id, tq.total_target
+      ORDER BY u.nom ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Détail d'un commercial (activités par type + par jour)
+router.get('/commercials/:id', async (req, res) => {
+  try {
+    const user = await pool.query('SELECT id, nom, email, photo_url FROM users WHERE id = $1', [req.params.id]);
+    if (user.rows.length === 0) return res.status(404).json({ error: 'Introuvable' });
+
+    const stats = await pool.query(
+      `SELECT type, COUNT(*) as total FROM activities WHERE commercial_id = $1 GROUP BY type`,
+      [req.params.id]
+    );
+    const daily = await pool.query(
+      `SELECT TO_CHAR(d, 'YYYY-MM-DD') as jour, COALESCE(COUNT(a.id), 0) as total
+       FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') d
+       LEFT JOIN activities a ON DATE(a.date_activite) = d AND a.commercial_id = $1
+       GROUP BY d ORDER BY d ASC`,
+      [req.params.id]
+    );
+    const typeQuotaTotal = await pool.query(
+      'SELECT COALESCE(SUM(daily_target), 9) as total_target FROM type_quotas WHERE commercial_id = $1',
+      [req.params.id]
+    );
+
+    res.json({
+      user: user.rows[0],
+      stats: stats.rows,
+      daily: daily.rows,
+      daily_target: typeQuotaTotal.rows[0].total_target,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Définir/modifier le quota d'un commercial (legacy, non utilisé par l'UI actuelle)
+router.put('/commercials/:id/quota', async (req, res) => {
+  const { daily_target } = req.body;
+  if (!daily_target || daily_target < 1) return res.status(400).json({ error: 'Quota invalide' });
+
+  try {
+    await pool.query(
+      `INSERT INTO quotas (commercial_id, daily_target) VALUES ($1, $2)
+       ON CONFLICT (commercial_id) DO UPDATE SET daily_target = $2, updated_at = NOW()`,
+      [req.params.id, daily_target]
+    );
+    res.json({ message: 'Quota mis à jour' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Rapport CSV téléchargeable : niveau d'atteinte des quotas
+router.get('/report/quotas', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        u.nom, u.email,
+        COALESCE(tq.total_target, 9) as objectif_quotidien,
+        COUNT(a.id) FILTER (WHERE DATE(a.date_activite) = CURRENT_DATE) as activites_aujourdhui,
+        COUNT(a.id) as activites_total
+      FROM users u
+      LEFT JOIN (
+        SELECT commercial_id, SUM(daily_target) as total_target
+        FROM type_quotas
+        GROUP BY commercial_id
+      ) tq ON tq.commercial_id = u.id
+      LEFT JOIN activities a ON a.commercial_id = u.id
+      WHERE u.role != 'admin' OR u.role IS NULL
+      GROUP BY u.id, tq.total_target
+      ORDER BY u.nom ASC
+    `);
+
+    let csv = 'Nom,Email,Objectif quotidien,Activites aujourd\'hui,Taux atteinte (%),Activites total\n';
+    result.rows.forEach((r) => {
+      const taux = Math.min(Math.round((r.activites_aujourdhui / r.objectif_quotidien) * 100), 100);
+      csv += `"${r.nom}","${r.email}",${r.objectif_quotidien},${r.activites_aujourdhui},${taux}%,${r.activites_total}\n`;
+    });
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="rapport_quotas.csv"');
+    res.send('\uFEFF' + csv);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Récupère les 4 objectifs (par type) d'un commercial
+router.get('/commercials/:id/type-quotas', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT type, daily_target FROM type_quotas WHERE commercial_id = $1',
+      [req.params.id]
+    );
+    const quotas = { appel: 5, rdv: 2, devis: 1, commande: 1 };
+    result.rows.forEach((r) => { quotas[r.type] = r.daily_target; });
+    res.json(quotas);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Modifie un objectif précis (un seul type à la fois)
+router.put('/commercials/:id/type-quotas', async (req, res) => {
+  const { type, daily_target } = req.body;
+  const validTypes = ['appel', 'rdv', 'devis', 'commande'];
+
+  if (!validTypes.includes(type)) return res.status(400).json({ error: 'Type invalide' });
+  if (!daily_target || daily_target < 0) return res.status(400).json({ error: 'Objectif invalide' });
+
+  try {
+    await pool.query(
+      `INSERT INTO type_quotas (commercial_id, type, daily_target) VALUES ($1, $2, $3)
+       ON CONFLICT (commercial_id, type) DO UPDATE SET daily_target = $3`,
+      [req.params.id, type, daily_target]
+    );
+    res.json({ message: 'Objectif mis à jour' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+module.exports = router;
 </file>
 
 <file path="frontend/src/pages/Signup.jsx">
@@ -2742,136 +2832,466 @@ function Login() {
 export default Login;
 </file>
 
-<file path="frontend/src/pages/Dashboard.jsx">
-import { useEffect, useState } from 'react';
-import LineChart from '../components/LineChart';
-import PageLoader from '../components/PageLoader';
+<file path="frontend/src/pages/CourseDetail.jsx">
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import * as pdfjsLib from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
 import { apiFetch } from '../utils/api';
-import phoneIcon from '../assets/Phone.png';
-import calendarIcon from '../assets/calendar.png';
-import documentIcon from '../assets/document.png';
-import cartIcon from '../assets/Cart.png';
+import PageLoader from '../components/PageLoader';
+import Spinner from '../components/Spinner';
+import Confetti from '../components/Confetti';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-function AnimatedNumber({ value }) {
-  const [display, setDisplay] = useState(0);
+function PdfCanvasPage({ pdfDoc, pageNum, containerWidth, zoom }) {
+  const canvasRef = useRef(null);
+
   useEffect(() => {
-    let start = 0;
-    const step = Math.max(1, Math.ceil(value / 20));
-    const interval = setInterval(() => {
-      start += step;
-      if (start >= value) { setDisplay(value); clearInterval(interval); }
-      else setDisplay(start);
-    }, 30);
-    return () => clearInterval(interval);
-  }, [value]);
-  return <>{display}</>;
+    let renderTask = null;
+    let cancelled = false;
+    if (!pdfDoc || !containerWidth) return;
+
+    pdfDoc.getPage(pageNum).then((page) => {
+      if (cancelled) return;
+
+      // 1. Détecter la densité de pixels de l'écran mobile (Retina = 2x ou 3x)
+      const dpr = Math.min(window.devicePixelRatio || 1, 3);
+
+      // 2. Calcul de l'échelle d'affichage de base
+      const baseViewport = page.getViewport({ scale: 1 });
+      const cssScale = (containerWidth / baseViewport.width) * zoom;
+
+      // 3. Viewport haute résolution pour le moteur de rendu
+      const renderViewport = page.getViewport({ scale: cssScale * dpr });
+
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const context = canvas.getContext('2d', { alpha: false });
+
+      // 4. Dimensions réelles (buffer HD)
+      canvas.width = Math.floor(renderViewport.width);
+      canvas.height = Math.floor(renderViewport.height);
+
+      // 5. Dimensions CSS (affichage à l'écran)
+      canvas.style.width = `${Math.floor(baseViewport.width * cssScale)}px`;
+      canvas.style.height = 'auto';
+
+      renderTask = page.render({
+        canvasContext: context,
+        viewport: renderViewport,
+      });
+
+      renderTask.promise.catch((err) => {
+        if (err?.name !== 'RenderingCancelledException') {
+          console.error(err);
+        }
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      if (renderTask) renderTask.cancel();
+    };
+  }, [pdfDoc, pageNum, containerWidth, zoom]);
+
+  return <canvas ref={canvasRef} className="block mb-3 rounded-lg shadow-xl mx-auto bg-white" />;
 }
 
-function Dashboard() {
-  const [stats, setStats] = useState([]);
-  const [daily, setDaily] = useState([]);
-  const [today, setToday] = useState(0);
+function PdfViewer({ url }) {
+  const containerRef = useRef(null);
+  const wrapperRef = useRef(null);
+  const [pdfDoc, setPdfDoc] = useState(null);
+  const [numPages, setNumPages] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(0);
   const [loading, setLoading] = useState(true);
-  const dailyTarget = 5;
-
-  const token = localStorage.getItem('token');
-  const user = JSON.parse(localStorage.getItem('user') || 'null');
-  const prenom = user?.nom?.split(' ')[0];
-
-  const icons = { appel: phoneIcon, rdv: calendarIcon, devis: documentIcon, commande: cartIcon };
-  const labels = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
-  const allTypes = ['appel', 'rdv', 'devis', 'commande'];
+  const [error, setError] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [zoom, setZoom] = useState(1);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
-    if (!token) { setLoading(false); return; }
-    Promise.all([
-      apiFetch(`${API_URL}/api/activities/stats/today`).then(r => r.json()),
-      apiFetch(`${API_URL}/api/activities/daily`).then(r => r.json()),
-      apiFetch(`${API_URL}/api/activities/today`).then(r => r.json()),
-    ]).then(([statsData, dailyData, todayData]) => {
-      setStats(statsData);
-      setDaily(dailyData);
-      setToday(Number(todayData.total));
-      setLoading(false);
-    });
-  }, [token]);
+    let cancelled = false;
+    setLoading(true);
+    setError(false);
+    setErrorMsg('');
+    pdfjsLib.getDocument({ url, disableStream: true, disableRange: true }).promise
+      .then((doc) => {
+        if (cancelled) return;
+        setPdfDoc(doc);
+        setNumPages(doc.numPages);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error('Erreur PDF.js :', err);
+        if (!cancelled) {
+          setError(true);
+          setErrorMsg(err?.message || String(err));
+          setLoading(false);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [url]);
 
-  const getStat = (type) => stats.find((s) => s.type === type) || { total: 0 };
-  const progressPercent = Math.min(Math.round((today / dailyTarget) * 100), 100);
-  const circumference = 2 * Math.PI * 34;
+  const measure = useCallback(() => {
+    if (containerRef.current) {
+      setContainerWidth(containerRef.current.clientWidth - 16);
+    }
+  }, []);
 
-  if (loading) return <PageLoader />;
+  useEffect(() => {
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [measure, isFullscreen]);
 
-  if (!token) {
-    return (
-      <div className="bg-black min-h-screen flex flex-col items-center justify-center p-6 text-center">
-        <span className="text-4xl mb-4">🔒</span>
-        <h1 className="text-xl font-semibold text-white mb-2">Connecte-toi pour voir ton dashboard</h1>
-        <p className="text-white/40 text-sm mb-6">Tes statistiques personnelles apparaîtront ici</p>
-        <a href="/login" className="text-white px-5 py-2.5 rounded-lg font-medium" style={{ backgroundColor: ACCENT }}>
-          Se connecter
-        </a>
-      </div>
-    );
-  }
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      wrapperRef.current?.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
+  };
+
+  const handleDownload = () => {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '';
+    a.target = '_blank';
+    a.click();
+  };
+
+  const pages = Array.from({ length: numPages }, (_, i) => i + 1);
 
   return (
-    <div className="bg-black p-4 sm:p-6 pb-12">
-      <div className="max-w-5xl mx-auto flex flex-col gap-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-lg sm:text-xl font-semibold text-white">Salut {prenom} 👋</h1>
-            <p className="text-white/40 text-sm">Voici ton activité récente</p>
-          </div>
-          <div className="relative w-16 h-16 sm:w-20 sm:h-20 shrink-0 self-start sm:self-auto">
-            <svg viewBox="0 0 80 80" className="w-16 h-16 sm:w-20 sm:h-20 -rotate-90">
-              <circle cx="40" cy="40" r="34" stroke="rgba(255,255,255,0.1)" strokeWidth="6" fill="none" />
-              <circle
-                cx="40" cy="40" r="34" stroke={ACCENT} strokeWidth="6" fill="none" strokeLinecap="round"
-                strokeDasharray={circumference}
-                strokeDashoffset={circumference - (progressPercent / 100) * circumference}
-                style={{ transition: 'stroke-dashoffset 0.8s ease' }}
-              />
+    <div
+      ref={wrapperRef}
+      className="flex-1 min-h-0 flex flex-col bg-[#0a0a0a] border border-white/10 rounded-xl overflow-hidden"
+      style={isFullscreen ? { backgroundColor: '#0a0a0a' } : undefined}
+    >
+      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-white/10 shrink-0 bg-[#0d0d0d]">
+        <span className="text-[11px] text-white/40">{numPages > 0 ? `${numPages} page${numPages > 1 ? 's' : ''}` : ''}</span>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setZoom((z) => Math.max(0.6, +(z - 0.2).toFixed(1)))}
+            title="Réduire"
+            className="w-8 h-8 rounded-lg bg-black/60 border border-white/10 hover:border-white/30 text-white/80 hover:text-white flex items-center justify-center text-sm font-semibold transition-all cursor-pointer"
+          >
+            −
+          </button>
+          <button
+            onClick={() => setZoom(1)}
+            title="Taille standard"
+            className="px-2.5 h-8 rounded-lg bg-black/60 border border-white/10 hover:border-white/30 text-white/70 hover:text-white text-xs font-medium transition-all cursor-pointer"
+          >
+            {Math.round(zoom * 100)}%
+          </button>
+          <button
+            onClick={() => setZoom((z) => Math.min(2.5, +(z + 0.2).toFixed(1)))}
+            title="Agrandir"
+            className="w-8 h-8 rounded-lg bg-black/60 border border-white/10 hover:border-white/30 text-white/80 hover:text-white flex items-center justify-center text-sm font-semibold transition-all cursor-pointer"
+          >
+            +
+          </button>
+          <button
+            onClick={handleDownload}
+            title="Télécharger"
+            className="w-8 h-8 rounded-lg bg-black/60 border border-white/10 hover:border-white/30 text-white/80 hover:text-white flex items-center justify-center transition-all cursor-pointer ml-1"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
             </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xs sm:text-sm font-semibold text-white">{today}/{dailyTarget}</span>
-              <span className="text-[9px] sm:text-[10px] text-white/40">objectif</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {allTypes.map((type, i) => {
-            const s = getStat(type);
-            return (
-              <div key={type} className="bg-white/5 border border-white/10 rounded-xl p-4 hover:border-orange-400/50 hover:-translate-y-1 transition-all"
-                style={{ animation: `popIn 0.4s ease ${i * 0.06}s both` }}>
-                <img src={icons[type]} alt={type} className="w-6 h-6" />
-                <p className="text-xl sm:text-2xl font-semibold text-white mt-2"><AnimatedNumber value={Number(s.total)} /></p>
-                <p className="text-xs text-white/50">{labels[type]}</p>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="bg-white/5 border border-white/10 rounded-xl p-4 sm:p-5">
-          <p className="text-sm text-white/50 mb-1">Activités par jour (7 derniers jours)</p>
-          <p className="text-xl sm:text-2xl font-semibold text-white mb-4">
-            {daily.reduce((sum, d) => sum + Number(d.total), 0)} activités
-          </p>
-          <LineChart data={daily} />
+          </button>
+          <button
+            onClick={toggleFullscreen}
+            title={isFullscreen ? 'Quitter plein écran' : 'Plein écran'}
+            className="w-8 h-8 rounded-lg bg-black/60 border border-white/10 hover:border-white/30 text-white/80 hover:text-white flex items-center justify-center transition-all cursor-pointer"
+          >
+            {isFullscreen ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M15 3h6v6m0-6-7 7M9 21H3v-6m0 6 7-7" />
+              </svg>
+            )}
+          </button>
         </div>
       </div>
 
-      <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>
+      <div
+        ref={containerRef}
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-auto p-2"
+        style={{ scrollbarWidth: 'thin', scrollbarColor: `${ACCENT} #1a1a1a` }}
+      >
+        {loading && (
+          <div className="h-full flex flex-col items-center justify-center gap-3 py-16">
+            <Spinner size={28} color={ACCENT} />
+            <p className="text-xs text-white/50">Chargement du document...</p>
+          </div>
+        )}
+        {error && (
+          <div className="h-full flex flex-col items-center justify-center text-white/40 text-sm py-16 gap-2 px-4 text-center">
+            <p>Impossible d'afficher le document.</p>
+            <p className="text-white/25 text-xs break-all">{errorMsg}</p>
+          </div>
+        )}
+        {!loading && !error && pdfDoc && containerWidth > 0 && (
+          <div className="flex flex-col items-center min-w-max mx-auto">
+            {pages.map((p) => (
+              <PdfCanvasPage key={p} pdfDoc={pdfDoc} pageNum={p} containerWidth={containerWidth} zoom={zoom} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-export default Dashboard;
+function CourseDetail() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const token = localStorage.getItem('token');
+
+  const [course, setCourse] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [step, setStep] = useState('reading');
+  const [answers, setAnswers] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!token) { navigate('/login'); return; }
+    apiFetch(`${API_URL}/api/courses/${id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setCourse(data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [id, token]);
+
+  const handleSelectAnswer = (questionId, optionId) => {
+    if (answers[questionId]) return;
+    setAnswers((prev) => ({ ...prev, [questionId]: optionId }));
+  };
+
+  const handleRestart = () => {
+    setAnswers({});
+    setResult(null);
+    setError('');
+    setStep('reading');
+  };
+
+  const allAnswered = course?.questions?.length > 0 && course.questions.every((q) => answers[q.id]);
+
+  const handleSubmit = async () => {
+    if (!allAnswered) {
+      setError('Réponds à toutes les questions avant de valider');
+      return;
+    }
+    setError('');
+    setSubmitting(true);
+    try {
+      const res = await apiFetch(`${API_URL}/api/courses/${id}/submit`, {
+        method: 'POST',
+        body: JSON.stringify({ answers }),
+      });
+      const data = await res.json();
+      setResult(data);
+      setStep('result');
+    } catch (err) {
+      setError('Erreur lors de la soumission');
+    }
+    setSubmitting(false);
+  };
+
+  if (loading) return <PageLoader />;
+  if (!course) return null;
+
+  const answeredCount = Object.keys(answers).length;
+  const totalQuestions = course.questions?.length || 0;
+
+  return (
+    <div className="bg-black text-white h-[calc(100dvh-64px)] overflow-hidden flex flex-col p-3 sm:p-5">
+      <div className="max-w-5xl w-full mx-auto flex-1 flex flex-col min-h-0 gap-2.5">
+        <div className="flex items-center justify-between gap-3 flex-wrap shrink-0">
+          <Link
+            to="/courses"
+            className="text-white/40 text-xs hover:text-white transition-colors inline-flex items-center gap-1.5"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            Retour aux formations
+          </Link>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2.5 py-0.5 rounded-full">
+              Formation Yealead
+            </span>
+          </div>
+        </div>
+
+        {step === 'reading' && (
+          <div className="flex-1 flex flex-col min-h-0 gap-2.5 animate-[fadeIn_0.25s_ease]">
+            <div className="shrink-0">
+              <h1 className="text-base sm:text-lg font-bold text-white leading-tight">{course.title}</h1>
+              <p className="text-xs text-white/50 mt-0.5">{course.description}</p>
+            </div>
+
+            <PdfViewer url={course.content_url || '/Strategie-prescription.pdf'} />
+
+            <button
+              onClick={() => setStep('quiz')}
+              className="shrink-0 w-full text-white py-3 rounded-xl font-semibold text-sm transition-all hover:brightness-110 active:scale-[0.99] shadow-lg cursor-pointer flex items-center justify-center gap-2"
+              style={{ backgroundColor: ACCENT }}
+            >
+              <span>J'ai terminé la lecture, passer au quiz</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        {step === 'quiz' && (
+          <div className="flex-1 flex flex-col min-h-0 gap-3 animate-[fadeIn_0.25s_ease]">
+            <div className="flex items-center justify-between border-b border-white/10 pb-2 shrink-0">
+              <div>
+                <h1 className="text-base font-bold text-white">Quiz — {course.title}</h1>
+                <p className="text-[11px] text-white/40">{answeredCount} / {totalQuestions} questions répondues</p>
+              </div>
+              <button
+                onClick={handleRestart}
+                className="text-xs px-2.5 py-1 rounded-lg border border-white/15 text-white/60 hover:text-white transition-all cursor-pointer shrink-0"
+              >
+                Recommencer
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1" style={{ scrollbarWidth: 'thin' }}>
+              {course.questions.map((q, qi) => {
+                const selectedOptionId = answers[q.id];
+                const isAnswered = !!selectedOptionId;
+
+                return (
+                  <div key={q.id} className="bg-[#0f0f0f] border border-white/10 rounded-xl p-4 transition-all">
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <p className="text-white font-medium text-sm">
+                        <span className="text-white/40 mr-1.5">{qi + 1}.</span> {q.question}
+                      </p>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-white/5 text-white/40 border border-white/10 shrink-0">
+                        {q.points} pts
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      {q.options.map((opt) => {
+                        const isChosen = selectedOptionId === opt.id;
+                        const isCorrect = opt.is_correct === true || opt.is_correct === 'true';
+
+                        let optionStyle = 'bg-black/60 border-white/10 text-white/80 hover:border-white/30 cursor-pointer';
+
+                        if (isAnswered) {
+                          if (isChosen) {
+                            optionStyle = isCorrect
+                              ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 font-medium cursor-default ring-1 ring-emerald-500'
+                              : 'bg-rose-950/60 border-rose-500 text-rose-300 font-medium cursor-default ring-1 ring-rose-500';
+                          } else if (isCorrect) {
+                            optionStyle = 'bg-emerald-950/30 border-emerald-500/70 text-emerald-400 font-medium cursor-default';
+                          } else {
+                            optionStyle = 'bg-black/30 border-white/5 text-white/25 cursor-default opacity-40';
+                          }
+                        }
+
+                        return (
+                          <button
+                            key={opt.id}
+                            disabled={isAnswered}
+                            onClick={() => handleSelectAnswer(q.id, opt.id)}
+                            className={`w-full text-left p-3 rounded-lg text-xs sm:text-sm border transition-all flex items-center justify-between gap-2 ${optionStyle}`}
+                          >
+                            <span>{opt.option_text}</span>
+                            {isAnswered && (
+                              <span className="shrink-0 text-xs font-semibold">
+                                {isChosen && isCorrect && '✓ Correct'}
+                                {isChosen && !isCorrect && '✕ Incorrect'}
+                                {!isChosen && isCorrect && '✓ Bonne réponse'}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {error && <p className="text-red-400 text-xs text-center shrink-0">{error}</p>}
+
+            <button
+              onClick={handleSubmit}
+              disabled={!allAnswered || submitting}
+              className="shrink-0 w-full text-white py-3 rounded-xl font-semibold text-sm transition-all hover:brightness-110 active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+              style={{ backgroundColor: ACCENT }}
+            >
+              {submitting && <Spinner size={15} color="#fff" />}
+              {submitting ? 'Validation...' : 'Valider mes réponses'}
+            </button>
+          </div>
+        )}
+
+        {step === 'result' && result && (
+          <div className="flex-1 flex flex-col items-center justify-center text-center bg-[#0c0c0c] border border-white/10 rounded-2xl p-6 animate-[fadeIn_0.25s_ease]">
+            <Confetti show={result.percent >= 70} />
+            <div
+              className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center text-2xl font-bold text-white shadow-xl"
+              style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}
+            >
+              {result.percent}%
+            </div>
+            <h2 className="text-xl font-bold text-white mb-1">
+              {result.percent >= 70 ? 'Félicitations !' : 'Score insuffisant'}
+            </h2>
+            <p className="text-white/50 text-xs mb-6">
+              Tu as obtenu {result.score} / {result.maxScore} points.
+            </p>
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={handleRestart}
+                className="text-xs px-5 py-2.5 rounded-xl text-white/80 border border-white/15 hover:text-white transition-all cursor-pointer"
+              >
+                Recommencer
+              </button>
+              <Link
+                to="/courses"
+                className="text-xs px-5 py-2.5 rounded-xl text-white font-semibold transition-all hover:brightness-110 shadow-lg"
+                style={{ backgroundColor: ACCENT }}
+              >
+                Retour aux formations
+              </Link>
+            </div>
+          </div>
+        )}
+      </div>
+      <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+    </div>
+  );
+}
+
+export default CourseDetail;
 </file>
 
 <file path="frontend/src/pages/Profile.jsx">
@@ -3502,553 +3922,181 @@ router.post('/seen-badges', authMiddleware, async (req, res) => {
   }
 });
 
+router.get('/my-quota', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT daily_target FROM quotas WHERE commercial_id = $1',
+      [req.userId]
+    );
+    res.json({ daily_target: result.rows[0]?.daily_target || 5 });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/my-type-quotas', authMiddleware, async (req, res) => {
+  try {
+    const quotasResult = await pool.query(
+      'SELECT type, daily_target FROM type_quotas WHERE commercial_id = $1',
+      [req.userId]
+    );
+    const quotas = { appel: 5, rdv: 2, devis: 1, commande: 1 };
+    quotasResult.rows.forEach((r) => { quotas[r.type] = r.daily_target; });
+
+    const todayResult = await pool.query(
+      `SELECT type, COUNT(*) as total FROM activities
+       WHERE commercial_id = $1 AND DATE(date_activite) = CURRENT_DATE
+       GROUP BY type`,
+      [req.userId]
+    );
+    const today = { appel: 0, rdv: 0, devis: 0, commande: 0 };
+    todayResult.rows.forEach((r) => { today[r.type] = Number(r.total); });
+
+    res.json({ quotas, today });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 module.exports = router;
 </file>
 
-<file path="frontend/src/pages/CourseDetail.jsx">
-import { useEffect, useState, useRef, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import * as pdfjsLib from 'pdfjs-dist';
-import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
-import { apiFetch } from '../utils/api';
+<file path="frontend/src/pages/Dashboard.jsx">
+import { useEffect, useState } from 'react';
+import LineChart from '../components/LineChart';
 import PageLoader from '../components/PageLoader';
-import Spinner from '../components/Spinner';
-import Confetti from '../components/Confetti';
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+import { apiFetch } from '../utils/api';
+import phoneIcon from '../assets/Phone.png';
+import calendarIcon from '../assets/calendar.png';
+import documentIcon from '../assets/document.png';
+import cartIcon from '../assets/Cart.png';
 
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-function PdfCanvasPage({ pdfDoc, pageNum, containerWidth, zoom }) {
-  const canvasRef = useRef(null);
+function AnimatedNumber({ value }) {
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    let start = 0;
+    const step = Math.max(1, Math.ceil(value / 20));
+    const interval = setInterval(() => {
+      start += step;
+      if (start >= value) { setDisplay(value); clearInterval(interval); }
+      else setDisplay(start);
+    }, 30);
+    return () => clearInterval(interval);
+  }, [value]);
+  return <>{display}</>;
+}
+
+function Dashboard() {
+  const [stats, setStats] = useState([]);
+  const [daily, setDaily] = useState([]);
+  const [typeQuotas, setTypeQuotas] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const prenom = user?.nom?.split(' ')[0];
+
+  const icons = { appel: phoneIcon, rdv: calendarIcon, devis: documentIcon, commande: cartIcon };
+  const labels = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
+  const allTypes = ['appel', 'rdv', 'devis', 'commande'];
 
   useEffect(() => {
-    let renderTask = null;
-    let cancelled = false;
-    if (!pdfDoc || !containerWidth) return;
-
-    pdfDoc.getPage(pageNum).then((page) => {
-      if (cancelled) return;
-
-      // 1. Détecter la densité de pixels de l'écran mobile (Retina = 2x ou 3x)
-      const dpr = Math.min(window.devicePixelRatio || 1, 3);
-
-      // 2. Calcul de l'échelle d'affichage de base
-      const baseViewport = page.getViewport({ scale: 1 });
-      const cssScale = (containerWidth / baseViewport.width) * zoom;
-
-      // 3. Viewport haute résolution pour le moteur de rendu
-      const renderViewport = page.getViewport({ scale: cssScale * dpr });
-
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const context = canvas.getContext('2d', { alpha: false });
-
-      // 4. Dimensions réelles (buffer HD)
-      canvas.width = Math.floor(renderViewport.width);
-      canvas.height = Math.floor(renderViewport.height);
-
-      // 5. Dimensions CSS (affichage à l'écran)
-      canvas.style.width = `${Math.floor(baseViewport.width * cssScale)}px`;
-      canvas.style.height = 'auto';
-
-      renderTask = page.render({
-        canvasContext: context,
-        viewport: renderViewport,
-      });
-
-      renderTask.promise.catch((err) => {
-        if (err?.name !== 'RenderingCancelledException') {
-          console.error(err);
-        }
-      });
+    if (!token) { setLoading(false); return; }
+    Promise.all([
+      apiFetch(`${API_URL}/api/activities/stats/today`).then(r => r.json()),
+      apiFetch(`${API_URL}/api/activities/daily`).then(r => r.json()),
+      apiFetch(`${API_URL}/api/activities/my-type-quotas`).then(r => r.json()),
+    ]).then(([statsData, dailyData, quotasData]) => {
+      setStats(statsData);
+      setDaily(dailyData);
+      setTypeQuotas(quotasData);
+      setLoading(false);
     });
-
-    return () => {
-      cancelled = true;
-      if (renderTask) renderTask.cancel();
-    };
-  }, [pdfDoc, pageNum, containerWidth, zoom]);
-
-  return <canvas ref={canvasRef} className="block mb-3 rounded-lg shadow-xl mx-auto bg-white" />;
-}
-
-function PdfViewer({ url }) {
-  const containerRef = useRef(null);
-  const wrapperRef = useRef(null);
-  const [pdfDoc, setPdfDoc] = useState(null);
-  const [numPages, setNumPages] = useState(0);
-  const [containerWidth, setContainerWidth] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [zoom, setZoom] = useState(1);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(false);
-    setErrorMsg('');
-    pdfjsLib.getDocument({ url, disableStream: true, disableRange: true }).promise
-      .then((doc) => {
-        if (cancelled) return;
-        setPdfDoc(doc);
-        setNumPages(doc.numPages);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error('Erreur PDF.js :', err);
-        if (!cancelled) {
-          setError(true);
-          setErrorMsg(err?.message || String(err));
-          setLoading(false);
-        }
-      });
-    return () => { cancelled = true; };
-  }, [url]);
-
-  const measure = useCallback(() => {
-    if (containerRef.current) {
-      setContainerWidth(containerRef.current.clientWidth - 16);
-    }
-  }, []);
-
-  useEffect(() => {
-    measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  }, [measure, isFullscreen]);
-
-  useEffect(() => {
-    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', onFsChange);
-    return () => document.removeEventListener('fullscreenchange', onFsChange);
-  }, []);
-
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      wrapperRef.current?.requestFullscreen?.();
-    } else {
-      document.exitFullscreen?.();
-    }
-  };
-
-  const handleDownload = () => {
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = '';
-    a.target = '_blank';
-    a.click();
-  };
-
-  const pages = Array.from({ length: numPages }, (_, i) => i + 1);
-
-  return (
-    <div
-      ref={wrapperRef}
-      className="flex-1 min-h-0 flex flex-col bg-[#0a0a0a] border border-white/10 rounded-xl overflow-hidden"
-      style={isFullscreen ? { backgroundColor: '#0a0a0a' } : undefined}
-    >
-      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-white/10 shrink-0 bg-[#0d0d0d]">
-        <span className="text-[11px] text-white/40">{numPages > 0 ? `${numPages} page${numPages > 1 ? 's' : ''}` : ''}</span>
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setZoom((z) => Math.max(0.6, +(z - 0.2).toFixed(1)))}
-            title="Réduire"
-            className="w-8 h-8 rounded-lg bg-black/60 border border-white/10 hover:border-white/30 text-white/80 hover:text-white flex items-center justify-center text-sm font-semibold transition-all cursor-pointer"
-          >
-            −
-          </button>
-          <button
-            onClick={() => setZoom(1)}
-            title="Taille standard"
-            className="px-2.5 h-8 rounded-lg bg-black/60 border border-white/10 hover:border-white/30 text-white/70 hover:text-white text-xs font-medium transition-all cursor-pointer"
-          >
-            {Math.round(zoom * 100)}%
-          </button>
-          <button
-            onClick={() => setZoom((z) => Math.min(2.5, +(z + 0.2).toFixed(1)))}
-            title="Agrandir"
-            className="w-8 h-8 rounded-lg bg-black/60 border border-white/10 hover:border-white/30 text-white/80 hover:text-white flex items-center justify-center text-sm font-semibold transition-all cursor-pointer"
-          >
-            +
-          </button>
-          <button
-            onClick={handleDownload}
-            title="Télécharger"
-            className="w-8 h-8 rounded-lg bg-black/60 border border-white/10 hover:border-white/30 text-white/80 hover:text-white flex items-center justify-center transition-all cursor-pointer ml-1"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-          </button>
-          <button
-            onClick={toggleFullscreen}
-            title={isFullscreen ? 'Quitter plein écran' : 'Plein écran'}
-            className="w-8 h-8 rounded-lg bg-black/60 border border-white/10 hover:border-white/30 text-white/80 hover:text-white flex items-center justify-center transition-all cursor-pointer"
-          >
-            {isFullscreen ? (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
-              </svg>
-            ) : (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M15 3h6v6m0-6-7 7M9 21H3v-6m0 6 7-7" />
-              </svg>
-            )}
-          </button>
-        </div>
-      </div>
-
-      <div
-        ref={containerRef}
-        className="flex-1 min-h-0 overflow-y-auto overflow-x-auto p-2"
-        style={{ scrollbarWidth: 'thin', scrollbarColor: `${ACCENT} #1a1a1a` }}
-      >
-        {loading && (
-          <div className="h-full flex flex-col items-center justify-center gap-3 py-16">
-            <Spinner size={28} color={ACCENT} />
-            <p className="text-xs text-white/50">Chargement du document...</p>
-          </div>
-        )}
-        {error && (
-          <div className="h-full flex flex-col items-center justify-center text-white/40 text-sm py-16 gap-2 px-4 text-center">
-            <p>Impossible d'afficher le document.</p>
-            <p className="text-white/25 text-xs break-all">{errorMsg}</p>
-          </div>
-        )}
-        {!loading && !error && pdfDoc && containerWidth > 0 && (
-          <div className="flex flex-col items-center min-w-max mx-auto">
-            {pages.map((p) => (
-              <PdfCanvasPage key={p} pdfDoc={pdfDoc} pageNum={p} containerWidth={containerWidth} zoom={zoom} />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function CourseDetail() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const token = localStorage.getItem('token');
-
-  const [course, setCourse] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [step, setStep] = useState('reading');
-  const [answers, setAnswers] = useState({});
-  const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (!token) { navigate('/login'); return; }
-    apiFetch(`${API_URL}/api/courses/${id}`)
-      .then((r) => r.json())
-      .then((data) => {
-        setCourse(data);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, [id, token]);
-
-  const handleSelectAnswer = (questionId, optionId) => {
-    if (answers[questionId]) return;
-    setAnswers((prev) => ({ ...prev, [questionId]: optionId }));
-  };
-
-  const handleRestart = () => {
-    setAnswers({});
-    setResult(null);
-    setError('');
-    setStep('reading');
-  };
-
-  const allAnswered = course?.questions?.length > 0 && course.questions.every((q) => answers[q.id]);
-
-  const handleSubmit = async () => {
-    if (!allAnswered) {
-      setError('Réponds à toutes les questions avant de valider');
-      return;
-    }
-    setError('');
-    setSubmitting(true);
-    try {
-      const res = await apiFetch(`${API_URL}/api/courses/${id}/submit`, {
-        method: 'POST',
-        body: JSON.stringify({ answers }),
-      });
-      const data = await res.json();
-      setResult(data);
-      setStep('result');
-    } catch (err) {
-      setError('Erreur lors de la soumission');
-    }
-    setSubmitting(false);
-  };
-
-  if (loading) return <PageLoader />;
-  if (!course) return null;
-
-  const answeredCount = Object.keys(answers).length;
-  const totalQuestions = course.questions?.length || 0;
-
-  return (
-    <div className="bg-black text-white h-[calc(100dvh-64px)] overflow-hidden flex flex-col p-3 sm:p-5">
-      <div className="max-w-5xl w-full mx-auto flex-1 flex flex-col min-h-0 gap-2.5">
-        <div className="flex items-center justify-between gap-3 flex-wrap shrink-0">
-          <Link
-            to="/courses"
-            className="text-white/40 text-xs hover:text-white transition-colors inline-flex items-center gap-1.5"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-            Retour aux formations
-          </Link>
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-semibold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2.5 py-0.5 rounded-full">
-              Formation Yealead
-            </span>
-          </div>
-        </div>
-
-        {step === 'reading' && (
-          <div className="flex-1 flex flex-col min-h-0 gap-2.5 animate-[fadeIn_0.25s_ease]">
-            <div className="shrink-0">
-              <h1 className="text-base sm:text-lg font-bold text-white leading-tight">{course.title}</h1>
-              <p className="text-xs text-white/50 mt-0.5">{course.description}</p>
-            </div>
-
-            <PdfViewer url={course.content_url || '/Strategie-prescription.pdf'} />
-
-            <button
-              onClick={() => setStep('quiz')}
-              className="shrink-0 w-full text-white py-3 rounded-xl font-semibold text-sm transition-all hover:brightness-110 active:scale-[0.99] shadow-lg cursor-pointer flex items-center justify-center gap-2"
-              style={{ backgroundColor: ACCENT }}
-            >
-              <span>J'ai terminé la lecture, passer au quiz</span>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </button>
-          </div>
-        )}
-
-        {step === 'quiz' && (
-          <div className="flex-1 flex flex-col min-h-0 gap-3 animate-[fadeIn_0.25s_ease]">
-            <div className="flex items-center justify-between border-b border-white/10 pb-2 shrink-0">
-              <div>
-                <h1 className="text-base font-bold text-white">Quiz — {course.title}</h1>
-                <p className="text-[11px] text-white/40">{answeredCount} / {totalQuestions} questions répondues</p>
-              </div>
-              <button
-                onClick={handleRestart}
-                className="text-xs px-2.5 py-1 rounded-lg border border-white/15 text-white/60 hover:text-white transition-all cursor-pointer shrink-0"
-              >
-                Recommencer
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto space-y-4 pr-1" style={{ scrollbarWidth: 'thin' }}>
-              {course.questions.map((q, qi) => {
-                const selectedOptionId = answers[q.id];
-                const isAnswered = !!selectedOptionId;
-
-                return (
-                  <div key={q.id} className="bg-[#0f0f0f] border border-white/10 rounded-xl p-4 transition-all">
-                    <div className="flex items-start justify-between gap-3 mb-3">
-                      <p className="text-white font-medium text-sm">
-                        <span className="text-white/40 mr-1.5">{qi + 1}.</span> {q.question}
-                      </p>
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-white/5 text-white/40 border border-white/10 shrink-0">
-                        {q.points} pts
-                      </span>
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      {q.options.map((opt) => {
-                        const isChosen = selectedOptionId === opt.id;
-                        const isCorrect = opt.is_correct === true || opt.is_correct === 'true';
-
-                        let optionStyle = 'bg-black/60 border-white/10 text-white/80 hover:border-white/30 cursor-pointer';
-
-                        if (isAnswered) {
-                          if (isChosen) {
-                            optionStyle = isCorrect
-                              ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 font-medium cursor-default ring-1 ring-emerald-500'
-                              : 'bg-rose-950/60 border-rose-500 text-rose-300 font-medium cursor-default ring-1 ring-rose-500';
-                          } else if (isCorrect) {
-                            optionStyle = 'bg-emerald-950/30 border-emerald-500/70 text-emerald-400 font-medium cursor-default';
-                          } else {
-                            optionStyle = 'bg-black/30 border-white/5 text-white/25 cursor-default opacity-40';
-                          }
-                        }
-
-                        return (
-                          <button
-                            key={opt.id}
-                            disabled={isAnswered}
-                            onClick={() => handleSelectAnswer(q.id, opt.id)}
-                            className={`w-full text-left p-3 rounded-lg text-xs sm:text-sm border transition-all flex items-center justify-between gap-2 ${optionStyle}`}
-                          >
-                            <span>{opt.option_text}</span>
-                            {isAnswered && (
-                              <span className="shrink-0 text-xs font-semibold">
-                                {isChosen && isCorrect && '✓ Correct'}
-                                {isChosen && !isCorrect && '✕ Incorrect'}
-                                {!isChosen && isCorrect && '✓ Bonne réponse'}
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {error && <p className="text-red-400 text-xs text-center shrink-0">{error}</p>}
-
-            <button
-              onClick={handleSubmit}
-              disabled={!allAnswered || submitting}
-              className="shrink-0 w-full text-white py-3 rounded-xl font-semibold text-sm transition-all hover:brightness-110 active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-lg"
-              style={{ backgroundColor: ACCENT }}
-            >
-              {submitting && <Spinner size={15} color="#fff" />}
-              {submitting ? 'Validation...' : 'Valider mes réponses'}
-            </button>
-          </div>
-        )}
-
-        {step === 'result' && result && (
-          <div className="flex-1 flex flex-col items-center justify-center text-center bg-[#0c0c0c] border border-white/10 rounded-2xl p-6 animate-[fadeIn_0.25s_ease]">
-            <Confetti show={result.percent >= 70} />
-            <div
-              className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center text-2xl font-bold text-white shadow-xl"
-              style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}
-            >
-              {result.percent}%
-            </div>
-            <h2 className="text-xl font-bold text-white mb-1">
-              {result.percent >= 70 ? 'Félicitations !' : 'Score insuffisant'}
-            </h2>
-            <p className="text-white/50 text-xs mb-6">
-              Tu as obtenu {result.score} / {result.maxScore} points.
-            </p>
-            <div className="flex items-center justify-center gap-3">
-              <button
-                onClick={handleRestart}
-                className="text-xs px-5 py-2.5 rounded-xl text-white/80 border border-white/15 hover:text-white transition-all cursor-pointer"
-              >
-                Recommencer
-              </button>
-              <Link
-                to="/courses"
-                className="text-xs px-5 py-2.5 rounded-xl text-white font-semibold transition-all hover:brightness-110 shadow-lg"
-                style={{ backgroundColor: ACCENT }}
-              >
-                Retour aux formations
-              </Link>
-            </div>
-          </div>
-        )}
-      </div>
-      <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
-    </div>
-  );
-}
-
-export default CourseDetail;
-</file>
-
-<file path="frontend/src/App.jsx">
-import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Navbar from './components/Navbar';
-import Footer from './components/Footer';
-import Dashboard from './pages/Dashboard';
-import NouvelleActivite from './pages/NouvelleActivite';
-import Feed from './pages/Feed';
-import Profile from './pages/Profile';
-import Badges from './pages/Badges';
-import Courses from './pages/Courses';
-import CourseDetail from './pages/CourseDetail';
-import AdminCourses from './pages/admin/AdminCourses';
-import AdminRoute from './components/AdminRoute';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import TargetModal from './components/TargetModal';
-import SuccessModal from './components/SuccessModal';
-import { apiFetch } from './utils/api';
-import AdminDashboard from './pages/admin/AdminDashboard';
-
-const dailyTarget = 5;
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-function AppLayout({ children }) {
-  const [showModal, setShowModal] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [currentToday, setCurrentToday] = useState(0);
-  const token = localStorage.getItem('token');
-
-  useEffect(() => {
-    if (!token) return;
-    if (sessionStorage.getItem('popupShownThisSession')) return;
-
-    apiFetch(`${API_URL}/api/activities/today`)
-      .then((r) => r.json())
-      .then((d) => {
-        const total = Number(d.total);
-        setCurrentToday(total);
-        if (total >= dailyTarget) {
-          setShowSuccess(true);
-        } else {
-          setShowModal(true);
-        }
-        sessionStorage.setItem('popupShownThisSession', 'true');
-      });
   }, [token]);
 
+  const getStat = (type) => stats.find((s) => s.type === type) || { total: 0 };
+
+  if (loading) return <PageLoader />;
+
+  if (!token) {
+    return (
+      <div className="bg-black min-h-screen flex flex-col items-center justify-center p-6 text-center">
+        <span className="text-4xl mb-4">🔒</span>
+        <h1 className="text-xl font-semibold text-white mb-2">Connecte-toi pour voir ton dashboard</h1>
+        <p className="text-white/40 text-sm mb-6">Tes statistiques personnelles apparaîtront ici</p>
+        <a href="/login" className="text-white px-5 py-2.5 rounded-lg font-medium" style={{ backgroundColor: ACCENT }}>
+          Se connecter
+        </a>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-black flex flex-col">
-      {showModal && (
-        <TargetModal onClose={() => setShowModal(false)} target={dailyTarget} current={currentToday} />
-      )}
-      {showSuccess && <SuccessModal onClose={() => setShowSuccess(false)} />}
-      <Navbar />
-      <main className="flex-1 pb-6">{children}</main>
-      <Footer />
+    <div className="bg-black p-4 sm:p-6 pb-12">
+      <div className="max-w-5xl mx-auto flex flex-col gap-5">
+        <div>
+          <h1 className="text-lg sm:text-xl font-semibold text-white">Salut {prenom} 👋</h1>
+          <p className="text-white/40 text-sm">Voici ton activité récente</p>
+        </div>
+
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4 sm:p-5">
+          <p className="text-sm text-white/50 mb-4">Objectifs du jour</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {allTypes.map((type, i) => {
+              const s = getStat(type);
+              const current = Number(s.total);
+              const target = typeQuotas?.quotas[type] || 5;
+              const percent = Math.min(Math.round((current / target) * 100), 100);
+              const circumference = 2 * Math.PI * 26;
+
+              return (
+                <div
+                  key={type}
+                  className="bg-black/40 border border-white/10 rounded-xl p-3 flex flex-col items-center text-center hover:border-orange-400/40 transition-all"
+                  style={{ animation: `popIn 0.4s ease ${i * 0.06}s both` }}
+                >
+                  <div className="relative w-16 h-16 mb-2">
+                    <svg viewBox="0 0 64 64" className="w-16 h-16 -rotate-90">
+                      <circle cx="32" cy="32" r="26" stroke="rgba(255,255,255,0.1)" strokeWidth="5" fill="none" />
+                      <circle
+                        cx="32" cy="32" r="26" stroke={ACCENT} strokeWidth="5" fill="none" strokeLinecap="round"
+                        strokeDasharray={circumference}
+                        strokeDashoffset={circumference - (percent / 100) * circumference}
+                        style={{ transition: 'stroke-dashoffset 0.8s ease' }}
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <img src={icons[type]} alt={type} className="w-5 h-5 opacity-80" />
+                    </div>
+                  </div>
+                  <p className="text-sm font-semibold text-white"><AnimatedNumber value={current} />/{target}</p>
+                  <p className="text-[11px] text-white/40">{labels[type]}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4 sm:p-5">
+          <p className="text-sm text-white/50 mb-1">Activités par jour (7 derniers jours)</p>
+          <p className="text-xl sm:text-2xl font-semibold text-white mb-4">
+            {daily.reduce((sum, d) => sum + Number(d.total), 0)} activités
+          </p>
+          <LineChart data={daily} />
+        </div>
+      </div>
+
+      <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>
     </div>
   );
 }
 
-function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />
-        <Route path="/nouvelle-activite" element={<AppLayout><NouvelleActivite /></AppLayout>} />
-        <Route path="/feed" element={<AppLayout><Feed /></AppLayout>} />
-        <Route path="/profile" element={<AppLayout><Profile /></AppLayout>} />
-        <Route path="/badges" element={<AppLayout><Badges /></AppLayout>} />
-        <Route path="/courses" element={<AppLayout><Courses /></AppLayout>} />
-        <Route path="/courses/:id" element={<AppLayout><CourseDetail /></AppLayout>} />
-        <Route path="/admin/courses" element={<AdminRoute><AppLayout><AdminCourses /></AppLayout></AdminRoute>} />
-        <Route path="/admin" element={<AdminRoute><AppLayout><AdminDashboard /></AppLayout></AdminRoute>} />
-      </Routes>
-    </BrowserRouter>
-  );
-}
-
-export default App;
+export default Dashboard;
 </file>
 
 <file path="frontend/src/pages/Feed.jsx">
@@ -4418,6 +4466,216 @@ function Feed() {
 export default Feed;
 </file>
 
+<file path="frontend/src/App.jsx">
+import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+import Dashboard from './pages/Dashboard';
+import NouvelleActivite from './pages/NouvelleActivite';
+import Feed from './pages/Feed';
+import Profile from './pages/Profile';
+import Badges from './pages/Badges';
+import Courses from './pages/Courses';
+import CourseDetail from './pages/CourseDetail';
+import AdminCourses from './pages/admin/AdminCourses';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminRoute from './components/AdminRoute';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import TargetModal from './components/TargetModal';
+import SuccessModal from './components/SuccessModal';
+import { apiFetch } from './utils/api';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+function AppLayout({ children }) {
+  const [showModal, setShowModal] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [currentToday, setCurrentToday] = useState(0);
+  const [dailyTarget, setDailyTarget] = useState(5);
+  const token = localStorage.getItem('token');
+
+  useEffect(() => {
+    if (!token) return;
+    apiFetch(`${API_URL}/api/activities/my-quota`)
+      .then((r) => r.json())
+      .then((d) => setDailyTarget(d.daily_target));
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    if (sessionStorage.getItem('popupShownThisSession')) return;
+
+    apiFetch(`${API_URL}/api/activities/today`)
+      .then((r) => r.json())
+      .then((d) => {
+        const total = Number(d.total);
+        setCurrentToday(total);
+        if (total >= dailyTarget) {
+          setShowSuccess(true);
+        } else {
+          setShowModal(true);
+        }
+        sessionStorage.setItem('popupShownThisSession', 'true');
+      });
+  }, [token, dailyTarget]);
+
+  return (
+    <div className="min-h-screen bg-black flex flex-col">
+      {showModal && (
+        <TargetModal onClose={() => setShowModal(false)} target={dailyTarget} current={currentToday} />
+      )}
+      {showSuccess && <SuccessModal onClose={() => setShowSuccess(false)} />}
+      <Navbar />
+      <main className="flex-1 pb-6">{children}</main>
+      <Footer />
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />
+        <Route path="/nouvelle-activite" element={<AppLayout><NouvelleActivite /></AppLayout>} />
+        <Route path="/feed" element={<AppLayout><Feed /></AppLayout>} />
+        <Route path="/profile" element={<AppLayout><Profile /></AppLayout>} />
+        <Route path="/badges" element={<AppLayout><Badges /></AppLayout>} />
+        <Route path="/courses" element={<AppLayout><Courses /></AppLayout>} />
+        <Route path="/courses/:id" element={<AppLayout><CourseDetail /></AppLayout>} />
+        <Route path="/admin" element={<AdminRoute><AppLayout><AdminDashboard /></AppLayout></AdminRoute>} />
+        <Route path="/admin/courses" element={<AdminRoute><AppLayout><AdminCourses /></AppLayout></AdminRoute>} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export default App;
+</file>
+
+<file path="frontend/src/components/Navbar.jsx">
+import { useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import yealeadLogo from '../assets/yealead.png';
+import addIcon from '../assets/add.png';
+import dashboardIcon from '../assets/dashboard.png';
+import feedIcon from '../assets/feed.png';
+import Spinner from './Spinner';
+
+const ACCENT = '#f86635';
+
+function Navbar() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const links = [
+    { path: '/nouvelle-activite', label: 'Nouvelle activité', icon: addIcon },
+    { path: '/', label: 'Dashboard', icon: dashboardIcon },
+    { path: '/feed', label: 'Feed', icon: feedIcon },
+    {
+      path: '/courses', label: 'Formation', svgIcon: (
+        <path d="M22 10v6M2 10l10-5 10 5-10 5-10-5Z M6 12v5c3 3 9 3 12 0v-5" />
+      ),
+    },
+    {
+      path: '/badges', label: 'Badges', svgIcon: (
+        <>
+          <circle cx="12" cy="8" r="6" />
+          <path d="M8.21 13.89L7 23l5-3 5 3-1.21-9.12" />
+        </>
+      ),
+    },
+  ];
+
+  const handleLogout = () => {
+    setLoggingOut(true);
+    setTimeout(() => {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      navigate('/login');
+    }, 300);
+  };
+
+  return (
+    <nav className="bg-black border-b border-white/10 px-3 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-20 gap-2">
+      <Link to="/nouvelle-activite" className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">
+        <img src={yealeadLogo} alt="Yealead" className="w-8 h-8 sm:w-9 sm:h-9 object-contain" />
+        <span className="text-white font-semibold text-base sm:text-lg hidden sm:inline">SalesTrack</span>
+      </Link>
+
+      <div className="flex gap-1 bg-white/5 rounded-full p-1 overflow-x-auto max-w-full">
+        {links.map((link) => {
+          const active = location.pathname === link.path;
+          return (
+            <Link
+              key={link.path}
+              to={link.path}
+              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-full text-xs sm:text-sm transition-all duration-200 whitespace-nowrap shrink-0"
+              style={active ? { backgroundColor: ACCENT, color: '#fff', fontWeight: 500, boxShadow: `0 0 16px ${ACCENT}66` } : { color: 'rgba(255,255,255,0.55)' }}
+              onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = '#fff'; }}
+              onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = 'rgba(255,255,255,0.55)'; }}
+            >
+              {link.icon ? (
+                <img src={link.icon} alt="" className="w-4 h-4 shrink-0" style={{ filter: active ? 'brightness(0) invert(1)' : 'brightness(0) invert(1) opacity(0.6)' }} />
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                  {link.svgIcon}
+                </svg>
+              )}
+              <span className="hidden sm:inline">{link.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+
+      {user ? (
+        <div className="flex items-center gap-2 shrink-0">
+          <Link to="/profile" className="hover:opacity-80 transition-opacity">
+            {user.photo_url ? (
+              <img src={user.photo_url} alt="" className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover" />
+            ) : (
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden bg-white flex items-center justify-center p-1">
+                <img src={yealeadLogo} alt="Profil" className="w-full h-full object-contain" />
+              </div>
+            )}
+          </Link>
+          <button
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="w-8 h-8 sm:w-auto sm:h-auto flex items-center justify-center sm:px-3 sm:py-1.5 rounded-full border border-white/15 text-white/50 hover:text-white hover:border-white/30 transition-all disabled:opacity-60 gap-1.5 shrink-0"
+            aria-label="Déconnexion"
+          >
+            {loggingOut ? (
+              <Spinner size={14} color="currentColor" />
+            ) : (
+              <img src={yealeadLogo} alt="" className="w-4 h-4 object-contain" style={{ filter: 'brightness(0) invert(0.7)' }} />
+            )}
+            <span className="text-xs hidden sm:inline">{loggingOut ? '' : 'Déconnexion'}</span>
+          </button>
+        </div>
+      ) : (
+        <Link
+          to="/login"
+          className="flex items-center gap-1.5 text-xs sm:text-sm px-3 sm:px-5 py-2 rounded-full text-white transition-all whitespace-nowrap shrink-0 hover:brightness-110 active:scale-95"
+          style={{ backgroundColor: ACCENT, boxShadow: `0 2px 12px ${ACCENT}50` }}
+        >
+          <img src={yealeadLogo} alt="" className="w-4 h-4 object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
+          Connexion
+        </Link>
+      )}
+    </nav>
+  );
+}
+
+export default Navbar;
+</file>
+
 <file path="frontend/src/pages/NouvelleActivite.jsx">
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -4452,8 +4710,9 @@ function NouvelleActivite() {
   const [pageLoading, setPageLoading] = useState(true);
   const [newlyUnlocked, setNewlyUnlocked] = useState([]);
   const [currentUnlockIndex, setCurrentUnlockIndex] = useState(0);
+  const [typeQuotas, setTypeQuotas] = useState({ appel: 5, rdv: 2, devis: 1, commande: 1 });
+  const [completedType, setCompletedType] = useState(null);
 
-  const dailyTarget = 5;
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   const prenom = user?.nom?.split(' ')[0] || 'Commercial';
@@ -4488,6 +4747,13 @@ function NouvelleActivite() {
   };
 
   useEffect(() => { loadStats(); }, []);
+
+  useEffect(() => {
+    if (!token) return;
+    apiFetch(`${API_URL}/api/activities/my-type-quotas`)
+      .then((r) => r.json())
+      .then((d) => setTypeQuotas(d.quotas));
+  }, [token]);
 
   const resetForm = () => { setType(null); setSens(null); setStatut(null); setNombre(1); };
 
@@ -4554,6 +4820,8 @@ function NouvelleActivite() {
     }
   };
 
+  const getStat = (key) => todayStats.find((s) => s.type === key)?.total || 0;
+
   const handleSubmit = async () => {
     if (!token) { navigate('/login'); return; }
     if (!canSubmit()) return;
@@ -4571,20 +4839,21 @@ function NouvelleActivite() {
         setCombo(newCombo);
         setShowConfetti(true);
         setMessage(`Bien joué ! ${data.count} activité${data.count > 1 ? 's' : ''} enregistrée${data.count > 1 ? 's' : ''} 🔥`);
+
+        const beforeCount = getStat(type);
+        const afterCount = beforeCount + data.count;
+        const target = typeQuotas[type] || 5;
+        const justCompletedType = type;
+
         resetForm();
-
-        const totalBefore = todayStats.reduce((sum, s) => sum + Number(s.total), 0);
-        const totalAfter = totalBefore + data.count;
-
-        if (totalBefore < dailyTarget && totalAfter >= dailyTarget) {
-          setTimeout(() => setShowSuccess(true), 1400);
-        }
-
         loadStats();
         setTimeout(() => setShowConfetti(false), 1300);
         setTimeout(() => setMessage(''), 2500);
-
         checkForNewBadges();
+
+        if (beforeCount < target && afterCount >= target) {
+          setTimeout(() => setCompletedType({ type: justCompletedType, count: afterCount, target }), 1400);
+        }
       }
     } catch (err) {
       setShake(true);
@@ -4594,9 +4863,8 @@ function NouvelleActivite() {
     setSubmitting(false);
   };
 
-  const getStat = (key) => todayStats.find((s) => s.type === key)?.total || 0;
   const totalToday = todayStats.reduce((sum, s) => sum + Number(s.total), 0);
-  const progressPercent = Math.min(Math.round((totalToday / dailyTarget) * 100), 100);
+  const totalObjectif = Object.values(typeQuotas).reduce((sum, v) => sum + Number(v), 0);
 
   if (pageLoading) return <PageLoader />;
 
@@ -4604,6 +4872,13 @@ function NouvelleActivite() {
     <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 flex items-center justify-center">
       <Confetti show={showConfetti} />
       {showSuccess && <SuccessModal onClose={() => setShowSuccess(false)} />}
+      {completedType && (
+        <SuccessModal
+          onClose={() => setCompletedType(null)}
+          title={`Objectif ${labels[completedType.type]} atteint !`}
+          message={`Tu as fait ${completedType.count} sur ${completedType.target} — excellent travail !`}
+        />
+      )}
       {newlyUnlocked.length > 0 && (
         <BadgeUnlockModal
           badge={newlyUnlocked[currentUnlockIndex]}
@@ -4755,7 +5030,7 @@ function NouvelleActivite() {
 
         <div className="lg:col-span-1 flex flex-col gap-3">
           <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-3 mb-4">
               <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-semibold" style={{ backgroundColor: ACCENT }}>
                 {prenom.charAt(0).toUpperCase()}
               </div>
@@ -4764,33 +5039,36 @@ function NouvelleActivite() {
                 <p className="text-white/40 text-xs">Aujourd'hui</p>
               </div>
             </div>
-            <p className="text-2xl font-semibold text-white">{totalToday}</p>
-            <p className="text-xs text-white/40">activités enregistrées</p>
+            <p className="text-4xl font-bold" style={{ color: ACCENT }}>
+              {totalToday}<span className="text-xl text-white/30 font-medium"> / {totalObjectif}</span>
+            </p>
+            <p className="text-xs text-white/40 mt-1">activités enregistrées aujourd'hui</p>
           </div>
 
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-xs text-white/50">Objectif du jour</span>
-              <span className="text-xs font-semibold" style={{ color: ACCENT }}>{totalToday} / {dailyTarget}</span>
-            </div>
-            <div className="w-full bg-white/10 rounded-full h-2">
-              <div
-                className="h-2 rounded-full transition-all duration-700"
-                style={{ width: `${progressPercent}%`, backgroundColor: ACCENT }}
-              />
-            </div>
-          </div>
-
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-2.5">
-            {activityTypes.map((t) => (
-              <div key={t.key} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <img src={icons[t.key]} alt={t.key} className="w-4 h-4 opacity-60" />
-                  <span className="text-xs text-white/60">{labels[t.key]}</span>
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
+            <p className="text-xs text-white/50 uppercase tracking-wide">Objectifs du jour</p>
+            {activityTypes.map((t) => {
+              const current = getStat(t.key);
+              const target = typeQuotas[t.key] || 5;
+              const percent = Math.min(Math.round((current / target) * 100), 100);
+              return (
+                <div key={t.key}>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <img src={icons[t.key]} alt={t.key} className="w-4 h-4 opacity-60" />
+                      <span className="text-xs text-white/60">{labels[t.key]}</span>
+                    </div>
+                    <span className="text-xs font-medium text-white">{current}/{target}</span>
+                  </div>
+                  <div className="w-full bg-white/10 rounded-full h-1.5">
+                    <div
+                      className="h-1.5 rounded-full transition-all duration-500"
+                      style={{ width: `${percent}%`, backgroundColor: ACCENT }}
+                    />
+                  </div>
                 </div>
-                <span className="text-sm font-medium text-white">{getStat(t.key)}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="rounded-2xl p-4 text-center" style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}>
@@ -4810,125 +5088,6 @@ function NouvelleActivite() {
 }
 
 export default NouvelleActivite;
-</file>
-
-<file path="frontend/src/components/Navbar.jsx">
-import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import yealeadLogo from '../assets/yealead.png';
-import addIcon from '../assets/add.png';
-import dashboardIcon from '../assets/dashboard.png';
-import feedIcon from '../assets/feed.png';
-import Spinner from './Spinner';
-
-const ACCENT = '#f86635';
-
-function Navbar() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('user') || 'null');
-  const [loggingOut, setLoggingOut] = useState(false);
-
-  const links = [
-    { path: '/nouvelle-activite', label: 'Nouvelle activité', icon: addIcon },
-    { path: '/', label: 'Dashboard', icon: dashboardIcon },
-    { path: '/feed', label: 'Feed', icon: feedIcon },
-    {
-      path: '/courses', label: 'Formation', svgIcon: (
-        <path d="M22 10v6M2 10l10-5 10 5-10 5-10-5Z M6 12v5c3 3 9 3 12 0v-5" />
-      ),
-    },
-    {
-      path: '/badges', label: 'Badges', svgIcon: (
-        <>
-          <circle cx="12" cy="8" r="6" />
-          <path d="M8.21 13.89L7 23l5-3 5 3-1.21-9.12" />
-        </>
-      ),
-    },
-  ];
-
-  const handleLogout = () => {
-    setLoggingOut(true);
-    setTimeout(() => {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      navigate('/login');
-    }, 300);
-  };
-
-  return (
-    <nav className="bg-black border-b border-white/10 px-3 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-20 gap-2">
-      <Link to="/nouvelle-activite" className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">
-        <img src={yealeadLogo} alt="Yealead" className="w-8 h-8 sm:w-9 sm:h-9 object-contain" />
-        <span className="text-white font-semibold text-base sm:text-lg hidden sm:inline">SalesTrack</span>
-      </Link>
-
-      <div className="flex gap-1 bg-white/5 rounded-full p-1 overflow-x-auto max-w-full">
-        {links.map((link) => {
-          const active = location.pathname === link.path;
-          return (
-            <Link
-              key={link.path}
-              to={link.path}
-              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-full text-xs sm:text-sm transition-all duration-200 whitespace-nowrap shrink-0"
-              style={active ? { backgroundColor: ACCENT, color: '#fff', fontWeight: 500, boxShadow: `0 0 16px ${ACCENT}66` } : { color: 'rgba(255,255,255,0.55)' }}
-              onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = '#fff'; }}
-              onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = 'rgba(255,255,255,0.55)'; }}
-            >
-              {link.icon ? (
-                <img src={link.icon} alt="" className="w-4 h-4 shrink-0" style={{ filter: active ? 'brightness(0) invert(1)' : 'brightness(0) invert(1) opacity(0.6)' }} />
-              ) : (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-                  {link.svgIcon}
-                </svg>
-              )}
-              <span className="hidden sm:inline">{link.label}</span>
-            </Link>
-          );
-        })}
-      </div>
-
-      {user ? (
-        <div className="flex items-center gap-2 shrink-0">
-          <Link to="/profile" className="hover:opacity-80 transition-opacity">
-            {user.photo_url ? (
-              <img src={user.photo_url} alt="" className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover" />
-            ) : (
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden bg-white flex items-center justify-center p-1">
-                <img src={yealeadLogo} alt="Profil" className="w-full h-full object-contain" />
-              </div>
-            )}
-          </Link>
-          <button
-            onClick={handleLogout}
-            disabled={loggingOut}
-            className="w-8 h-8 sm:w-auto sm:h-auto flex items-center justify-center sm:px-3 sm:py-1.5 rounded-full border border-white/15 text-white/50 hover:text-white hover:border-white/30 transition-all disabled:opacity-60 gap-1.5 shrink-0"
-            aria-label="Déconnexion"
-          >
-            {loggingOut ? (
-              <Spinner size={14} color="currentColor" />
-            ) : (
-              <img src={yealeadLogo} alt="" className="w-4 h-4 object-contain" style={{ filter: 'brightness(0) invert(0.7)' }} />
-            )}
-            <span className="text-xs hidden sm:inline">{loggingOut ? '' : 'Déconnexion'}</span>
-          </button>
-        </div>
-      ) : (
-        <Link
-          to="/login"
-          className="flex items-center gap-1.5 text-xs sm:text-sm px-3 sm:px-5 py-2 rounded-full text-white transition-all whitespace-nowrap shrink-0 hover:brightness-110 active:scale-95"
-          style={{ backgroundColor: ACCENT, boxShadow: `0 2px 12px ${ACCENT}50` }}
-        >
-          <img src={yealeadLogo} alt="" className="w-4 h-4 object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
-          Connexion
-        </Link>
-      )}
-    </nav>
-  );
-}
-
-export default Navbar;
 </file>
 
 </files>

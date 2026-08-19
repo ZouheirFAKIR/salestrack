@@ -21,7 +21,10 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 router.patch('/', authMiddleware, async (req, res) => {
-  const { nom, email, phone, role, photo_url } = req.body;
+  const { nom, email, phone, photo_url } = req.body;
+  // NOTE: "role" retiré volontairement — un utilisateur ne doit jamais
+  // pouvoir modifier son propre rôle. Si un jour Badr a besoin de
+  // promouvoir quelqu'un en admin, on fera une route admin dédiée.
 
   try {
     if (email) {
@@ -36,11 +39,10 @@ router.patch('/', authMiddleware, async (req, res) => {
         nom = COALESCE($1, nom),
         email = COALESCE($2, email),
         phone = COALESCE($3, phone),
-        role = COALESCE($4, role),
-        photo_url = COALESCE($5, photo_url)
-       WHERE id = $6
+        photo_url = COALESCE($4, photo_url)
+       WHERE id = $5
        RETURNING id, nom, email, phone, role, photo_url`,
-      [nom || null, email || null, phone || null, role || null, photo_url || null, req.userId]
+      [nom || null, email || null, phone || null, photo_url || null, req.userId]
     );
 
     res.json(result.rows[0]);

@@ -232,6 +232,10 @@ function CourseDetail() {
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState('reading');
   const [answers, setAnswers] = useState({});
+  // Stocke la correction reçue du serveur pour chaque question déjà répondue :
+  // { [questionId]: { correct: bool, correctOptionId: number } }
+  const [answerResults, setAnswerResults] = useState({});
+  const [checkingId, setCheckingId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
@@ -247,13 +251,30 @@ function CourseDetail() {
       .catch(() => setLoading(false));
   }, [id, token]);
 
-  const handleSelectAnswer = (questionId, optionId) => {
-    if (answers[questionId]) return;
+  const handleSelectAnswer = async (questionId, optionId) => {
+    if (answers[questionId] || checkingId) return;
+
+    setCheckingId(questionId);
+    // On fixe la réponse choisie tout de suite pour désactiver les boutons,
+    // le résultat (vert/rouge) arrive juste après via l'API.
     setAnswers((prev) => ({ ...prev, [questionId]: optionId }));
+
+    try {
+      const res = await apiFetch(`${API_URL}/api/courses/questions/${questionId}/answer`, {
+        method: 'POST',
+        body: JSON.stringify({ optionId }),
+      });
+      const data = await res.json();
+      setAnswerResults((prev) => ({ ...prev, [questionId]: data }));
+    } catch (err) {
+      console.error(err);
+    }
+    setCheckingId(null);
   };
 
   const handleRestart = () => {
     setAnswers({});
+    setAnswerResults({});
     setResult(null);
     setError('');
     setStep('reading');
@@ -349,6 +370,8 @@ function CourseDetail() {
               {course.questions.map((q, qi) => {
                 const selectedOptionId = answers[q.id];
                 const isAnswered = !!selectedOptionId;
+                const isChecking = checkingId === q.id;
+                const qResult = answerResults[q.id];
 
                 return (
                   <div key={q.id} className="bg-[#0f0f0f] border border-white/10 rounded-xl p-4 transition-all">
@@ -364,11 +387,19 @@ function CourseDetail() {
                     <div className="flex flex-col gap-2">
                       {q.options.map((opt) => {
                         const isChosen = selectedOptionId === opt.id;
-                        const isCorrect = opt.is_correct === true || opt.is_correct === 'true';
+                        // Le "vrai/faux" ne vient plus des données préchargées
+                        // (elles ne contiennent plus is_correct), mais de la
+                        // réponse du serveur reçue après le clic.
+                        const isCorrect = !!qResult && qResult.correctOptionId === opt.id;
+                        const showFeedback = isAnswered && !!qResult;
 
                         let optionStyle = 'bg-black/60 border-white/10 text-white/80 hover:border-white/30 cursor-pointer';
 
-                        if (isAnswered) {
+                        if (isAnswered && isChecking) {
+                          optionStyle = isChosen
+                            ? 'bg-white/10 border-white/30 text-white/80 cursor-default'
+                            : 'bg-black/30 border-white/5 text-white/25 cursor-default opacity-40';
+                        } else if (showFeedback) {
                           if (isChosen) {
                             optionStyle = isCorrect
                               ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 font-medium cursor-default ring-1 ring-emerald-500'
@@ -388,7 +419,8 @@ function CourseDetail() {
                             className={`w-full text-left p-3 rounded-lg text-xs sm:text-sm border transition-all flex items-center justify-between gap-2 ${optionStyle}`}
                           >
                             <span>{opt.option_text}</span>
-                            {isAnswered && (
+                            {isChosen && isChecking && <Spinner size={13} color="#fff" />}
+                            {showFeedback && (
                               <span className="shrink-0 text-xs font-semibold">
                                 {isChosen && isCorrect && '✓ Correct'}
                                 {isChosen && !isCorrect && '✕ Incorrect'}
