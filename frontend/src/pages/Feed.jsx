@@ -6,7 +6,7 @@ import phoneIcon from '../assets/Phone.png';
 import calendarIcon from '../assets/calendar.png';
 import documentIcon from '../assets/document.png';
 import cartIcon from '../assets/Cart.png';
-
+import EmptyState from '../components/EmptyState';
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -348,7 +348,13 @@ function Feed() {
         <p className="text-white/40 text-sm mb-6">Toutes tes activités, façon flux social</p>
 
         {activities.length === 0 && (
-          <p className="text-white/30 text-sm text-center mt-10">Aucune activité pour l'instant. Enregistre-en une !</p>
+          <EmptyState
+            icon="📭"
+            title="Ton feed est vide"
+            subtitle="Enregistre ta première activité et elle apparaîtra ici, comme un post."
+            actionLabel="Enregistrer une activité"
+            actionHref="/nouvelle-activite"
+          />
         )}
 
         <div className="flex flex-col gap-4">

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../utils/api';
 import PageLoader from '../components/PageLoader';
-
+import EmptyState from '../components/EmptyState';
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -56,7 +56,11 @@ function Courses() {
 
         <div className="flex flex-col gap-3">
           {courses.length === 0 && (
-            <p className="text-white/30 text-sm text-center mt-10">Aucun cours disponible pour l'instant</p>
+            <EmptyState
+              icon="🎓"
+              title="Aucune formation pour l'instant"
+              subtitle="Les cours ajoutés par l'admin apparaîtront ici dès qu'ils seront disponibles."
+            />
           )}
 
           {courses.map((course, i) => (
