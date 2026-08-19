@@ -3,7 +3,7 @@ const router = express.Router();
 const pool = require('../db');
 const authMiddleware = require('../middleware/authMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
-
+const { getOdooSalesStats } = require('../odoo');
 router.use(authMiddleware, adminMiddleware);
 
 router.get('/courses', async (req, res) => {
@@ -293,6 +293,16 @@ router.put('/commercials/:id/type-quotas', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/odoo-stats', async (req, res) => {
+  try {
+    const stats = await getOdooSalesStats();
+    res.json(stats);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Impossible de récupérer les stats Odoo', details: err.message });
   }
 });
 

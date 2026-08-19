@@ -140,6 +140,74 @@ function CommercialDetail({ commercial, onClose, onQuotaUpdated }) {
   );
 }
 
+function OdooStatsCard() {
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    apiFetch(`${API_URL}/api/admin/odoo-stats`)
+      .then((r) => {
+        if (!r.ok) throw new Error('Odoo indisponible');
+        return r.json();
+      })
+      .then((data) => {
+        setStats(data);
+        setLoading(false);
+      })
+      .catch(() => {
+        setError(true);
+        setLoading(false);
+      });
+  }, []);
+
+  const formatMAD = (n) =>
+    new Intl.NumberFormat('fr-MA', { style: 'currency', currency: 'MAD', maximumFractionDigits: 0 }).format(n);
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs text-white/50 uppercase tracking-wide">Données Odoo — CRM &amp; Ventes</p>
+        {!loading && !error && (
+          <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+            En direct
+          </span>
+        )}
+      </div>
+
+      {loading && (
+        <div className="flex items-center gap-2 text-white/40 text-xs py-4">
+          <Spinner size={14} color={ACCENT} />
+          Connexion à Odoo...
+        </div>
+      )}
+
+      {!loading && error && (
+        <p className="text-white/30 text-xs py-2">
+          Impossible de récupérer les données Odoo pour l'instant. Vérifie que le serveur Odoo est bien accessible.
+        </p>
+      )}
+
+      {!loading && !error && stats && (
+        <div className="grid grid-cols-3 gap-3">
+          <div className="text-center">
+            <p className="text-2xl font-semibold text-white">{stats.nbDevis}</p>
+            <p className="text-[11px] text-white/40 mt-0.5">Devis</p>
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-semibold text-white">{stats.nbCommandes}</p>
+            <p className="text-[11px] text-white/40 mt-0.5">Commandes</p>
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-semibold" style={{ color: ACCENT }}>{formatMAD(stats.chiffreAffaires)}</p>
+            <p className="text-[11px] text-white/40 mt-0.5">Chiffre d'affaires</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminDashboard() {
   const [commercials, setCommercials] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -195,6 +263,8 @@ function AdminDashboard() {
             </button>
           </div>
         </div>
+
+        <OdooStatsCard />
 
         <div className="flex flex-col gap-3">
           {commercials.length === 0 && (
