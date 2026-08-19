@@ -16,6 +16,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import TargetModal from './components/TargetModal';
 import SuccessModal from './components/SuccessModal';
+import AmbientBackground from './components/AmbientBackground';
 import { apiFetch } from './utils/api';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -53,14 +54,17 @@ function AppLayout({ children }) {
   }, [token, dailyTarget]);
 
   return (
-    <div className="min-h-screen bg-black flex flex-col">
+    <div className="min-h-screen bg-black flex flex-col relative">
+      <AmbientBackground />
       {showModal && (
         <TargetModal onClose={() => setShowModal(false)} target={dailyTarget} current={currentToday} />
       )}
       {showSuccess && <SuccessModal onClose={() => setShowSuccess(false)} />}
-      <Navbar />
-      <main className="flex-1 pb-6">{children}</main>
-      <Footer />
+      <div className="relative z-10 flex flex-col min-h-screen">
+        <Navbar />
+        <main className="flex-1 pb-6">{children}</main>
+        <Footer />
+      </div>
     </div>
   );
 }

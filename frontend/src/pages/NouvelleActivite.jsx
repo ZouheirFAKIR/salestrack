@@ -5,6 +5,7 @@ import SuccessModal from '../components/SuccessModal';
 import Spinner from '../components/Spinner';
 import PageLoader from '../components/PageLoader';
 import BadgeUnlockModal from '../components/BadgeUnlockModal';
+import EmptyState from '../components/EmptyState';
 import { apiFetch } from '../utils/api';
 import { badgeDefinitions } from '../data/badgeDefinitions';
 import phoneIcon from '../assets/Phone.png';
@@ -258,7 +259,11 @@ function NouvelleActivite() {
 
           <div className="p-4 sm:p-5 bg-white/5 border border-white/10 rounded-2xl flex-1 flex flex-col justify-center min-h-40">
             {!type && (
-              <p className="text-white/30 text-sm text-center">Choisis un type ci-dessus pour continuer</p>
+              <EmptyState
+                icon="👆"
+                title="Choisis un type ci-dessus"
+                subtitle="Appel, rendez-vous, devis ou commande — sélectionne pour continuer."
+              />
             )}
 
             {type === 'appel' && (

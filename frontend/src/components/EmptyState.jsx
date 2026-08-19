@@ -1,13 +1,13 @@
-function EmptyState({ icon = '📭', title, subtitle, actionLabel, actionHref, accent = '#f86635' }) {
+function EmptyState({ icon = '📭', title, subtitle, actionLabel, actionHref, accent = '#f86635', compact = false }) {
   return (
-    <div className="flex flex-col items-center justify-center text-center py-16 px-6 animate-[fadeIn_0.4s_ease]">
+    <div className={`flex flex-col items-center justify-center text-center animate-[fadeIn_0.4s_ease] ${compact ? 'py-4 px-4' : 'py-16 px-6'}`}>
       <div
-        className="w-20 h-20 rounded-2xl flex items-center justify-center text-3xl mb-4 animate-[float_3s_ease-in-out_infinite]"
+        className={`rounded-2xl flex items-center justify-center mb-3 animate-[float_3s_ease-in-out_infinite] ${compact ? 'w-14 h-14 text-2xl' : 'w-20 h-20 text-3xl mb-4'}`}
         style={{ background: `${accent}14`, border: `1px solid ${accent}33` }}
       >
         {icon}
       </div>
-      <h3 className="text-white font-medium text-sm mb-1">{title}</h3>
+      <h3 className={`text-white font-medium mb-1 ${compact ? 'text-sm' : 'text-sm'}`}>{title}</h3>
       {subtitle && <p className="text-white/40 text-xs max-w-xs">{subtitle}</p>}
       {actionLabel && actionHref && (
         <a
