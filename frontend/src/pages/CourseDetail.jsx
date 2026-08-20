@@ -331,6 +331,14 @@ function CourseDetail() {
 
         {step === 'reading' && (
           <div className="flex-1 flex flex-col min-h-0 gap-2.5 animate-[fadeIn_0.25s_ease]">
+            {course.banner_url && (
+              <img
+                src={course.banner_url}
+                alt=""
+                className="w-full h-36 sm:h-44 rounded-xl object-cover shrink-0"
+                onError={(e) => { e.target.style.display = 'none'; }}
+              />
+            )}
             <div className="shrink-0">
               <h1 className="text-base sm:text-lg font-bold text-white leading-tight">{course.title}</h1>
               <p className="text-xs text-white/50 mt-0.5">{course.description}</p>
