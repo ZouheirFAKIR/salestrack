@@ -10,6 +10,7 @@ function NewCourseForm({ onCreated }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [contentUrl, setContentUrl] = useState('');
+  const [bannerUrl, setBannerUrl] = useState('');
   const [duration, setDuration] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -23,11 +24,12 @@ function NewCourseForm({ onCreated }) {
         method: 'POST',
         body: JSON.stringify({
           title, description, content_type: 'pdf',
-          content_url: contentUrl, duration_minutes: duration ? Number(duration) : null,
+          content_url: contentUrl, banner_url: bannerUrl || null,
+          duration_minutes: duration ? Number(duration) : null,
         }),
       });
       if (res.ok) {
-        setTitle(''); setDescription(''); setContentUrl(''); setDuration('');
+        setTitle(''); setDescription(''); setContentUrl(''); setBannerUrl(''); setDuration('');
         onCreated();
       } else {
         const data = await res.json();
@@ -55,6 +57,11 @@ function NewCourseForm({ onCreated }) {
           className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 sm:col-span-2"
         />
         <input
+          value={bannerUrl} onChange={(e) => setBannerUrl(e.target.value)}
+          placeholder="Lien de l'image de bannière (ex: https://...)"
+          className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 sm:col-span-2"
+        />
+        <input
           value={contentUrl} onChange={(e) => setContentUrl(e.target.value)}
           placeholder="Chemin du PDF (ex: /mon-cours.pdf)"
           className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60"
@@ -65,8 +72,15 @@ function NewCourseForm({ onCreated }) {
           className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60"
         />
       </div>
+
+      {bannerUrl && (
+        <div className="mt-3 rounded-lg overflow-hidden border border-white/10 h-28">
+          <img src={bannerUrl} alt="Aperçu bannière" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
+        </div>
+      )}
+
       <p className="text-[11px] text-white/30 mt-2">
-        Place d'abord le fichier PDF dans le dossier public du site, puis indique son chemin ici (ex: /guide-vente.pdf).
+        Place d'abord le fichier PDF dans le dossier public du site, puis indique son chemin ici (ex: /guide-vente.pdf). Pour la bannière, colle un lien d'image direct (Unsplash, Cloudinary, etc.).
       </p>
       <button
         onClick={handleCreate}
@@ -213,7 +227,15 @@ function CourseCard({ course, onRefresh }) {
 
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-      <div className="p-4 flex items-center justify-between gap-3">
+      <div className="p-4 flex items-center gap-3">
+        {course.banner_url && (
+          <img
+            src={course.banner_url}
+            alt=""
+            className="w-14 h-14 rounded-lg object-cover shrink-0 border border-white/10"
+            onError={(e) => { e.target.style.display = 'none'; }}
+          />
+        )}
         <div className="flex-1 min-w-0">
           <p className="text-white font-medium">{course.title}</p>
           <p className="text-white/40 text-xs mt-0.5">{course.question_count} question(s)</p>

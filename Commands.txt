@@ -1,0 +1,9 @@
+cd D:\odoo-docker
+docker compose up -d
+
+git add .
+git commit -m "updates"
+git push
+
+
+npx repomix --output repomix.txt

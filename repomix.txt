@@ -120,10 +120,47 @@ frontend/
   README.md
   vercel.json
   vite.config.js
+Commands.txt
 </directory_structure>
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path="Commands.txt">
+cd D:\odoo-docker
+docker compose up -d
+
+git add .
+git commit -m "updates"
+git push
+
+
+npx repomix --output repomix.txt
+</file>
+
+<file path="backend/middleware/adminMiddleware.js">
+const pool = require('../db');
+
+async function adminMiddleware(req, res, next) {
+  try {
+    const result = await pool.query('SELECT role FROM users WHERE id = $1', [req.userId]);
+    if (!result.rows[0] || result.rows[0].role !== 'admin') {
+      return res.status(403).json({ error: 'Accès réservé aux administrateurs' });
+    }
+    next();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+}
+
+module.exports = adminMiddleware;
+</file>
+
+<file path="backend/.gitignore">
+node_modules
+.env
+</file>
 
 <file path="backend/odoo.js">
 const ODOO_URL = process.env.ODOO_URL;
@@ -182,30 +219,6 @@ async function getOdooSalesStats() {
 }
 
 module.exports = { odooAuthenticate, odooExecute, getOdooSalesStats };
-</file>
-
-<file path="backend/middleware/adminMiddleware.js">
-const pool = require('../db');
-
-async function adminMiddleware(req, res, next) {
-  try {
-    const result = await pool.query('SELECT role FROM users WHERE id = $1', [req.userId]);
-    if (!result.rows[0] || result.rows[0].role !== 'admin') {
-      return res.status(403).json({ error: 'Accès réservé aux administrateurs' });
-    }
-    next();
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-}
-
-module.exports = adminMiddleware;
-</file>
-
-<file path="backend/.gitignore">
-node_modules
-.env
 </file>
 
 <file path="backend/package.json">
@@ -650,6 +663,7 @@ function NewCourseForm({ onCreated }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [contentUrl, setContentUrl] = useState('');
+  const [bannerUrl, setBannerUrl] = useState('');
   const [duration, setDuration] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -663,11 +677,12 @@ function NewCourseForm({ onCreated }) {
         method: 'POST',
         body: JSON.stringify({
           title, description, content_type: 'pdf',
-          content_url: contentUrl, duration_minutes: duration ? Number(duration) : null,
+          content_url: contentUrl, banner_url: bannerUrl || null,
+          duration_minutes: duration ? Number(duration) : null,
         }),
       });
       if (res.ok) {
-        setTitle(''); setDescription(''); setContentUrl(''); setDuration('');
+        setTitle(''); setDescription(''); setContentUrl(''); setBannerUrl(''); setDuration('');
         onCreated();
       } else {
         const data = await res.json();
@@ -695,6 +710,11 @@ function NewCourseForm({ onCreated }) {
           className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 sm:col-span-2"
         />
         <input
+          value={bannerUrl} onChange={(e) => setBannerUrl(e.target.value)}
+          placeholder="Lien de l'image de bannière (ex: https://...)"
+          className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 sm:col-span-2"
+        />
+        <input
           value={contentUrl} onChange={(e) => setContentUrl(e.target.value)}
           placeholder="Chemin du PDF (ex: /mon-cours.pdf)"
           className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60"
@@ -705,8 +725,15 @@ function NewCourseForm({ onCreated }) {
           className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60"
         />
       </div>
+
+      {bannerUrl && (
+        <div className="mt-3 rounded-lg overflow-hidden border border-white/10 h-28">
+          <img src={bannerUrl} alt="Aperçu bannière" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
+        </div>
+      )}
+
       <p className="text-[11px] text-white/30 mt-2">
-        Place d'abord le fichier PDF dans le dossier public du site, puis indique son chemin ici (ex: /guide-vente.pdf).
+        Place d'abord le fichier PDF dans le dossier public du site, puis indique son chemin ici (ex: /guide-vente.pdf). Pour la bannière, colle un lien d'image direct (Unsplash, Cloudinary, etc.).
       </p>
       <button
         onClick={handleCreate}
@@ -853,7 +880,15 @@ function CourseCard({ course, onRefresh }) {
 
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-      <div className="p-4 flex items-center justify-between gap-3">
+      <div className="p-4 flex items-center gap-3">
+        {course.banner_url && (
+          <img
+            src={course.banner_url}
+            alt=""
+            className="w-14 h-14 rounded-lg object-cover shrink-0 border border-white/10"
+            onError={(e) => { e.target.style.display = 'none'; }}
+          />
+        )}
         <div className="flex-1 min-w-0">
           <p className="text-white font-medium">{course.title}</p>
           <p className="text-white/40 text-xs mt-0.5">{course.question_count} question(s)</p>
@@ -1904,6 +1939,385 @@ function WeeklyTargetHistory() {
 export default WeeklyTargetHistory;
 </file>
 
+<file path="frontend/src/pages/Badges.jsx">
+import { useEffect, useState } from 'react';
+import Badge from '../components/Badge';
+import PageLoader from '../components/PageLoader';
+import BadgeUnlockModal from '../components/BadgeUnlockModal';
+import { apiFetch } from '../utils/api';
+import { badgeDefinitions, categoryLabels } from '../data/badgeDefinitions';
+
+const ACCENT = '#f86635';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+function CategorySection({ cat, badges, value, index }) {
+  const sorted = [...badges].sort((a, b) => a.threshold - b.threshold);
+  const nextBadge = sorted.find((b) => value < b.threshold);
+  const currentBadge = [...sorted].reverse().find((b) => value >= b.threshold);
+  const focusBadge = nextBadge || sorted[sorted.length - 1];
+  const prevThreshold = currentBadge ? currentBadge.threshold : 0;
+  const progressPercent = nextBadge
+    ? Math.min(Math.round(((value - prevThreshold) / (nextBadge.threshold - prevThreshold)) * 100), 100)
+    : 100;
+  const unlockedInCat = sorted.filter((b) => value >= b.threshold).length;
+
+  return (
+    <div
+      className="bg-white/5 border border-white/10 rounded-2xl p-5"
+      style={{ animation: `fadeIn 0.4s ease ${index * 0.06}s both` }}
+    >
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-sm font-semibold text-white">{categoryLabels[cat]}</p>
+          <p className="text-[11px] text-white/35 mt-0.5">{unlockedInCat}/{sorted.length} débloqués</p>
+        </div>
+        <span className="text-lg font-semibold text-white">{value}</span>
+      </div>
+
+      <div className="flex items-center gap-4 mb-5 pb-5 border-b border-white/[0.06]">
+        <Badge category={cat} unlocked={!!currentBadge} label={null} size={60} />
+        <div className="flex-1">
+          <p className="text-sm text-white font-medium">{focusBadge.label}</p>
+          {nextBadge ? (
+            <>
+              <div className="w-full bg-white/10 rounded-full h-1.5 mt-2.5">
+                <div
+                  className="h-1.5 rounded-full transition-all duration-500"
+                  style={{ width: `${progressPercent}%`, backgroundColor: ACCENT }}
+                />
+              </div>
+              <p className="text-[11px] text-white/40 mt-1.5">{value} / {nextBadge.threshold}</p>
+            </>
+          ) : (
+            <p className="text-[11px] mt-1.5" style={{ color: ACCENT }}>Tous les paliers débloqués 🎉</p>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
+        {sorted.map((b) => (
+          <Badge key={b.id} category={b.category} unlocked={value >= b.threshold} label={b.threshold} size={44} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Badges() {
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [seenBadges, setSeenBadges] = useState([]);
+  const [newlyUnlocked, setNewlyUnlocked] = useState([]);
+  const [currentUnlockIndex, setCurrentUnlockIndex] = useState(0);
+
+  useEffect(() => {
+    Promise.all([
+      apiFetch(`${API_URL}/api/activities/badge-stats`).then((r) => r.json()),
+      apiFetch(`${API_URL}/api/activities/seen-badges`).then((r) => r.json()),
+    ]).then(([statsData, seenData]) => {
+      setStats(statsData);
+      setSeenBadges(seenData);
+      setLoading(false);
+
+      const getValue = (category) => {
+        if (category === 'total') return statsData.total;
+        if (category === 'streak') return statsData.streak;
+        if (category === 'target') return statsData.targetDays;
+        return statsData.typeCounts[category] || 0;
+      };
+
+      const unlocked = badgeDefinitions.filter((b) => getValue(b.category) >= b.threshold);
+      const newOnes = unlocked.filter((b) => !seenData.includes(b.id));
+      if (newOnes.length > 0) {
+        setNewlyUnlocked(newOnes);
+      }
+    }).catch(() => setLoading(false));
+  }, []);
+
+  const markAsSeen = (badgeIds) => {
+    apiFetch(`${API_URL}/api/activities/seen-badges`, {
+      method: 'POST',
+      body: JSON.stringify({ badgeIds }),
+    });
+  };
+
+  const handleCloseUnlock = () => {
+    markAsSeen(newlyUnlocked.map((b) => b.id));
+    setNewlyUnlocked([]);
+    setCurrentUnlockIndex(0);
+  };
+
+  const handleNextUnlock = () => {
+    if (currentUnlockIndex < newlyUnlocked.length - 1) {
+      setCurrentUnlockIndex((i) => i + 1);
+    } else {
+      handleCloseUnlock();
+    }
+  };
+
+  if (loading) return <PageLoader />;
+  if (!stats) return null;
+
+  const getValue = (category) => {
+    if (category === 'total') return stats.total;
+    if (category === 'streak') return stats.streak;
+    if (category === 'target') return stats.targetDays;
+    return stats.typeCounts[category] || 0;
+  };
+
+  const isUnlocked = (badge) => getValue(badge.category) >= badge.threshold;
+  const unlockedCount = badgeDefinitions.filter(isUnlocked).length;
+  const totalCount = badgeDefinitions.length;
+  const overallPercent = Math.round((unlockedCount / totalCount) * 100);
+  const categories = ['total', 'streak', 'target', 'appel', 'rdv', 'devis', 'commande'];
+
+  return (
+    <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
+      {newlyUnlocked.length > 0 && (
+        <BadgeUnlockModal
+          badge={newlyUnlocked[currentUnlockIndex]}
+          onClose={handleCloseUnlock}
+          onNext={handleNextUnlock}
+          remaining={newlyUnlocked.length - currentUnlockIndex - 1}
+        />
+      )}
+
+      <div className="max-w-3xl mx-auto flex flex-col gap-5">
+
+        <div className="rounded-2xl p-6 text-center" style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}>
+          <p className="text-white/80 text-xs uppercase tracking-wide mb-1">Collection de badges</p>
+          <p className="text-white text-4xl font-semibold">{unlockedCount}<span className="text-lg text-white/70"> / {totalCount}</span></p>
+          <div className="w-full max-w-xs mx-auto bg-white/25 rounded-full h-2 mt-4">
+            <div className="h-2 rounded-full bg-white transition-all duration-700" style={{ width: `${overallPercent}%` }} />
+          </div>
+          <p className="text-white/70 text-xs mt-2">{overallPercent}% de la collection débloquée</p>
+        </div>
+
+        {categories.map((cat, i) => (
+          <CategorySection
+            key={cat}
+            cat={cat}
+            badges={badgeDefinitions.filter((b) => b.category === cat)}
+            value={getValue(cat)}
+            index={i}
+          />
+        ))}
+
+      </div>
+
+      <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+    </div>
+  );
+}
+
+export default Badges;
+</file>
+
+<file path="backend/routes/auth.js">
+const express = require('express');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const router = express.Router();
+const pool = require('../db');
+
+const JWT_SECRET = process.env.JWT_SECRET;
+
+router.post('/signup', async (req, res) => {
+  const { nom, email, password } = req.body;
+
+  if (!nom || !email || !password) {
+    return res.status(400).json({ error: 'Tous les champs sont obligatoires' });
+  }
+
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const result = await pool.query(
+      'INSERT INTO users (nom, email, password) VALUES ($1, $2, $3) RETURNING id, nom, email',
+      [nom, email, hashedPassword]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(400).json({ error: 'Cet email est déjà utilisé' });
+    }
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const user = result.rows[0];
+
+    if (!user) {
+      return res.status(400).json({ error: 'Email ou mot de passe incorrect' });
+    }
+
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) {
+      return res.status(400).json({ error: 'Email ou mot de passe incorrect' });
+    }
+
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({
+      token,
+      user: {
+        id: user.id, nom: user.nom, email: user.email,
+        phone: user.phone, role: user.role, photo_url: user.photo_url,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+module.exports = router;
+</file>
+
+<file path="backend/routes/courses.js">
+const express = require('express');
+const router = express.Router();
+const pool = require('../db');
+const authMiddleware = require('../middleware/authMiddleware');
+
+router.get('/', authMiddleware, async (req, res) => {
+  try {
+    const courses = await pool.query('SELECT * FROM courses ORDER BY id ASC');
+    const attempts = await pool.query(
+      `SELECT DISTINCT ON (course_id) course_id, score as best_score, max_score
+       FROM quiz_attempts
+       WHERE commercial_id = $1
+       ORDER BY course_id, score DESC, completed_at DESC`,
+      [req.userId]
+    );
+    const attemptMap = {};
+    attempts.rows.forEach((a) => { attemptMap[a.course_id] = a; });
+
+    const result = courses.rows.map((c) => ({
+      ...c,
+      completed: !!attemptMap[c.id],
+      best_score: attemptMap[c.id]?.best_score ?? null,
+      max_score: attemptMap[c.id]?.max_score ?? null,
+    }));
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/:id', authMiddleware, async (req, res) => {
+  try {
+    const course = await pool.query('SELECT * FROM courses WHERE id = $1', [req.params.id]);
+    if (course.rows.length === 0) return res.status(404).json({ error: 'Cours introuvable' });
+
+    const questions = await pool.query(
+      'SELECT id, question, points, order_index FROM quiz_questions WHERE course_id = $1 ORDER BY order_index ASC',
+      [req.params.id]
+    );
+    const questionIds = questions.rows.map((q) => q.id);
+    let options = [];
+    if (questionIds.length > 0) {
+      // is_correct volontairement exclu : cette route est appelée AVANT
+      // que le commercial réponde. La correction se fait via
+      // POST /questions/:questionId/answer (instantané) et /:id/submit (final).
+      const optionsResult = await pool.query(
+        'SELECT id, question_id, option_text FROM quiz_options WHERE question_id = ANY($1::int[])',
+        [questionIds]
+      );
+      options = optionsResult.rows;
+    }
+
+    const questionsWithOptions = questions.rows.map((q) => ({
+      ...q,
+      options: options.filter((o) => o.question_id === q.id),
+    }));
+
+    res.json({ ...course.rows[0], questions: questionsWithOptions });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Vérifie une réponse en direct (feedback instantané vert/rouge),
+// sans jamais exposer les bonnes réponses avant que l'utilisateur ait cliqué.
+router.post('/questions/:questionId/answer', authMiddleware, async (req, res) => {
+  const { optionId } = req.body;
+  if (!optionId) return res.status(400).json({ error: 'optionId requis' });
+
+  try {
+    const optionsResult = await pool.query(
+      'SELECT id, is_correct FROM quiz_options WHERE question_id = $1',
+      [req.params.questionId]
+    );
+    if (optionsResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Question introuvable' });
+    }
+
+    const correctOption = optionsResult.rows.find((o) => o.is_correct);
+    const chosenOption = optionsResult.rows.find((o) => o.id === optionId);
+
+    if (!chosenOption) {
+      return res.status(400).json({ error: 'Option invalide' });
+    }
+
+    res.json({
+      correct: !!chosenOption.is_correct,
+      correctOptionId: correctOption ? correctOption.id : null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.post('/:id/submit', authMiddleware, async (req, res) => {
+  const { answers } = req.body;
+  const courseId = req.params.id;
+
+  try {
+    const questions = await pool.query(
+      'SELECT id, points FROM quiz_questions WHERE course_id = $1',
+      [courseId]
+    );
+
+    let score = 0;
+    let maxScore = 0;
+
+    for (const q of questions.rows) {
+      maxScore += q.points;
+      const selectedOptionId = answers[q.id];
+      if (!selectedOptionId) continue;
+
+      const correctOption = await pool.query(
+        'SELECT id FROM quiz_options WHERE question_id = $1 AND is_correct = TRUE',
+        [q.id]
+      );
+      if (correctOption.rows[0] && correctOption.rows[0].id === selectedOptionId) {
+        score += q.points;
+      }
+    }
+
+    await pool.query(
+      'INSERT INTO quiz_attempts (commercial_id, course_id, score, max_score) VALUES ($1, $2, $3, $4)',
+      [req.userId, courseId, score, maxScore]
+    );
+
+    res.json({ score, maxScore, percent: Math.round((score / maxScore) * 100) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+module.exports = router;
+</file>
+
 <file path="frontend/src/pages/admin/AdminDashboard.jsx">
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -2218,178 +2632,76 @@ function AdminDashboard() {
 export default AdminDashboard;
 </file>
 
-<file path="frontend/src/pages/Badges.jsx">
-import { useEffect, useState } from 'react';
-import Badge from '../components/Badge';
-import PageLoader from '../components/PageLoader';
-import BadgeUnlockModal from '../components/BadgeUnlockModal';
-import { apiFetch } from '../utils/api';
-import { badgeDefinitions, categoryLabels } from '../data/badgeDefinitions';
+<file path="frontend/src/pages/Signup.jsx">
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import yealeadLogo from '../assets/yealead.png';
+import Spinner from '../components/Spinner';
 
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-function CategorySection({ cat, badges, value, index }) {
-  const sorted = [...badges].sort((a, b) => a.threshold - b.threshold);
-  const nextBadge = sorted.find((b) => value < b.threshold);
-  const currentBadge = [...sorted].reverse().find((b) => value >= b.threshold);
-  const focusBadge = nextBadge || sorted[sorted.length - 1];
-  const prevThreshold = currentBadge ? currentBadge.threshold : 0;
-  const progressPercent = nextBadge
-    ? Math.min(Math.round(((value - prevThreshold) / (nextBadge.threshold - prevThreshold)) * 100), 100)
-    : 100;
-  const unlockedInCat = sorted.filter((b) => value >= b.threshold).length;
+function Signup() {
+  const [nom, setNom] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
-  return (
-    <div
-      className="bg-white/5 border border-white/10 rounded-2xl p-5"
-      style={{ animation: `fadeIn 0.4s ease ${index * 0.06}s both` }}
-    >
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <p className="text-sm font-semibold text-white">{categoryLabels[cat]}</p>
-          <p className="text-[11px] text-white/35 mt-0.5">{unlockedInCat}/{sorted.length} débloqués</p>
-        </div>
-        <span className="text-lg font-semibold text-white">{value}</span>
-      </div>
-
-      <div className="flex items-center gap-4 mb-5 pb-5 border-b border-white/[0.06]">
-        <Badge category={cat} unlocked={!!currentBadge} label={null} size={60} />
-        <div className="flex-1">
-          <p className="text-sm text-white font-medium">{focusBadge.label}</p>
-          {nextBadge ? (
-            <>
-              <div className="w-full bg-white/10 rounded-full h-1.5 mt-2.5">
-                <div
-                  className="h-1.5 rounded-full transition-all duration-500"
-                  style={{ width: `${progressPercent}%`, backgroundColor: ACCENT }}
-                />
-              </div>
-              <p className="text-[11px] text-white/40 mt-1.5">{value} / {nextBadge.threshold}</p>
-            </>
-          ) : (
-            <p className="text-[11px] mt-1.5" style={{ color: ACCENT }}>Tous les paliers débloqués 🎉</p>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
-        {sorted.map((b) => (
-          <Badge key={b.id} category={b.category} unlocked={value >= b.threshold} label={b.threshold} size={44} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function Badges() {
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [seenBadges, setSeenBadges] = useState([]);
-  const [newlyUnlocked, setNewlyUnlocked] = useState([]);
-  const [currentUnlockIndex, setCurrentUnlockIndex] = useState(0);
-
-  useEffect(() => {
-    Promise.all([
-      apiFetch(`${API_URL}/api/activities/badge-stats`).then((r) => r.json()),
-      apiFetch(`${API_URL}/api/activities/seen-badges`).then((r) => r.json()),
-    ]).then(([statsData, seenData]) => {
-      setStats(statsData);
-      setSeenBadges(seenData);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/api/auth/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nom, email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error); setLoading(false); return; }
+      navigate('/login');
+    } catch (err) {
+      setError("Erreur lors de l'inscription");
       setLoading(false);
-
-      const getValue = (category) => {
-        if (category === 'total') return statsData.total;
-        if (category === 'streak') return statsData.streak;
-        if (category === 'target') return statsData.targetDays;
-        return statsData.typeCounts[category] || 0;
-      };
-
-      const unlocked = badgeDefinitions.filter((b) => getValue(b.category) >= b.threshold);
-      const newOnes = unlocked.filter((b) => !seenData.includes(b.id));
-      if (newOnes.length > 0) {
-        setNewlyUnlocked(newOnes);
-      }
-    }).catch(() => setLoading(false));
-  }, []);
-
-  const markAsSeen = (badgeIds) => {
-    apiFetch(`${API_URL}/api/activities/seen-badges`, {
-      method: 'POST',
-      body: JSON.stringify({ badgeIds }),
-    });
-  };
-
-  const handleCloseUnlock = () => {
-    markAsSeen(newlyUnlocked.map((b) => b.id));
-    setNewlyUnlocked([]);
-    setCurrentUnlockIndex(0);
-  };
-
-  const handleNextUnlock = () => {
-    if (currentUnlockIndex < newlyUnlocked.length - 1) {
-      setCurrentUnlockIndex((i) => i + 1);
-    } else {
-      handleCloseUnlock();
     }
   };
 
-  if (loading) return <PageLoader />;
-  if (!stats) return null;
-
-  const getValue = (category) => {
-    if (category === 'total') return stats.total;
-    if (category === 'streak') return stats.streak;
-    if (category === 'target') return stats.targetDays;
-    return stats.typeCounts[category] || 0;
-  };
-
-  const isUnlocked = (badge) => getValue(badge.category) >= badge.threshold;
-  const unlockedCount = badgeDefinitions.filter(isUnlocked).length;
-  const totalCount = badgeDefinitions.length;
-  const overallPercent = Math.round((unlockedCount / totalCount) * 100);
-  const categories = ['total', 'streak', 'target', 'appel', 'rdv', 'devis', 'commande'];
-
   return (
-    <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
-      {newlyUnlocked.length > 0 && (
-        <BadgeUnlockModal
-          badge={newlyUnlocked[currentUnlockIndex]}
-          onClose={handleCloseUnlock}
-          onNext={handleNextUnlock}
-          remaining={newlyUnlocked.length - currentUnlockIndex - 1}
-        />
-      )}
+    <div className="min-h-screen bg-black flex items-center justify-center p-4">
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-8 max-w-sm w-full animate-[popIn_0.3s_ease]">
+        <img src={yealeadLogo} alt="Yealead" className="w-10 h-10 mx-auto mb-4" />
+        <h1 className="text-xl font-semibold text-black mb-1 text-center">Créer un compte</h1>
+        <p className="text-black/50 text-sm mb-6 text-center">Rejoins SalesTrack</p>
 
-      <div className="max-w-3xl mx-auto flex flex-col gap-5">
+        {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
 
-        <div className="rounded-2xl p-6 text-center" style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}>
-          <p className="text-white/80 text-xs uppercase tracking-wide mb-1">Collection de badges</p>
-          <p className="text-white text-4xl font-semibold">{unlockedCount}<span className="text-lg text-white/70"> / {totalCount}</span></p>
-          <div className="w-full max-w-xs mx-auto bg-white/25 rounded-full h-2 mt-4">
-            <div className="h-2 rounded-full bg-white transition-all duration-700" style={{ width: `${overallPercent}%` }} />
-          </div>
-          <p className="text-white/70 text-xs mt-2">{overallPercent}% de la collection débloquée</p>
-        </div>
-
-        {categories.map((cat, i) => (
-          <CategorySection
-            key={cat}
-            cat={cat}
-            badges={badgeDefinitions.filter((b) => b.category === cat)}
-            value={getValue(cat)}
-            index={i}
-          />
-        ))}
-
-      </div>
-
-      <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+        <input type="text" placeholder="Nom complet" value={nom} onChange={(e) => setNom(e.target.value)}
+          className="w-full p-3 rounded-lg border border-black/15 mb-3 outline-none focus:border-orange-500 transition-colors" />
+        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
+          className="w-full p-3 rounded-lg border border-black/15 mb-3 outline-none focus:border-orange-500 transition-colors" />
+        <input type="password" placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)}
+          className="w-full p-3 rounded-lg border border-black/15 mb-4 outline-none focus:border-orange-500 transition-colors" />
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full text-white p-3 rounded-lg font-medium hover:brightness-110 active:scale-95 transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+          style={{ backgroundColor: ACCENT }}
+        >
+          {loading && <Spinner size={16} color="#fff" />}
+          {loading ? 'Inscription...' : "S'inscrire"}
+        </button>
+        <p className="text-center text-sm text-black/50 mt-4">
+          Déjà un compte ? <Link to="/login" style={{ color: ACCENT }} className="font-medium">Se connecter</Link>
+        </p>
+      </form>
+      <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>
     </div>
   );
 }
 
-export default Badges;
+export default Signup;
 </file>
 
 <file path="backend/routes/admin.js">
@@ -2447,14 +2759,14 @@ router.get('/courses/:id', async (req, res) => {
 });
 
 router.post('/courses', async (req, res) => {
-  const { title, description, content_type, content_url, duration_minutes } = req.body;
+  const { title, description, content_type, content_url, duration_minutes, banner_url } = req.body;
   if (!title) return res.status(400).json({ error: 'Le titre est obligatoire' });
 
   try {
     const result = await pool.query(
-      `INSERT INTO courses (title, description, content_type, content_url, duration_minutes)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [title, description || null, content_type || 'pdf', content_url || null, duration_minutes || null]
+      `INSERT INTO courses (title, description, content_type, content_url, duration_minutes, banner_url)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [title, description || null, content_type || 'pdf', content_url || null, duration_minutes || null, banner_url || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -2464,7 +2776,7 @@ router.post('/courses', async (req, res) => {
 });
 
 router.put('/courses/:id', async (req, res) => {
-  const { title, description, content_type, content_url, duration_minutes } = req.body;
+  const { title, description, content_type, content_url, duration_minutes, banner_url } = req.body;
   try {
     const result = await pool.query(
       `UPDATE courses SET
@@ -2472,9 +2784,10 @@ router.put('/courses/:id', async (req, res) => {
         description = COALESCE($2, description),
         content_type = COALESCE($3, content_type),
         content_url = COALESCE($4, content_url),
-        duration_minutes = COALESCE($5, duration_minutes)
-       WHERE id = $6 RETURNING *`,
-      [title, description, content_type, content_url, duration_minutes, req.params.id]
+        duration_minutes = COALESCE($5, duration_minutes),
+        banner_url = COALESCE($6, banner_url)
+       WHERE id = $7 RETURNING *`,
+      [title, description, content_type, content_url, duration_minutes, banner_url, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Cours introuvable' });
     res.json(result.rows[0]);
@@ -2702,283 +3015,6 @@ router.get('/odoo-stats', async (req, res) => {
 });
 
 module.exports = router;
-</file>
-
-<file path="backend/routes/auth.js">
-const express = require('express');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const router = express.Router();
-const pool = require('../db');
-
-const JWT_SECRET = process.env.JWT_SECRET;
-
-router.post('/signup', async (req, res) => {
-  const { nom, email, password } = req.body;
-
-  if (!nom || !email || !password) {
-    return res.status(400).json({ error: 'Tous les champs sont obligatoires' });
-  }
-
-  try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const result = await pool.query(
-      'INSERT INTO users (nom, email, password) VALUES ($1, $2, $3) RETURNING id, nom, email',
-      [nom, email, hashedPassword]
-    );
-    res.status(201).json(result.rows[0]);
-  } catch (err) {
-    if (err.code === '23505') {
-      return res.status(400).json({ error: 'Cet email est déjà utilisé' });
-    }
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-
-  try {
-    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    const user = result.rows[0];
-
-    if (!user) {
-      return res.status(400).json({ error: 'Email ou mot de passe incorrect' });
-    }
-
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) {
-      return res.status(400).json({ error: 'Email ou mot de passe incorrect' });
-    }
-
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({
-      token,
-      user: {
-        id: user.id, nom: user.nom, email: user.email,
-        phone: user.phone, role: user.role, photo_url: user.photo_url,
-      },
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-module.exports = router;
-</file>
-
-<file path="backend/routes/courses.js">
-const express = require('express');
-const router = express.Router();
-const pool = require('../db');
-const authMiddleware = require('../middleware/authMiddleware');
-
-router.get('/', authMiddleware, async (req, res) => {
-  try {
-    const courses = await pool.query('SELECT * FROM courses ORDER BY id ASC');
-    const attempts = await pool.query(
-      `SELECT DISTINCT ON (course_id) course_id, score as best_score, max_score
-       FROM quiz_attempts
-       WHERE commercial_id = $1
-       ORDER BY course_id, score DESC, completed_at DESC`,
-      [req.userId]
-    );
-    const attemptMap = {};
-    attempts.rows.forEach((a) => { attemptMap[a.course_id] = a; });
-
-    const result = courses.rows.map((c) => ({
-      ...c,
-      completed: !!attemptMap[c.id],
-      best_score: attemptMap[c.id]?.best_score ?? null,
-      max_score: attemptMap[c.id]?.max_score ?? null,
-    }));
-    res.json(result);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-router.get('/:id', authMiddleware, async (req, res) => {
-  try {
-    const course = await pool.query('SELECT * FROM courses WHERE id = $1', [req.params.id]);
-    if (course.rows.length === 0) return res.status(404).json({ error: 'Cours introuvable' });
-
-    const questions = await pool.query(
-      'SELECT id, question, points, order_index FROM quiz_questions WHERE course_id = $1 ORDER BY order_index ASC',
-      [req.params.id]
-    );
-    const questionIds = questions.rows.map((q) => q.id);
-    let options = [];
-    if (questionIds.length > 0) {
-      // is_correct volontairement exclu : cette route est appelée AVANT
-      // que le commercial réponde. La correction se fait via
-      // POST /questions/:questionId/answer (instantané) et /:id/submit (final).
-      const optionsResult = await pool.query(
-        'SELECT id, question_id, option_text FROM quiz_options WHERE question_id = ANY($1::int[])',
-        [questionIds]
-      );
-      options = optionsResult.rows;
-    }
-
-    const questionsWithOptions = questions.rows.map((q) => ({
-      ...q,
-      options: options.filter((o) => o.question_id === q.id),
-    }));
-
-    res.json({ ...course.rows[0], questions: questionsWithOptions });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-// Vérifie une réponse en direct (feedback instantané vert/rouge),
-// sans jamais exposer les bonnes réponses avant que l'utilisateur ait cliqué.
-router.post('/questions/:questionId/answer', authMiddleware, async (req, res) => {
-  const { optionId } = req.body;
-  if (!optionId) return res.status(400).json({ error: 'optionId requis' });
-
-  try {
-    const optionsResult = await pool.query(
-      'SELECT id, is_correct FROM quiz_options WHERE question_id = $1',
-      [req.params.questionId]
-    );
-    if (optionsResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Question introuvable' });
-    }
-
-    const correctOption = optionsResult.rows.find((o) => o.is_correct);
-    const chosenOption = optionsResult.rows.find((o) => o.id === optionId);
-
-    if (!chosenOption) {
-      return res.status(400).json({ error: 'Option invalide' });
-    }
-
-    res.json({
-      correct: !!chosenOption.is_correct,
-      correctOptionId: correctOption ? correctOption.id : null,
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-router.post('/:id/submit', authMiddleware, async (req, res) => {
-  const { answers } = req.body;
-  const courseId = req.params.id;
-
-  try {
-    const questions = await pool.query(
-      'SELECT id, points FROM quiz_questions WHERE course_id = $1',
-      [courseId]
-    );
-
-    let score = 0;
-    let maxScore = 0;
-
-    for (const q of questions.rows) {
-      maxScore += q.points;
-      const selectedOptionId = answers[q.id];
-      if (!selectedOptionId) continue;
-
-      const correctOption = await pool.query(
-        'SELECT id FROM quiz_options WHERE question_id = $1 AND is_correct = TRUE',
-        [q.id]
-      );
-      if (correctOption.rows[0] && correctOption.rows[0].id === selectedOptionId) {
-        score += q.points;
-      }
-    }
-
-    await pool.query(
-      'INSERT INTO quiz_attempts (commercial_id, course_id, score, max_score) VALUES ($1, $2, $3, $4)',
-      [req.userId, courseId, score, maxScore]
-    );
-
-    res.json({ score, maxScore, percent: Math.round((score / maxScore) * 100) });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-module.exports = router;
-</file>
-
-<file path="frontend/src/pages/Signup.jsx">
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import yealeadLogo from '../assets/yealead.png';
-import Spinner from '../components/Spinner';
-
-const ACCENT = '#f86635';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-function Signup() {
-  const [nom, setNom] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      const res = await fetch(`${API_URL}/api/auth/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nom, email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error); setLoading(false); return; }
-      navigate('/login');
-    } catch (err) {
-      setError("Erreur lors de l'inscription");
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4">
-      <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-8 max-w-sm w-full animate-[popIn_0.3s_ease]">
-        <img src={yealeadLogo} alt="Yealead" className="w-10 h-10 mx-auto mb-4" />
-        <h1 className="text-xl font-semibold text-black mb-1 text-center">Créer un compte</h1>
-        <p className="text-black/50 text-sm mb-6 text-center">Rejoins SalesTrack</p>
-
-        {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
-
-        <input type="text" placeholder="Nom complet" value={nom} onChange={(e) => setNom(e.target.value)}
-          className="w-full p-3 rounded-lg border border-black/15 mb-3 outline-none focus:border-orange-500 transition-colors" />
-        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
-          className="w-full p-3 rounded-lg border border-black/15 mb-3 outline-none focus:border-orange-500 transition-colors" />
-        <input type="password" placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)}
-          className="w-full p-3 rounded-lg border border-black/15 mb-4 outline-none focus:border-orange-500 transition-colors" />
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full text-white p-3 rounded-lg font-medium hover:brightness-110 active:scale-95 transition-all disabled:opacity-70 flex items-center justify-center gap-2"
-          style={{ backgroundColor: ACCENT }}
-        >
-          {loading && <Spinner size={16} color="#fff" />}
-          {loading ? 'Inscription...' : "S'inscrire"}
-        </button>
-        <p className="text-center text-sm text-black/50 mt-4">
-          Déjà un compte ? <Link to="/login" style={{ color: ACCENT }} className="font-medium">Se connecter</Link>
-        </p>
-      </form>
-      <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>
-    </div>
-  );
-}
-
-export default Signup;
 </file>
 
 <file path="backend/index.js">

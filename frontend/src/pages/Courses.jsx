@@ -70,6 +70,14 @@ function Courses() {
               className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:border-orange-400/50 transition-all block"
               style={{ animation: `fadeIn 0.4s ease ${i * 0.06}s both` }}
             >
+              {course.banner_url && (
+                <img
+                  src={course.banner_url}
+                  alt=""
+                  className="w-full h-32 rounded-xl object-cover mb-3"
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              )}
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">

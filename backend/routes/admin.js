@@ -52,14 +52,14 @@ router.get('/courses/:id', async (req, res) => {
 });
 
 router.post('/courses', async (req, res) => {
-  const { title, description, content_type, content_url, duration_minutes } = req.body;
+  const { title, description, content_type, content_url, duration_minutes, banner_url } = req.body;
   if (!title) return res.status(400).json({ error: 'Le titre est obligatoire' });
 
   try {
     const result = await pool.query(
-      `INSERT INTO courses (title, description, content_type, content_url, duration_minutes)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [title, description || null, content_type || 'pdf', content_url || null, duration_minutes || null]
+      `INSERT INTO courses (title, description, content_type, content_url, duration_minutes, banner_url)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [title, description || null, content_type || 'pdf', content_url || null, duration_minutes || null, banner_url || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -69,7 +69,7 @@ router.post('/courses', async (req, res) => {
 });
 
 router.put('/courses/:id', async (req, res) => {
-  const { title, description, content_type, content_url, duration_minutes } = req.body;
+  const { title, description, content_type, content_url, duration_minutes, banner_url } = req.body;
   try {
     const result = await pool.query(
       `UPDATE courses SET
@@ -77,9 +77,10 @@ router.put('/courses/:id', async (req, res) => {
         description = COALESCE($2, description),
         content_type = COALESCE($3, content_type),
         content_url = COALESCE($4, content_url),
-        duration_minutes = COALESCE($5, duration_minutes)
-       WHERE id = $6 RETURNING *`,
-      [title, description, content_type, content_url, duration_minutes, req.params.id]
+        duration_minutes = COALESCE($5, duration_minutes),
+        banner_url = COALESCE($6, banner_url)
+       WHERE id = $7 RETURNING *`,
+      [title, description, content_type, content_url, duration_minutes, banner_url, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Cours introuvable' });
     res.json(result.rows[0]);
