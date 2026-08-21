@@ -52,14 +52,14 @@ router.get('/courses/:id', async (req, res) => {
 });
 
 router.post('/courses', async (req, res) => {
-  const { title, description, content_type, content_url, duration_minutes, banner_url } = req.body;
+  const { title, description, content_type, content_url, content_text, duration_minutes, banner_url } = req.body;
   if (!title) return res.status(400).json({ error: 'Le titre est obligatoire' });
 
   try {
     const result = await pool.query(
-      `INSERT INTO courses (title, description, content_type, content_url, duration_minutes, banner_url)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [title, description || null, content_type || 'pdf', content_url || null, duration_minutes || null, banner_url || null]
+      `INSERT INTO courses (title, description, content_type, content_url, content_text, duration_minutes, banner_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [title, description || null, content_type || 'pdf', content_url || null, content_text || null, duration_minutes || null, banner_url || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -69,7 +69,7 @@ router.post('/courses', async (req, res) => {
 });
 
 router.put('/courses/:id', async (req, res) => {
-  const { title, description, content_type, content_url, duration_minutes, banner_url } = req.body;
+  const { title, description, content_type, content_url, content_text, duration_minutes, banner_url } = req.body;
   try {
     const result = await pool.query(
       `UPDATE courses SET
@@ -77,10 +77,11 @@ router.put('/courses/:id', async (req, res) => {
         description = COALESCE($2, description),
         content_type = COALESCE($3, content_type),
         content_url = COALESCE($4, content_url),
-        duration_minutes = COALESCE($5, duration_minutes),
-        banner_url = COALESCE($6, banner_url)
-       WHERE id = $7 RETURNING *`,
-      [title, description, content_type, content_url, duration_minutes, banner_url, req.params.id]
+        content_text = COALESCE($5, content_text),
+        duration_minutes = COALESCE($6, duration_minutes),
+        banner_url = COALESCE($7, banner_url)
+       WHERE id = $8 RETURNING *`,
+      [title, description, content_type, content_url, content_text, duration_minutes, banner_url, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Cours introuvable' });
     res.json(result.rows[0]);
@@ -139,6 +140,30 @@ router.delete('/questions/:id', async (req, res) => {
   try {
     await pool.query('DELETE FROM quiz_questions WHERE id = $1', [req.params.id]);
     res.json({ message: 'Question supprimée' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.put('/questions/:id', async (req, res) => {
+  const { question, points, options } = req.body;
+  if (!question || !options || options.length < 2) {
+    return res.status(400).json({ error: 'Question et au moins 2 options requises' });
+  }
+  const hasCorrect = options.some((o) => o.is_correct);
+  if (!hasCorrect) return res.status(400).json({ error: 'Une réponse correcte doit être sélectionnée' });
+
+  try {
+    await pool.query('UPDATE quiz_questions SET question = $1, points = $2 WHERE id = $3', [question, points || 10, req.params.id]);
+    await pool.query('DELETE FROM quiz_options WHERE question_id = $1', [req.params.id]);
+    for (const opt of options) {
+      await pool.query(
+        'INSERT INTO quiz_options (question_id, option_text, is_correct) VALUES ($1, $2, $3)',
+        [req.params.id, opt.option_text, !!opt.is_correct]
+      );
+    }
+    res.json({ message: 'Question mise à jour' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -304,6 +329,62 @@ router.get('/odoo-stats', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Impossible de récupérer les stats Odoo', details: err.message });
+  }
+});
+
+router.get('/rewards', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM rewards ORDER BY cost ASC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.post('/rewards', async (req, res) => {
+  const { title, description, cost, image_url } = req.body;
+  if (!title || !cost) return res.status(400).json({ error: 'Titre et coût obligatoires' });
+
+  try {
+    const result = await pool.query(
+      'INSERT INTO rewards (title, description, cost, image_url) VALUES ($1, $2, $3, $4) RETURNING *',
+      [title, description || null, cost, image_url || null]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.put('/rewards/:id', async (req, res) => {
+  const { title, description, cost, image_url } = req.body;
+  try {
+    const result = await pool.query(
+      `UPDATE rewards SET
+        title = COALESCE($1, title),
+        description = COALESCE($2, description),
+        cost = COALESCE($3, cost),
+        image_url = COALESCE($4, image_url)
+       WHERE id = $5 RETURNING *`,
+      [title, description, cost, image_url, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Récompense introuvable' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.delete('/rewards/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM rewards WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Récompense supprimée' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 

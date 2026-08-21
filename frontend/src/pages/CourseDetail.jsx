@@ -223,6 +223,35 @@ function PdfViewer({ url }) {
   );
 }
 
+function renderCourseContent(text) {
+  const lines = text.split('\n');
+  const blocks = [];
+  let currentList = null;
+
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      currentList = null;
+      return;
+    }
+    if (trimmed.startsWith('## ')) {
+      currentList = null;
+      blocks.push({ type: 'heading', text: trimmed.slice(3) });
+    } else if (trimmed.startsWith('- ')) {
+      if (!currentList) {
+        currentList = { type: 'list', items: [] };
+        blocks.push(currentList);
+      }
+      currentList.items.push(trimmed.slice(2));
+    } else {
+      currentList = null;
+      blocks.push({ type: 'paragraph', text: trimmed });
+    }
+  });
+
+  return blocks;
+}
+
 function CourseDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -239,6 +268,8 @@ function CourseDetail() {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  const [activeHeadingIndex, setActiveHeadingIndex] = useState(0);
+  const contentScrollRef = useRef(null);
 
   useEffect(() => {
     if (!token) { navigate('/login'); return; }
@@ -250,6 +281,30 @@ function CourseDetail() {
       })
       .catch(() => setLoading(false));
   }, [id, token]);
+
+  useEffect(() => {
+    if (step !== 'reading' || !course?.content_text) return;
+    const headingEls = document.querySelectorAll('[data-heading-id]');
+    if (headingEls.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveHeadingIndex(Number(entry.target.dataset.headingId));
+          }
+        });
+      },
+      { root: null, threshold: 0, rootMargin: '0px 0px -70% 0px' }
+    );
+    headingEls.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [step, course]);
+
+  const scrollToHeading = (id) => {
+    const el = document.querySelector(`[data-heading-id="${id}"]`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const handleSelectAnswer = async (questionId, optionId) => {
     if (answers[questionId] || checkingId) return;
@@ -306,12 +361,15 @@ function CourseDetail() {
   if (loading) return <PageLoader />;
   if (!course) return null;
 
+  const contentBlocks = course.content_text ? renderCourseContent(course.content_text) : [];
+  const headings = contentBlocks.map((b, i) => ({ ...b, index: i })).filter((b) => b.type === 'heading');
+
   const answeredCount = Object.keys(answers).length;
   const totalQuestions = course.questions?.length || 0;
 
   return (
-    <div className="bg-black text-white h-[calc(100dvh-64px)] overflow-hidden flex flex-col p-3 sm:p-5">
-      <div className="max-w-5xl w-full mx-auto flex-1 flex flex-col min-h-0 gap-2.5">
+    <div className={`bg-black text-white flex flex-col p-3 sm:p-5 ${step === 'reading' ? 'min-h-[calc(100vh-64px)]' : 'h-[calc(100dvh-64px)] overflow-hidden'}`}>
+      <div className={`max-w-5xl w-full mx-auto flex flex-col gap-2.5 ${step === 'reading' ? '' : 'flex-1 min-h-0'}`}>
         <div className="flex items-center justify-between gap-3 flex-wrap shrink-0">
           <Link
             to="/courses"
@@ -330,12 +388,12 @@ function CourseDetail() {
         </div>
 
         {step === 'reading' && (
-          <div className="flex-1 flex flex-col min-h-0 gap-2.5 animate-[fadeIn_0.25s_ease]">
+          <div className="flex flex-col gap-2.5 animate-[fadeIn_0.25s_ease]">
             {course.banner_url && (
               <img
                 src={course.banner_url}
                 alt=""
-                className="w-full h-36 sm:h-44 rounded-xl object-cover shrink-0"
+                className="w-full h-36 sm:h-44 object-cover shrink-0"
                 onError={(e) => { e.target.style.display = 'none'; }}
               />
             )}
@@ -344,7 +402,67 @@ function CourseDetail() {
               <p className="text-xs text-white/50 mt-0.5">{course.description}</p>
             </div>
 
-            <PdfViewer url={course.content_url || '/Strategie-prescription.pdf'} />
+            <div className="flex flex-col lg:flex-row gap-5 items-start">
+              <div ref={contentScrollRef} className="flex-1 min-w-0">
+                {course.content_text ? (
+                  <div>
+                    {contentBlocks.map((block, i) => {
+                      if (block.type === 'heading') {
+                        return (
+                          <h2 key={i} data-heading-id={i} className="text-white font-semibold text-base sm:text-lg mt-6 mb-3 first:mt-0 pb-2 border-b border-white/10 scroll-mt-4">
+                            {block.text}
+                          </h2>
+                        );
+                      }
+                      if (block.type === 'list') {
+                        return (
+                          <ul key={i} className="list-disc list-outside pl-5 mb-4 flex flex-col gap-1.5">
+                            {block.items.map((item, ii) => (
+                              <li key={ii} className="text-sm sm:text-base text-white/70 leading-relaxed">{item}</li>
+                            ))}
+                          </ul>
+                        );
+                      }
+                      return (
+                        <p key={i} className="text-sm sm:text-base text-white/70 leading-relaxed mb-4">
+                          {block.text}
+                        </p>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-white/30 text-sm text-center py-10">Aucun contenu disponible pour ce cours.</p>
+                )}
+              </div>
+
+              {headings.length > 0 && (
+                <aside className="hidden lg:flex flex-col w-56 shrink-0 gap-5 sticky top-5 self-start">
+                  <div>
+                    <p className="text-white/40 text-[11px] uppercase tracking-wide mb-1">Durée estimée</p>
+                    <p className="text-white text-sm">{course.duration_minutes ? `${course.duration_minutes} min` : '—'}</p>
+                  </div>
+                  <div className="border-t border-white/10 pt-4">
+                    <p className="text-white/40 text-[11px] uppercase tracking-wide mb-3">Sommaire</p>
+                    <nav className="flex flex-col gap-2.5">
+                      {headings.map((h) => (
+                        <button
+                          key={h.index}
+                          onClick={() => scrollToHeading(h.index)}
+                          className="text-left text-xs leading-snug pl-3 border-l-2 transition-colors"
+                          style={{
+                            borderColor: activeHeadingIndex === h.index ? ACCENT : 'rgba(255,255,255,0.1)',
+                            color: activeHeadingIndex === h.index ? '#fff' : 'rgba(255,255,255,0.4)',
+                            fontWeight: activeHeadingIndex === h.index ? 600 : 400,
+                          }}
+                        >
+                          {h.text}
+                        </button>
+                      ))}
+                    </nav>
+                  </div>
+                </aside>
+              )}
+            </div>
 
             <button
               onClick={() => setStep('quiz')}

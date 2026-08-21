@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../utils/api';
+import { compressImage } from '../utils/imageCompress';
 import Spinner from '../components/Spinner';
 import PageLoader from '../components/PageLoader';
 import phoneIcon from '../assets/Phone.png';
@@ -65,22 +66,18 @@ function ActivityCard({ activity, index, icons, onUpdate, onDelete }) {
     ? activity.description
     : `${activity.description.slice(0, 140)}...`;
 
-  const handleImageChange = (e) => {
+    const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Image trop lourde (max 5 Mo)');
-      return;
-    }
     setError('');
     setImageLoading(true);
-    const reader = new FileReader();
-    reader.onload = () => {
-      setImageUrl(reader.result);
-      setImageLoading(false);
-    };
-    reader.onerror = () => setImageLoading(false);
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImage(file, 1000, 0.7);
+      setImageUrl(compressed);
+    } catch (err) {
+      setError('Erreur lors du traitement de l\'image');
+    }
+    setImageLoading(false);
   };
 
   const handleSave = async () => {

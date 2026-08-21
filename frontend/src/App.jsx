@@ -7,9 +7,11 @@ import NouvelleActivite from './pages/NouvelleActivite';
 import Feed from './pages/Feed';
 import Profile from './pages/Profile';
 import Badges from './pages/Badges';
+import Rewards from './pages/Rewards';
 import Courses from './pages/Courses';
 import CourseDetail from './pages/CourseDetail';
 import AdminCourses from './pages/admin/AdminCourses';
+import AdminRewards from './pages/admin/AdminRewards';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminRoute from './components/AdminRoute';
 import Login from './pages/Login';
@@ -80,10 +82,12 @@ function App() {
         <Route path="/feed" element={<AppLayout><Feed /></AppLayout>} />
         <Route path="/profile" element={<AppLayout><Profile /></AppLayout>} />
         <Route path="/badges" element={<AppLayout><Badges /></AppLayout>} />
+        <Route path="/rewards" element={<AppLayout><Rewards /></AppLayout>} />
         <Route path="/courses" element={<AppLayout><Courses /></AppLayout>} />
         <Route path="/courses/:id" element={<AppLayout><CourseDetail /></AppLayout>} />
         <Route path="/admin" element={<AdminRoute><AppLayout><AdminDashboard /></AppLayout></AdminRoute>} />
         <Route path="/admin/courses" element={<AdminRoute><AppLayout><AdminCourses /></AppLayout></AdminRoute>} />
+        <Route path="/admin/rewards" element={<AdminRoute><AppLayout><AdminRewards /></AppLayout></AdminRoute>} />
       </Routes>
     </BrowserRouter>
   );
