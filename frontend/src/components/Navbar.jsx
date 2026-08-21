@@ -23,17 +23,20 @@ function Navbar() {
     apiFetch(`${API_URL}/api/rewards/balance`)
       .then((r) => r.json())
       .then((data) => setPoints(data.balance))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   useEffect(() => {
     setMenuOpen(false);
   }, [location.pathname]);
 
-  const links = [
+  const primaryLinks = [
     { path: '/nouvelle-activite', label: 'Nouvelle activité', icon: addIcon },
     { path: '/', label: 'Dashboard', icon: dashboardIcon },
     { path: '/feed', label: 'Feed', icon: feedIcon },
+  ];
+
+  const secondaryLinks = [
     {
       path: '/courses', label: 'Formation', svgIcon: (
         <path d="M22 10v6M2 10l10-5 10 5-10 5-10-5Z M6 12v5c3 3 9 3 12 0v-5" />
@@ -59,6 +62,8 @@ function Navbar() {
       ),
     },
   ];
+
+  const links = [...primaryLinks, ...secondaryLinks];
 
   const handleLogout = () => {
     setLoggingOut(true);
@@ -87,15 +92,32 @@ function Navbar() {
           <span className="text-white font-semibold text-base sm:text-lg hidden sm:inline">SalesTrack</span>
         </Link>
 
-        {/* Liens en pilules, uniquement sur écran moyen/large */}
-        <div className="hidden md:flex gap-1 bg-white/5 rounded-full p-1 overflow-x-auto max-w-full">
-          {links.map((link) => {
+        {/* 3 liens principaux, visibles sur tous les écrans */}
+        <div className="flex gap-1 bg-white/5 rounded-full p-1 overflow-x-auto max-w-full">
+          {primaryLinks.map((link) => {
             const active = location.pathname === link.path;
             return (
               <Link
                 key={link.path}
                 to={link.path}
-                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm transition-all duration-200 whitespace-nowrap shrink-0"
+                className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-full text-xs sm:text-sm transition-all duration-200 whitespace-nowrap shrink-0"
+                style={active ? { backgroundColor: ACCENT, color: '#fff', fontWeight: 500, boxShadow: `0 0 16px ${ACCENT}66` } : { color: 'rgba(255,255,255,0.55)' }}
+                onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = '#fff'; }}
+                onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = 'rgba(255,255,255,0.55)'; }}
+              >
+                {renderIcon(link, active)}
+                <span className="hidden sm:inline">{link.label}</span>
+              </Link>
+            );
+          })}
+          {/* Les 3 autres liens réapparaissent ici seulement sur grand écran */}
+          {secondaryLinks.map((link) => {
+            const active = location.pathname === link.path;
+            return (
+              <Link
+                key={link.path}
+                to={link.path}
+                className="hidden md:flex items-center gap-2 px-4 py-2 rounded-full text-sm transition-all duration-200 whitespace-nowrap shrink-0"
                 style={active ? { backgroundColor: ACCENT, color: '#fff', fontWeight: 500, boxShadow: `0 0 16px ${ACCENT}66` } : { color: 'rgba(255,255,255,0.55)' }}
                 onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = '#fff'; }}
                 onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = 'rgba(255,255,255,0.55)'; }}
@@ -155,7 +177,7 @@ function Navbar() {
           {/* Bouton hamburger, uniquement sur petit écran */}
           <button
             onClick={() => setMenuOpen((v) => !v)}
-            className="md:hidden w-9 h-9 rounded-full border border-white/15 flex items-center justify-center text-white/70 hover:text-white transition-colors shrink-0"
+                        className="w-9 h-9 rounded-full border border-white/15 flex items-center justify-center text-white/70 hover:text-white transition-colors shrink-0"
             aria-label="Menu"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -166,9 +188,9 @@ function Navbar() {
       </div>
 
       {/* Menu déroulant mobile */}
-      {menuOpen && (
-        <div className="md:hidden border-t border-white/10 px-3 py-3 flex flex-col gap-1 bg-black animate-[fadeIn_0.15s_ease]">
-          {links.map((link) => {
+            {menuOpen && (
+        <div className="border-t border-white/10 px-3 py-3 flex flex-col gap-1 bg-black animate-[fadeIn_0.15s_ease]">
+          {secondaryLinks.map((link) => {
             const active = location.pathname === link.path;
             return (
               <Link
