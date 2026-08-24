@@ -370,17 +370,17 @@ function Feed() {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6 items-start">
 
           <div>
-            <div className="flex gap-2 overflow-x-auto pb-1 mb-4" style={{ scrollbarWidth: 'thin' }}>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-4">
               {TYPE_FILTERS.map((f) => {
                 const active = filter === f.key;
                 return (
                   <button
                     key={f.key}
                     onClick={() => setFilter(f.key)}
-                    className="px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all shrink-0"
+                    className="px-2 py-1.5 rounded-full text-xs font-medium text-center transition-all"
                     style={active
                       ? { backgroundColor: ACCENT, color: '#fff' }
-                      : { backgroundColor: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.55)', border: '1px solid rgba(255,255,255,0.08)' }}
+                      : { backgroundColor: 'var(--surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
                   >
                     {f.label}
                   </button>

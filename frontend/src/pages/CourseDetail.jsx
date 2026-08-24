@@ -256,7 +256,7 @@ function CourseDetail() {
 
             {headings.length > 0 && (
               <aside className="bg-white/5 border border-white/10 rounded-2xl p-5 lg:sticky lg:top-6">
-                <p className="text-white/30 text-[11px] uppercase tracking-wide mb-4">Sommaire</p>
+                <p className="text-[11px] uppercase tracking-wide mb-4" style={{ color: 'var(--text-muted)' }}>Sommaire</p>
                 <nav className="relative flex flex-col gap-5">
                   <div className="absolute left-[5px] top-1.5 bottom-1.5 w-px bg-white/10" />
                   {headings.map((h) => {
@@ -272,13 +272,13 @@ function CourseDetail() {
                           className="w-2.5 h-2.5 rounded-full shrink-0 mt-1 transition-all"
                           style={{
                             backgroundColor: isActive || isPast ? ACCENT : '#1a1a1a',
-                            border: isActive || isPast ? 'none' : '1px solid rgba(255,255,255,0.2)',
+                            border: isActive || isPast ? 'none' : '1px solid var(--border)',
                             boxShadow: isActive ? `0 0 0 4px ${ACCENT}33` : 'none',
                           }}
                         />
                         <span
                           className="text-xs leading-snug transition-colors"
-                          style={{ color: isActive ? '#fff' : isPast ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.35)', fontWeight: isActive ? 600 : 400 }}
+                          style={{ color: isActive ? 'var(--text-primary)' : isPast ? 'var(--text-secondary)' : 'var(--text-muted)', fontWeight: isActive ? 600 : 400 }}
                         >
                           {h.text}
                         </span>

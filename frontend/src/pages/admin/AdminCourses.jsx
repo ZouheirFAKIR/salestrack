@@ -412,20 +412,22 @@ function CourseCard({ course, onRefresh }) {
 
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-      <div className="p-4 flex items-center gap-3">
-        {course.banner_url && (
-          <img
-            src={course.banner_url}
-            alt=""
-            className="w-14 h-14 rounded-lg object-cover shrink-0 border border-white/10"
-            onError={(e) => { e.target.style.display = 'none'; }}
-          />
-        )}
-        <div className="flex-1 min-w-0">
-          <p className="text-white font-medium">{course.title}</p>
-          <p className="text-white/40 text-xs mt-0.5">{course.question_count} question(s)</p>
+      <div className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          {course.banner_url && (
+            <img
+              src={course.banner_url}
+              alt=""
+              className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg object-cover shrink-0 border border-white/10"
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="text-white font-medium truncate">{course.title}</p>
+            <p className="text-white/40 text-xs mt-0.5">{course.question_count} question(s)</p>
+          </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+        <div className="grid grid-cols-3 sm:flex sm:items-center gap-2 shrink-0">
           <button
             onClick={() => { setIsEditingCourse((v) => !v); if (!expanded) toggleExpand(); }}
             className="text-xs px-3 py-1.5 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors"

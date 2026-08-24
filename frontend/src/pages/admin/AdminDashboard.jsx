@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../../utils/api';
+import { Icon } from '../../data/icons';
 import PageLoader from '../../components/PageLoader';
 import Spinner from '../../components/Spinner';
 import LineChart from '../../components/LineChart';
@@ -91,33 +92,32 @@ function CommercialDetail({ commercial, onClose, onQuotaUpdated }) {
       });
   }, [commercial.id]);
 
-  const icons = { appel: '📞', rdv: '📅', devis: '📄', commande: '🛒' };
   const labels = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-3 sm:p-4 z-50" onClick={onClose}>
       <div
-        className="bg-[#0d0d0d] border border-white/10 rounded-2xl p-6 max-w-2xl w-full max-h-[85vh] overflow-y-auto"
+        className="bg-[#0d0d0d] border border-white/10 rounded-2xl p-4 sm:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <p className="text-white font-semibold">{commercial.nom}</p>
-            <p className="text-white/40 text-xs">{commercial.email}</p>
+        <div className="flex items-center justify-between mb-5 gap-3">
+          <div className="min-w-0">
+            <p className="text-white font-semibold truncate">{commercial.nom}</p>
+            <p className="text-white/40 text-xs truncate">{commercial.email}</p>
           </div>
-          <button onClick={onClose} className="text-white/40 hover:text-white text-xl">×</button>
+          <button onClick={onClose} className="text-white/40 hover:text-white text-xl shrink-0">×</button>
         </div>
 
         {loading && <Spinner size={24} color={ACCENT} />}
 
         {!loading && detail && (
           <>
-            <div className="grid grid-cols-4 gap-3 mb-5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
               {['appel', 'rdv', 'devis', 'commande'].map((type) => {
                 const stat = detail.stats.find((s) => s.type === type);
                 return (
                   <div key={type} className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-                    <p className="text-xl">{icons[type]}</p>
+                    <Icon name={type} size={20} className="mx-auto" style={{ color: ACCENT }} />
                     <p className="text-xl font-semibold text-white mt-1">{stat?.total || 0}</p>
                     <p className="text-[11px] text-white/40">{labels[type]}</p>
                   </div>
@@ -125,12 +125,12 @@ function CommercialDetail({ commercial, onClose, onQuotaUpdated }) {
               })}
             </div>
 
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-5">
+            <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4 mb-5">
               <p className="text-sm text-white/50 mb-3">Activités (7 derniers jours)</p>
               <LineChart data={detail.daily} />
             </div>
 
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+            <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4">
               <p className="text-sm font-medium text-white mb-3">Objectifs quotidiens par type</p>
               <TypeQuotasForm commercialId={commercial.id} onSaved={onQuotaUpdated} />
             </div>
