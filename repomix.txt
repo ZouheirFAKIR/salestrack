@@ -50,6 +50,14 @@ backend/
     auth.js
     courses.js
     profile.js
+    rewards.js
+  uploads/
+    Cour1.jpg
+    Cour2.jpg
+    Cour3.jpg
+    Cour4.jpg
+    Cour5.jpg
+    poeple.jpg
   .gitignore
   db.js
   index.js
@@ -82,6 +90,7 @@ frontend/
       Badge.jsx
       BadgesGrid.jsx
       BadgeUnlockModal.jsx
+      CoinIcon.jsx
       Confetti.jsx
       EmptyState.jsx
       Footer.jsx
@@ -92,12 +101,16 @@ frontend/
       SuccessModal.jsx
       TargetModal.jsx
       WeeklyTargetHistory.jsx
+    contexts/
+      ThemeContext.jsx
     data/
       badgeDefinitions.js
+      icons.jsx
     pages/
       admin/
         AdminCourses.jsx
         AdminDashboard.jsx
+        AdminRewards.jsx
       Badges.jsx
       CourseDetail.jsx
       Courses.jsx
@@ -106,9 +119,11 @@ frontend/
       Login.jsx
       NouvelleActivite.jsx
       Profile.jsx
+      Rewards.jsx
       Signup.jsx
     utils/
       api.js
+      imageCompress.js
     App.css
     App.jsx
     index.css
@@ -126,16 +141,132 @@ Commands.txt
 <files>
 This section contains the contents of the repository's files.
 
-<file path="Commands.txt">
-cd D:\odoo-docker
-docker compose up -d
+<file path="frontend/src/contexts/ThemeContext.jsx">
+import { createContext, useContext, useEffect, useState } from 'react';
 
-git add .
-git commit -m "updates"
-git push
+const ThemeContext = createContext();
 
+export function ThemeProvider({ children }) {
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
 
-npx repomix --output repomix.txt
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
+
+  return (
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
+export function useTheme() {
+  return useContext(ThemeContext);
+}
+</file>
+
+<file path="frontend/src/data/icons.jsx">
+export const icons = {
+  dashboard: {
+    viewBox: '0 0 24 24',
+    content: (
+      <path fill="currentColor" d="M4 13h6a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1zm-1 7a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v4zm10 0a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-7a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v7zm1-10h6a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1z" />
+    ),
+  },
+  add: {
+    viewBox: '0 0 32 32',
+    content: (
+      <g transform="translate(-362,-1037)">
+        <path fill="currentColor" d="M390,1049 L382,1049 L382,1041 C382,1038.79 380.209,1037 378,1037 C375.791,1037 374,1038.79 374,1041 L374,1049 L366,1049 C363.791,1049 362,1050.79 362,1053 C362,1055.21 363.791,1057 366,1057 L374,1057 L374,1065 C374,1067.21 375.791,1069 378,1069 C380.209,1069 382,1067.21 382,1065 L382,1057 L390,1057 C392.209,1057 394,1055.21 394,1053 C394,1050.79 392.209,1049 390,1049" />
+      </g>
+    ),
+  },
+  feed: {
+    viewBox: '0 0 14 14',
+    content: (
+      <path fill="currentColor" d="M 13,7 Q 13,8.21875 12.52344,9.328125 12.04688,10.4375 11.24219,11.242187 10.4375,12.046875 9.32813,12.523437 8.21875,13 7,13 5.65625,13 4.44531,12.433594 3.23438,11.867188 2.38281,10.835938 2.32811,10.757808 2.33201,10.660156 2.33601,10.562496 2.39841,10.5 L 3.46872,9.421875 q 0.0781,-0.07031 0.19531,-0.07031 0.125,0.01562 0.17969,0.09375 0.57031,0.742187 1.39844,1.148437 Q 6.07031,11 7,11 7.8125,11 8.55078,10.683594 9.28906,10.367188 9.82812,9.828125 10.36719,9.289062 10.68359,8.550781 11,7.8125 11,7 11,6.1875 10.68359,5.449219 10.36719,4.710938 9.82812,4.171875 9.28906,3.632812 8.55078,3.316406 7.8125,3 7,3 6.23437,3 5.53125,3.277344 4.82812,3.554688 4.28125,4.070312 L 5.35156,5.148438 Q 5.59375,5.382813 5.46094,5.6875 5.32812,6 5,6 H 1.5 Q 1.296875,6 1.148437,5.851562 1,5.703125 1,5.5 V 2 Q 1,1.671875 1.3125,1.539063 1.617188,1.40625 1.851562,1.648437 L 2.86719,2.65625 Q 3.70312,1.867187 4.77734,1.433594 5.85156,1 7,1 8.21875,1 9.32813,1.476562 10.4375,1.953125 11.24219,2.757813 12.04688,3.5625 12.52344,4.671875 13,5.78125 13,7 z M 8,4.75 v 3.5 Q 8,8.359375 7.9297,8.429688 7.85938,8.5 7.75,8.5 H 5.25 Q 5.14062,8.5 5.07031,8.42969 5,8.359375 5,8.25 V 7.75 Q 5,7.640625 5.0703,7.570313 5.14062,7.5 5.25,7.5 H 7 V 4.75 Q 7,4.640625 7.0703,4.570313 7.14063,4.5 7.25,4.5 h 0.5 Q 7.85938,4.5 7.92969,4.57031 8,4.640625 8,4.75 z" />
+    ),
+  },
+  formation: {
+    viewBox: '0 0 14 14',
+    content: (
+      <path fill="currentColor" d="m 12.499079,12.25525 c 0.0968,0 0.188377,-0.0436 0.249339,-0.11884 0.06096,-0.0752 0.08473,-0.17385 0.06473,-0.26853 l -0.202146,-0.95662 c 0.115125,-0.11137 0.187491,-0.26686 0.187491,-0.43975 0,-0.182 -0.08106,-0.34343 -0.206876,-0.45558 l 0,-3.32202 -0.810333,0.50146 0,2.82056 c -0.125815,0.11215 -0.2069,0.27358 -0.2069,0.45558 0,0.17291 0.07239,0.32841 0.187515,0.43975 l -0.20217,0.95662 c -0.02,0.0947 0.0038,0.19335 0.06473,0.26853 0.06096,0.0752 0.152539,0.11884 0.249339,0.11884 l 0.625281,0 z M 12.773741,4.75539 7.5021019,1.49209 C 7.3477151,1.39699 7.1736728,1.34925 6.9996305,1.34925 c -0.1740423,0 -0.3482077,0.0477 -0.5016586,0.14284 l -5.271713,3.2633 C 1.0854931,4.84249 0.99999905,4.99633 0.99999905,5.1619 c 0,0.1656 0.085494,0.31949 0.22625985,0.40673 l 5.2716883,3.26333 c 0.153451,0.0952 0.3276163,0.14284 0.5016586,0.14284 0.1740423,0 0.3481092,-0.0477 0.5024714,-0.14284 L 12.773741,5.56863 c 0.140766,-0.0872 0.22626,-0.24113 0.22626,-0.40673 0,-0.16557 -0.08549,-0.31946 -0.22626,-0.40651 z M 6.9996059,9.78508 c -0.3283798,0 -0.6488777,-0.0912 -0.928242,-0.26411 l -3.0750017,-1.90368 0,3.27796 c 0,0.97016 1.7931578,1.7555 4.0032436,1.7555 2.2108742,0 4.0038842,-0.78536 4.0038842,-1.7555 l 0,-3.27796 -3.0748786,1.90368 C 7.6492472,9.69388 7.3279857,9.78508 6.9996059,9.78508 Z" />
+    ),
+  },
+  badges: {
+    viewBox: '0 0 23.382 23.382',
+    content: (
+      <g fill="currentColor">
+        <path d="M14.58,15.181c0.438-0.732,1.082-1.107,1.936-1.117c0.854-0.01,1.285-0.445,1.299-1.301 c0.012-0.852,0.383-1.496,1.115-1.932c0.734-0.438,0.893-1.027,0.475-1.773c-0.416-0.744-0.416-1.488,0-2.234 c0.418-0.744,0.26-1.332-0.475-1.77c-0.732-0.439-1.104-1.082-1.115-1.938c-0.014-0.852-0.445-1.287-1.299-1.297 c-0.854-0.012-1.498-0.385-1.936-1.117c-0.438-0.734-1.027-0.893-1.771-0.475c-0.744,0.416-1.49,0.416-2.234,0 C9.83-0.19,9.241-0.032,8.803,0.702C8.366,1.435,7.721,1.808,6.868,1.819c-0.852,0.01-1.285,0.445-1.297,1.297 C5.557,3.972,5.186,4.614,4.454,5.054C3.72,5.492,3.559,6.079,3.979,6.824c0.418,0.746,0.418,1.49,0,2.234 c-0.42,0.746-0.26,1.336,0.475,1.773c0.732,0.436,1.104,1.08,1.117,1.932c0.012,0.855,0.445,1.291,1.297,1.301 c0.854,0.01,1.498,0.385,1.936,1.117c0.438,0.734,1.027,0.893,1.771,0.473c0.744-0.412,1.49-0.412,2.234,0 C13.553,16.073,14.143,15.915,14.58,15.181z M11.694,12.614c-2.582,0-4.674-2.092-4.674-4.674c0-2.58,2.092-4.672,4.674-4.672 c2.58,0,4.672,2.092,4.672,4.672C16.366,10.522,14.274,12.614,11.694,12.614z" />
+        <path d="M6.793,14.749c-0.898,0-1.018-0.418-1.018-0.418l-3.507,6.893l2.812-0.316l1.555,2.34c0,0,3.24-6.76,3.24-6.715 C8.196,16.491,8.864,14.794,6.793,14.749z" />
+        <path d="M17.563,14.601c-2.562,0.268-2.041,0.904-2.627,1.398c-0.674,0.719-1.516,0.578-1.516,0.578l3.955,6.805l0.973-2.52 l2.766,0.361L17.563,14.601z" />
+        <polygon points="12.67,6.909 11.692,4.929 10.713,6.909 8.524,7.229 10.106,8.772 9.733,10.954 11.692,9.925 13.651,10.954 13.278,8.772 14.86,7.229" />
+      </g>
+    ),
+  },
+  gift: {
+    viewBox: '0 0 24 24',
+    content: (
+      <g fill="currentColor" fillRule="evenodd" clipRule="evenodd">
+        <path d="M3 16.3168L3 13.4642C3.37228 13.6792 3.78288 13.8362 4.21973 13.9231C4.61143 14.001 5.02655 14.0005 5.37106 14L5.417 14C9.80567 13.9965 14.1944 13.9965 18.5831 14L18.629 14C18.9735 14.0005 19.3886 14.001 19.7803 13.9231C20.2171 13.8362 20.6277 13.6792 21 13.4642L21 16.3168C21 17.1582 21.0001 17.8832 20.9179 18.4637C20.8297 19.0859 20.631 19.6823 20.1213 20.166C19.6117 20.6497 18.9833 20.8384 18.3278 20.922C17.7161 21.0001 16.9523 21 16.0658 21H7.93417C7.04768 21 6.28387 21.0001 5.67221 20.922C5.0167 20.8384 4.38835 20.6497 3.87868 20.166C3.36902 19.6823 3.17028 19.0859 3.08215 18.4637C2.99991 17.8832 2.99995 17.1582 3 16.3168ZM13 17C13 16.4477 12.5523 16 12 16C11.4477 16 11 16.4477 11 17V18C11 18.5523 11.4477 19 12 19C12.5523 19 13 18.5523 13 18V17Z" />
+        <path d="M5.71099 2.87475C4.81028 3.77546 4.64197 4.98504 5.0038 6.00293C4.7912 6.008 4.59628 6.02163 4.41479 6.05773C3.22473 6.29444 2.29445 7.22471 2.05773 8.41476C1.99948 8.70761 1.99974 9.03544 2.00004 9.41613L2.00009 9.5L2.00004 9.58387C1.99974 9.96456 1.99948 10.2924 2.05773 10.5852C2.29445 11.7753 3.22473 12.7056 4.41479 12.9423C4.70765 13.0005 5.03548 13.0003 5.41617 13C9.80538 12.9965 14.1946 12.9965 18.5838 13C18.9645 13.0003 19.2924 13.0005 19.5852 12.9423C20.7753 12.7056 21.7056 11.7753 21.9423 10.5852C22.0005 10.2924 22.0003 9.9646 22 9.58393L21.9999 9.5L22 9.4161C22.0003 9.03544 22.0005 8.70759 21.9423 8.41476C21.7056 7.22471 20.7753 6.29445 19.5852 6.05773C19.4037 6.02163 19.2088 6.008 18.9961 6.00293C19.3579 4.98504 19.1896 3.77546 18.2889 2.87475C17.0258 1.61166 14.9413 1.72259 13.8232 3.12018L12 5.39921L10.1767 3.12018C9.05866 1.72259 6.97408 1.61166 5.71099 2.87475ZM12 7C11.4477 7 11 7.44772 11 8V10C11 10.5523 11.4477 11 12 11C12.5523 11 13 10.5523 13 10V8C13 7.44772 12.5523 7 12 7ZM7.82839 6C6.9434 6 6.49105 4.92312 7.1252 4.28897C7.54788 3.86629 8.24376 3.90552 8.61499 4.36957L9.91933 6H7.82839ZM16.1715 6C17.0565 6 17.5089 4.92312 16.8747 4.28897C16.452 3.86629 15.7562 3.90552 15.3849 4.36957L14.0806 6H16.1715Z" />
+      </g>
+    ),
+  },
+  appel: {
+    viewBox: '0 0 24 24',
+    content: (
+      <g fill="currentColor">
+        <path d="M15.5562 14.5477L15.1007 15.0272C15.1007 15.0272 14.0181 16.167 11.0631 13.0559C8.10812 9.94484 9.1907 8.80507 9.1907 8.80507L9.47752 8.50311C10.1841 7.75924 10.2507 6.56497 9.63424 5.6931L8.37326 3.90961C7.61028 2.8305 6.13596 2.68795 5.26145 3.60864L3.69185 5.26114C3.25823 5.71766 2.96765 6.30945 3.00289 6.96594C3.09304 8.64546 3.81071 12.259 7.81536 16.4752C12.0621 20.9462 16.0468 21.1239 17.6763 20.9631C18.1917 20.9122 18.6399 20.6343 19.0011 20.254L20.4217 18.7584C21.3806 17.7489 21.1102 16.0182 19.8833 15.312L17.9728 14.2123C17.1672 13.7486 16.1858 13.8848 15.5562 14.5477Z" />
+        <path d="M13.2595 1.87983C13.3257 1.47094 13.7122 1.19357 14.1211 1.25976C14.1464 1.26461 14.2279 1.27983 14.2705 1.28933C14.3559 1.30834 14.4749 1.33759 14.6233 1.38082C14.9201 1.46726 15.3347 1.60967 15.8323 1.8378C16.8286 2.29456 18.1544 3.09356 19.5302 4.46936C20.906 5.84516 21.705 7.17097 22.1617 8.16725C22.3899 8.66487 22.5323 9.07947 22.6187 9.37625C22.6619 9.52466 22.6912 9.64369 22.7102 9.72901C22.7197 9.77168 22.7267 9.80594 22.7315 9.83125L22.7373 9.86245C22.8034 10.2713 22.5286 10.6739 22.1197 10.7401C21.712 10.8061 21.3279 10.53 21.2601 10.1231C21.258 10.1121 21.2522 10.0828 21.2461 10.0551C21.2337 9.9997 21.2124 9.91188 21.1786 9.79572C21.1109 9.56339 20.9934 9.21806 20.7982 8.79238C20.4084 7.94207 19.7074 6.76789 18.4695 5.53002C17.2317 4.29216 16.0575 3.59117 15.2072 3.20134C14.7815 3.00618 14.4362 2.88865 14.2038 2.82097C14.0877 2.78714 13.9417 2.75363 13.8863 2.7413C13.4793 2.67347 13.1935 2.28755 13.2595 1.87983Z" />
+        <path fillRule="evenodd" clipRule="evenodd" d="M13.4857 5.3293C13.5995 4.93102 14.0146 4.7004 14.4129 4.81419L14.2069 5.53534C14.4129 4.81419 14.4129 4.81419 14.4129 4.81419L14.4144 4.81461L14.4159 4.81505L14.4192 4.81602L14.427 4.81834L14.4468 4.8245C14.4618 4.82932 14.4807 4.8356 14.5031 4.84357C14.548 4.85951 14.6074 4.88217 14.6802 4.91337C14.8259 4.97581 15.0249 5.07223 15.2695 5.21694C15.7589 5.50662 16.4271 5.9878 17.2121 6.77277C17.9971 7.55775 18.4782 8.22593 18.7679 8.7154C18.9126 8.95991 19.009 9.15897 19.0715 9.30466C19.1027 9.37746 19.1254 9.43682 19.1413 9.48173C19.1493 9.50418 19.1555 9.52301 19.1604 9.53809L19.1665 9.55788L19.1688 9.56563L19.1698 9.56896L19.1702 9.5705C19.1702 9.5705 19.1707 9.57194 18.4495 9.77798L19.1707 9.57194C19.2845 9.97021 19.0538 10.3853 18.6556 10.4991C18.2607 10.6119 17.8492 10.3862 17.7313 9.99413L17.7276 9.98335C17.7223 9.96832 17.7113 9.93874 17.6928 9.89554C17.6558 9.8092 17.5887 9.66797 17.4771 9.47938C17.2541 9.10264 16.8514 8.53339 16.1514 7.83343C15.4515 7.13348 14.8822 6.73078 14.5055 6.50781C14.3169 6.39619 14.1757 6.32909 14.0893 6.29209C14.0461 6.27358 14.0165 6.26254 14.0015 6.25721L13.9907 6.25352C13.5987 6.13564 13.3729 5.72419 13.4857 5.3293Z" />
+      </g>
+    ),
+  },
+  rdv: {
+    viewBox: '0 0 24 24',
+    content: (
+      <g fill="currentColor">
+        <path d="M2 9C2 7.11438 2 6.17157 2.58579 5.58579C3.17157 5 4.11438 5 6 5H18C19.8856 5 20.8284 5 21.4142 5.58579C22 6.17157 22 7.11438 22 9C22 9.4714 22 9.70711 21.8536 9.85355C21.7071 10 21.4714 10 21 10H3C2.5286 10 2.29289 10 2.14645 9.85355C2 9.70711 2 9.4714 2 9Z" />
+        <path fillRule="evenodd" clipRule="evenodd" d="M2 18C2 19.8856 2 20.8284 2.58579 21.4142C3.17157 22 4.11438 22 6 22H18C19.8856 22 20.8284 22 21.4142 21.4142C22 20.8284 22 19.8856 22 18V13C22 12.5286 22 12.2929 21.8536 12.1464C21.7071 12 21.4714 12 21 12H3C2.5286 12 2.29289 12 2.14645 12.1464C2 12.2929 2 12.5286 2 13V18ZM7 15C7 14.5286 7 14.2929 7.14645 14.1464C7.29289 14 7.5286 14 8 14H10C10.4714 14 10.7071 14 10.8536 14.1464C11 14.2929 11 14.5286 11 15C11 15.4714 11 15.7071 10.8536 15.8536C10.7071 16 10.4714 16 10 16H8C7.5286 16 7.29289 16 7.14645 15.8536C7 15.7071 7 15.4714 7 15ZM7.14645 18.1464C7 18.2929 7 18.5286 7 19C7 19.4714 7 19.7071 7.14645 19.8536C7.29289 20 7.5286 20 8 20H10C10.4714 20 10.7071 20 10.8536 19.8536C11 19.7071 11 19.4714 11 19C11 18.5286 11 18.2929 10.8536 18.1464C10.7071 18 10.4714 18 10 18H8C7.5286 18 7.29289 18 7.14645 18.1464ZM13 15C13 14.5286 13 14.2929 13.1464 14.1464C13.2929 14 13.5286 14 14 14H16C16.4714 14 16.7071 14 16.8536 14.1464C17 14.2929 17 14.5286 17 15C17 15.4714 17 15.7071 16.8536 15.8536C16.7071 16 16.4714 16 16 16H14C13.5286 16 13.2929 16 13.1464 15.8536C13 15.7071 13 15.4714 13 15ZM13.1464 18.1464C13 18.2929 13 18.5286 13 19C13 19.4714 13 19.7071 13.1464 19.8536C13.2929 20 13.5286 20 14 20H16C16.4714 20 16.7071 20 16.8536 19.8536C17 19.7071 17 19.4714 17 19C17 18.5286 17 18.2929 16.8536 18.1464C16.7071 18 16.4714 18 16 18H14C13.5286 18 13.2929 18 13.1464 18.1464Z" />
+        <path d="M7 3L7 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path d="M17 3L17 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </g>
+    ),
+  },
+  devis: {
+    viewBox: '0 0 24 24',
+    content: (
+      <>
+        <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M4 4.69434V18.6943C4 20.3512 5.34315 21.6943 7 21.6943H17C18.6569 21.6943 20 20.3512 20 18.6943V8.69434C20 7.03748 18.6569 5.69434 17 5.69434H5C4.44772 5.69434 4 5.24662 4 4.69434ZM7.25 11.6943C7.25 11.2801 7.58579 10.9443 8 10.9443H16C16.4142 10.9443 16.75 11.2801 16.75 11.6943C16.75 12.1085 16.4142 12.4443 16 12.4443H8C7.58579 12.4443 7.25 12.1085 7.25 11.6943ZM7.25 15.1943C7.25 14.7801 7.58579 14.4443 8 14.4443H13.5C13.9142 14.4443 14.25 14.7801 14.25 15.1943C14.25 15.6085 13.9142 15.9443 13.5 15.9443H8C7.58579 15.9443 7.25 15.6085 7.25 15.1943Z" />
+        <path fill="currentColor" opacity="0.5" d="M18 4.00038V5.86504C17.6872 5.75449 17.3506 5.69434 17 5.69434H5C4.44772 5.69434 4 5.24662 4 4.69434V4.62329C4 4.09027 4.39193 3.63837 4.91959 3.56299L15.7172 2.02048C16.922 1.84835 18 2.78328 18 4.00038Z" />
+      </>
+    ),
+  },
+  commande: {
+    viewBox: '0 0 24 24',
+    content: (
+      <g fill="currentColor">
+        <path d="M2.08416 2.7512C2.22155 2.36044 2.6497 2.15503 3.04047 2.29242L3.34187 2.39838C3.95839 2.61511 4.48203 2.79919 4.89411 3.00139C5.33474 3.21759 5.71259 3.48393 5.99677 3.89979C6.27875 4.31243 6.39517 4.76515 6.4489 5.26153C6.47295 5.48373 6.48564 5.72967 6.49233 6H17.1305C18.8155 6 20.3323 6 20.7762 6.57708C21.2202 7.15417 21.0466 8.02369 20.6995 9.76275L20.1997 12.1875C19.8846 13.7164 19.727 14.4808 19.1753 14.9304C18.6236 15.38 17.8431 15.38 16.2821 15.38H10.9792C8.19028 15.38 6.79583 15.38 5.92943 14.4662C5.06302 13.5523 4.99979 12.5816 4.99979 9.64L4.99979 7.03832C4.99979 6.29837 4.99877 5.80316 4.95761 5.42295C4.91828 5.0596 4.84858 4.87818 4.75832 4.74609C4.67026 4.61723 4.53659 4.4968 4.23336 4.34802C3.91052 4.18961 3.47177 4.03406 2.80416 3.79934L2.54295 3.7075C2.15218 3.57012 1.94678 3.14197 2.08416 2.7512Z" />
+        <path d="M7.5 18C8.32843 18 9 18.6716 9 19.5C9 20.3284 8.32843 21 7.5 21C6.67157 21 6 20.3284 6 19.5C6 18.6716 6.67157 18 7.5 18Z" />
+        <path d="M16.5 18.0001C17.3284 18.0001 18 18.6716 18 19.5001C18 20.3285 17.3284 21.0001 16.5 21.0001C15.6716 21.0001 15 20.3285 15 19.5001C15 18.6716 15.6716 18.0001 16.5 18.0001Z" />
+      </g>
+    ),
+  },
+};
+
+export function Icon({ name, size = 18, className = '', style = {} }) {
+  const icon = icons[name];
+  if (!icon) return null;
+  return (
+    <svg width={size} height={size} viewBox={icon.viewBox} className={className} style={style}>
+      {icon.content}
+    </svg>
+  );
+}
 </file>
 
 <file path="backend/middleware/adminMiddleware.js">
@@ -155,6 +286,105 @@ async function adminMiddleware(req, res, next) {
 }
 
 module.exports = adminMiddleware;
+</file>
+
+<file path="backend/routes/rewards.js">
+const express = require('express');
+const router = express.Router();
+const pool = require('../db');
+const authMiddleware = require('../middleware/authMiddleware');
+
+router.use(authMiddleware);
+
+router.get('/', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM rewards ORDER BY cost ASC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/balance', async (req, res) => {
+  try {
+    const earnedResult = await pool.query(
+      `SELECT COALESCE(SUM(best_score), 0) as earned FROM (
+         SELECT DISTINCT ON (course_id) score as best_score
+         FROM quiz_attempts
+         WHERE commercial_id = $1
+         ORDER BY course_id, score DESC, completed_at DESC
+       ) t`,
+      [req.userId]
+    );
+    const spentResult = await pool.query(
+      'SELECT COALESCE(SUM(cost_at_redemption), 0) as spent FROM reward_redemptions WHERE commercial_id = $1',
+      [req.userId]
+    );
+    const earned = Number(earnedResult.rows[0].earned);
+    const spent = Number(spentResult.rows[0].spent);
+    res.json({ earned, spent, balance: earned - spent });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/history', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT rr.id, rr.cost_at_redemption, rr.redeemed_at, r.title, r.image_url
+       FROM reward_redemptions rr
+       JOIN rewards r ON r.id = rr.reward_id
+       WHERE rr.commercial_id = $1
+       ORDER BY rr.redeemed_at DESC`,
+      [req.userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.post('/:id/redeem', async (req, res) => {
+  try {
+    const rewardResult = await pool.query('SELECT * FROM rewards WHERE id = $1', [req.params.id]);
+    if (rewardResult.rows.length === 0) return res.status(404).json({ error: 'Récompense introuvable' });
+    const reward = rewardResult.rows[0];
+
+    const earnedResult = await pool.query(
+      `SELECT COALESCE(SUM(best_score), 0) as earned FROM (
+         SELECT DISTINCT ON (course_id) score as best_score
+         FROM quiz_attempts
+         WHERE commercial_id = $1
+         ORDER BY course_id, score DESC, completed_at DESC
+       ) t`,
+      [req.userId]
+    );
+    const spentResult = await pool.query(
+      'SELECT COALESCE(SUM(cost_at_redemption), 0) as spent FROM reward_redemptions WHERE commercial_id = $1',
+      [req.userId]
+    );
+    const balance = Number(earnedResult.rows[0].earned) - Number(spentResult.rows[0].spent);
+
+    if (balance < reward.cost) {
+      return res.status(400).json({ error: 'Solde insuffisant' });
+    }
+
+    await pool.query(
+      'INSERT INTO reward_redemptions (commercial_id, reward_id, cost_at_redemption) VALUES ($1, $2, $3)',
+      [req.userId, reward.id, reward.cost]
+    );
+
+    res.status(201).json({ message: 'Récompense échangée avec succès' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+module.exports = router;
 </file>
 
 <file path="backend/.gitignore">
@@ -449,6 +679,19 @@ function BadgeUnlockModal({ badge, onClose, onNext, remaining }) {
 export default BadgeUnlockModal;
 </file>
 
+<file path="frontend/src/components/CoinIcon.jsx">
+function CoinIcon({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className="shrink-0">
+      <circle cx="12" cy="12" r="10" fill="#f86635" />
+      <circle cx="12" cy="12" r="6.5" fill="none" stroke="#ffffff" strokeOpacity="0.5" strokeWidth="1.3" />
+    </svg>
+  );
+}
+
+export default CoinIcon;
+</file>
+
 <file path="frontend/src/components/Confetti.jsx">
 const ACCENT = '#f86635';
 
@@ -650,39 +893,83 @@ function TargetModal({ onClose, target, current = 0 }) {
 export default TargetModal;
 </file>
 
-<file path="frontend/src/pages/admin/AdminCourses.jsx">
+<file path="frontend/src/pages/admin/AdminRewards.jsx">
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../../utils/api';
+import { compressImage } from '../../utils/imageCompress';
 import PageLoader from '../../components/PageLoader';
 import Spinner from '../../components/Spinner';
 
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-function NewCourseForm({ onCreated }) {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [contentUrl, setContentUrl] = useState('');
-  const [bannerUrl, setBannerUrl] = useState('');
-  const [duration, setDuration] = useState('');
+function RewardFields({ values, onChange }) {
+  const [imgLoading, setImgLoading] = useState(false);
+
+    const handleImageFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImgLoading(true);
+    try {
+      const compressed = await compressImage(file, 1000, 0.7);
+      onChange('imageUrl', compressed);
+    } catch (err) {
+      alert('Erreur lors du traitement de l\'image');
+    }
+    setImgLoading(false);
+  };
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <input
+        value={values.title} onChange={(e) => onChange('title', e.target.value)}
+        placeholder="Nom de la récompense"
+        className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 sm:col-span-2"
+      />
+      <input
+        value={values.description} onChange={(e) => onChange('description', e.target.value)}
+        placeholder="Description"
+        className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 sm:col-span-2"
+      />
+      <label className="p-2.5 rounded-lg bg-black border border-white/10 text-white/50 text-sm cursor-pointer hover:text-white transition-colors sm:col-span-2 flex items-center justify-center gap-2">
+        {imgLoading ? 'Chargement...' : values.imageUrl ? "Changer l'image" : 'Choisir une image'}
+        <input type="file" accept="image/*" onChange={handleImageFile} className="hidden" />
+      </label>
+      {values.imageUrl && (
+        <div className="sm:col-span-2 rounded-lg overflow-hidden border border-white/10 h-28">
+          <img src={values.imageUrl} alt="Aperçu" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
+        </div>
+      )}
+      <input
+        value={values.cost} onChange={(e) => onChange('cost', e.target.value)}
+        placeholder="Coût en points" type="number"
+        className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 sm:col-span-2"
+      />
+    </div>
+  );
+}
+
+function NewRewardForm({ onCreated }) {
+  const [values, setValues] = useState({ title: '', description: '', imageUrl: '', cost: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  const handleChange = (field, value) => setValues((prev) => ({ ...prev, [field]: value }));
+
   const handleCreate = async () => {
-    if (!title.trim()) { setError('Le titre est obligatoire'); return; }
+    if (!values.title.trim() || !values.cost) { setError('Nom et coût obligatoires'); return; }
     setError('');
     setSaving(true);
     try {
-      const res = await apiFetch(`${API_URL}/api/admin/courses`, {
+      const res = await apiFetch(`${API_URL}/api/admin/rewards`, {
         method: 'POST',
         body: JSON.stringify({
-          title, description, content_type: 'pdf',
-          content_url: contentUrl, banner_url: bannerUrl || null,
-          duration_minutes: duration ? Number(duration) : null,
+          title: values.title, description: values.description,
+          cost: Number(values.cost), image_url: values.imageUrl || null,
         }),
       });
       if (res.ok) {
-        setTitle(''); setDescription(''); setContentUrl(''); setBannerUrl(''); setDuration('');
+        setValues({ title: '', description: '', imageUrl: '', cost: '' });
         onCreated();
       } else {
         const data = await res.json();
@@ -696,45 +983,9 @@ function NewCourseForm({ onCreated }) {
 
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-5">
-      <p className="text-sm font-semibold text-white mb-3">Nouveau cours</p>
+      <p className="text-sm font-semibold text-white mb-3">Nouvelle récompense</p>
       {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <input
-          value={title} onChange={(e) => setTitle(e.target.value)}
-          placeholder="Titre du cours"
-          className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 sm:col-span-2"
-        />
-        <input
-          value={description} onChange={(e) => setDescription(e.target.value)}
-          placeholder="Description"
-          className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 sm:col-span-2"
-        />
-        <input
-          value={bannerUrl} onChange={(e) => setBannerUrl(e.target.value)}
-          placeholder="Lien de l'image de bannière (ex: https://...)"
-          className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 sm:col-span-2"
-        />
-        <input
-          value={contentUrl} onChange={(e) => setContentUrl(e.target.value)}
-          placeholder="Chemin du PDF (ex: /mon-cours.pdf)"
-          className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60"
-        />
-        <input
-          value={duration} onChange={(e) => setDuration(e.target.value)}
-          placeholder="Durée estimée (minutes)" type="number"
-          className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60"
-        />
-      </div>
-
-      {bannerUrl && (
-        <div className="mt-3 rounded-lg overflow-hidden border border-white/10 h-28">
-          <img src={bannerUrl} alt="Aperçu bannière" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
-        </div>
-      )}
-
-      <p className="text-[11px] text-white/30 mt-2">
-        Place d'abord le fichier PDF dans le dossier public du site, puis indique son chemin ici (ex: /guide-vente.pdf). Pour la bannière, colle un lien d'image direct (Unsplash, Cloudinary, etc.).
-      </p>
+      <RewardFields values={values} onChange={handleChange} />
       <button
         onClick={handleCreate}
         disabled={saving}
@@ -742,51 +993,39 @@ function NewCourseForm({ onCreated }) {
         style={{ backgroundColor: ACCENT }}
       >
         {saving && <Spinner size={13} color="#fff" />}
-        Créer le cours
+        Créer la récompense
       </button>
     </div>
   );
 }
 
-function QuestionForm({ courseId, onAdded }) {
-  const [question, setQuestion] = useState('');
-  const [points, setPoints] = useState(10);
-  const [options, setOptions] = useState([{ text: '', correct: true }, { text: '', correct: false }, { text: '', correct: false }]);
+function RewardCard({ reward, onRefresh }) {
+  const [editing, setEditing] = useState(false);
+  const [values, setValues] = useState({
+    title: reward.title, description: reward.description || '',
+    imageUrl: reward.image_url || '', cost: reward.cost,
+  });
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
 
-  const updateOption = (i, field, value) => {
-    setOptions((prev) => prev.map((o, idx) => {
-      if (field === 'correct') {
-        return { ...o, correct: idx === i };
-      }
-      return idx === i ? { ...o, [field]: value } : o;
-    }));
-  };
+  const handleChange = (field, value) => setValues((prev) => ({ ...prev, [field]: value }));
 
-  const addOption = () => {
-    if (options.length < 5) setOptions((prev) => [...prev, { text: '', correct: false }]);
-  };
-
-  const handleAdd = async () => {
-    if (!question.trim() || options.some((o) => !o.text.trim())) {
-      setError('Remplis la question et toutes les options');
-      return;
-    }
+  const handleSave = async () => {
+    if (!values.title.trim() || !values.cost) { setError('Nom et coût obligatoires'); return; }
     setError('');
     setSaving(true);
     try {
-      const res = await apiFetch(`${API_URL}/api/admin/courses/${courseId}/questions`, {
-        method: 'POST',
+      const res = await apiFetch(`${API_URL}/api/admin/rewards/${reward.id}`, {
+        method: 'PUT',
         body: JSON.stringify({
-          question, points: Number(points),
-          options: options.map((o) => ({ option_text: o.text, is_correct: o.correct })),
+          title: values.title, description: values.description,
+          cost: Number(values.cost), image_url: values.imageUrl || null,
         }),
       });
       if (res.ok) {
-        setQuestion(''); setPoints(10);
-        setOptions([{ text: '', correct: true }, { text: '', correct: false }, { text: '', correct: false }]);
-        onAdded();
+        setEditing(false);
+        onRefresh();
       } else {
         const data = await res.json();
         setError(data.error || 'Erreur');
@@ -797,165 +1036,73 @@ function QuestionForm({ courseId, onAdded }) {
     setSaving(false);
   };
 
-  return (
-    <div className="bg-black/40 border border-white/10 rounded-xl p-4 mt-3">
-      <p className="text-xs font-medium text-white/60 mb-2">Ajouter une question</p>
-      {error && <p className="text-red-400 text-xs mb-2">{error}</p>}
-      <input
-        value={question} onChange={(e) => setQuestion(e.target.value)}
-        placeholder="Texte de la question"
-        className="w-full p-2 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 mb-2"
-      />
-      <div className="flex items-center gap-2 mb-3">
-        <label className="text-xs text-white/40">Points :</label>
-        <input
-          type="number" value={points} onChange={(e) => setPoints(e.target.value)}
-          className="w-20 p-1.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60"
-        />
-      </div>
-      <div className="flex flex-col gap-2">
-        {options.map((opt, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <button
-              onClick={() => updateOption(i, 'correct')}
-              className="w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center"
-              style={{ borderColor: opt.correct ? ACCENT : 'rgba(255,255,255,0.2)' }}
-              title="Marquer comme bonne réponse"
-            >
-              {opt.correct && <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: ACCENT }} />}
-            </button>
-            <input
-              value={opt.text} onChange={(e) => updateOption(i, 'text', e.target.value)}
-              placeholder={`Option ${i + 1}`}
-              className="flex-1 p-2 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60"
-            />
-          </div>
-        ))}
-        {options.length < 5 && (
-          <button onClick={addOption} className="text-xs text-white/40 hover:text-white text-left">+ Ajouter une option</button>
-        )}
-      </div>
-      <button
-        onClick={handleAdd}
-        disabled={saving}
-        className="mt-3 px-4 py-2 rounded-lg text-white text-xs font-medium disabled:opacity-60 flex items-center gap-2"
-        style={{ backgroundColor: ACCENT }}
-      >
-        {saving && <Spinner size={12} color="#fff" />}
-        Ajouter la question
-      </button>
-    </div>
-  );
-}
-
-function CourseCard({ course, onRefresh }) {
-  const [expanded, setExpanded] = useState(false);
-  const [detail, setDetail] = useState(null);
-  const [showQuestionForm, setShowQuestionForm] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-
-  const loadDetail = async () => {
-    const res = await apiFetch(`${API_URL}/api/admin/courses/${course.id}`);
-    const data = await res.json();
-    setDetail(data);
-  };
-
-  const toggleExpand = () => {
-    if (!expanded && !detail) loadDetail();
-    setExpanded((e) => !e);
-  };
-
-  const handleDeleteCourse = async () => {
-    if (!confirm('Supprimer ce cours et toutes ses questions ?')) return;
+  const handleDelete = async () => {
+    if (!confirm('Supprimer cette récompense ?')) return;
     setDeleting(true);
-    await apiFetch(`${API_URL}/api/admin/courses/${course.id}`, { method: 'DELETE' });
+    await apiFetch(`${API_URL}/api/admin/rewards/${reward.id}`, { method: 'DELETE' });
     onRefresh();
   };
 
-  const handleDeleteQuestion = async (qId) => {
-    if (!confirm('Supprimer cette question ?')) return;
-    await apiFetch(`${API_URL}/api/admin/questions/${qId}`, { method: 'DELETE' });
-    loadDetail();
-  };
-
-  return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-      <div className="p-4 flex items-center gap-3">
-        {course.banner_url && (
-          <img
-            src={course.banner_url}
-            alt=""
-            className="w-14 h-14 rounded-lg object-cover shrink-0 border border-white/10"
-            onError={(e) => { e.target.style.display = 'none'; }}
-          />
-        )}
-        <div className="flex-1 min-w-0">
-          <p className="text-white font-medium">{course.title}</p>
-          <p className="text-white/40 text-xs mt-0.5">{course.question_count} question(s)</p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <button onClick={toggleExpand} className="text-xs px-3 py-1.5 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
-            {expanded ? 'Fermer' : 'Gérer'}
-          </button>
+  if (editing) {
+    return (
+      <div className="bg-black/40 border border-white/10 rounded-xl p-4">
+        {error && <p className="text-red-400 text-xs mb-2">{error}</p>}
+        <RewardFields values={values} onChange={handleChange} />
+        <div className="flex items-center gap-2 mt-3">
           <button
-            onClick={handleDeleteCourse}
-            disabled={deleting}
-            className="text-xs px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors"
+            onClick={handleSave}
+            disabled={saving}
+            className="px-4 py-2 rounded-lg text-white text-xs font-medium disabled:opacity-60 flex items-center gap-2"
+            style={{ backgroundColor: ACCENT }}
           >
-            Supprimer
+            {saving && <Spinner size={12} color="#fff" />}
+            Enregistrer
+          </button>
+          <button onClick={() => setEditing(false)} className="px-4 py-2 rounded-lg text-white/60 text-xs border border-white/10 hover:text-white transition-colors">
+            Annuler
           </button>
         </div>
       </div>
+    );
+  }
 
-      {expanded && (
-        <div className="border-t border-white/10 p-4">
-          {!detail && <Spinner size={16} color={ACCENT} />}
-          {detail && (
-            <>
-              <div className="flex flex-col gap-2">
-                {detail.questions.map((q, qi) => (
-                  <div key={q.id} className="bg-black/30 border border-white/10 rounded-lg p-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm text-white/80">{qi + 1}. {q.question} <span className="text-white/30 text-xs">({q.points} pts)</span></p>
-                      <button onClick={() => handleDeleteQuestion(q.id)} className="text-xs text-red-400/70 hover:text-red-400 shrink-0">Supprimer</button>
-                    </div>
-                    <div className="mt-2 flex flex-col gap-1">
-                      {q.options.map((o) => (
-                        <p key={o.id} className="text-xs" style={{ color: o.is_correct ? ACCENT : 'rgba(255,255,255,0.4)' }}>
-                          {o.is_correct ? '✓' : '○'} {o.option_text}
-                        </p>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {!showQuestionForm ? (
-                <button onClick={() => setShowQuestionForm(true)} className="mt-3 text-xs" style={{ color: ACCENT }}>
-                  + Ajouter une question
-                </button>
-              ) : (
-                <QuestionForm courseId={course.id} onAdded={() => { loadDetail(); onRefresh(); }} />
-              )}
-            </>
-          )}
-        </div>
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden flex items-center gap-3 p-4">
+      {reward.image_url && (
+        <img src={reward.image_url} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0 border border-white/10" onError={(e) => { e.target.style.display = 'none'; }} />
       )}
+      <div className="flex-1 min-w-0">
+        <p className="text-white font-medium">{reward.title}</p>
+        <p className="text-white/40 text-xs mt-0.5">{reward.description}</p>
+        <p className="text-xs mt-1 font-medium" style={{ color: ACCENT }}>{reward.cost} points</p>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <button onClick={() => setEditing(true)} className="text-xs px-3 py-1.5 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
+          Modifier
+        </button>
+        <button
+          onClick={handleDelete}
+          disabled={deleting}
+          className="text-xs px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors"
+        >
+          Supprimer
+        </button>
+      </div>
     </div>
   );
 }
 
-function AdminCourses() {
-  const [courses, setCourses] = useState([]);
+function AdminRewards() {
+  const [rewards, setRewards] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const loadCourses = () => {
-    apiFetch(`${API_URL}/api/admin/courses`)
+  const loadRewards = () => {
+    apiFetch(`${API_URL}/api/admin/rewards`)
       .then((r) => r.json())
-      .then((data) => { setCourses(data); setLoading(false); });
+      .then((data) => { setRewards(data); setLoading(false); });
   };
 
-  useEffect(() => { loadCourses(); }, []);
+  useEffect(() => { loadRewards(); }, []);
 
   if (loading) return <PageLoader />;
 
@@ -963,16 +1110,16 @@ function AdminCourses() {
     <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
       <div className="max-w-3xl mx-auto flex flex-col gap-5">
         <div>
-          <h1 className="text-lg font-semibold text-white">Administration — Formations</h1>
-          <p className="text-white/40 text-xs">Ajoute et gère les cours et leurs quiz</p>
+          <h1 className="text-lg font-semibold text-white">Administration — Récompenses</h1>
+          <p className="text-white/40 text-xs">Gère le catalogue de récompenses échangeables contre des points</p>
         </div>
 
-        <NewCourseForm onCreated={loadCourses} />
+        <NewRewardForm onCreated={loadRewards} />
 
         <div className="flex flex-col gap-3">
-          {courses.length === 0 && <p className="text-white/30 text-sm text-center">Aucun cours pour l'instant</p>}
-          {courses.map((c) => (
-            <CourseCard key={c.id} course={c} onRefresh={loadCourses} />
+          {rewards.length === 0 && <p className="text-white/30 text-sm text-center">Aucune récompense pour l'instant</p>}
+          {rewards.map((r) => (
+            <RewardCard key={r.id} reward={r} onRefresh={loadRewards} />
           ))}
         </div>
       </div>
@@ -980,7 +1127,230 @@ function AdminCourses() {
   );
 }
 
-export default AdminCourses;
+export default AdminRewards;
+</file>
+
+<file path="frontend/src/pages/Rewards.jsx">
+import { useEffect, useState } from 'react';
+import { apiFetch } from '../utils/api';
+import PageLoader from '../components/PageLoader';
+import Spinner from '../components/Spinner';
+import EmptyState from '../components/EmptyState';
+import Confetti from '../components/Confetti';
+import CoinIcon from '../components/CoinIcon';
+
+const ACCENT = '#f86635';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+function RewardCard({ reward, balance, onRedeemed }) {
+  const [redeeming, setRedeeming] = useState(false);
+  const [error, setError] = useState('');
+  const canAfford = balance >= reward.cost;
+
+  const handleRedeem = async () => {
+    if (!canAfford || redeeming) return;
+    if (!confirm(`Échanger "${reward.title}" contre ${reward.cost} points ?`)) return;
+    setError('');
+    setRedeeming(true);
+    try {
+      const res = await apiFetch(`${API_URL}/api/rewards/${reward.id}/redeem`, { method: 'POST' });
+      if (res.ok) {
+        onRedeemed();
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Erreur');
+      }
+    } catch (err) {
+      setError('Erreur réseau');
+    }
+    setRedeeming(false);
+  };
+
+  return (
+    <div className={`bg-white/5 border rounded-2xl overflow-hidden flex flex-col transition-all ${canAfford ? 'border-white/10 hover:border-orange-400/40 hover:-translate-y-0.5' : 'border-white/5 opacity-60'}`}>
+      <div className="relative aspect-video bg-black/40 overflow-hidden">
+        {reward.image_url ? (
+          <img
+            src={reward.image_url}
+            alt=""
+            className="w-full h-full object-cover"
+            onError={(e) => { e.target.style.display = 'none'; }}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-3xl text-white/15">🎁</div>
+        )}
+        <span
+          className="absolute top-3 right-3 flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full text-white backdrop-blur-sm"
+          style={{ backgroundColor: `${ACCENT}dd` }}
+        >
+          <CoinIcon size={13} />
+          {reward.cost}
+        </span>
+      </div>
+
+      <div className="p-4 flex-1 flex flex-col">
+        <p className="text-white font-medium leading-snug">{reward.title}</p>
+        {reward.description && <p className="text-white/40 text-sm mt-1 line-clamp-2 flex-1">{reward.description}</p>}
+        {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+
+        <button
+          onClick={handleRedeem}
+          disabled={!canAfford || redeeming}
+          className="mt-4 w-full text-xs px-3 py-2.5 rounded-xl text-white font-medium disabled:cursor-not-allowed flex items-center justify-center gap-1.5 transition-all hover:brightness-110"
+          style={{ backgroundColor: canAfford ? ACCENT : 'rgba(255,255,255,0.08)' }}
+        >
+          {redeeming && <Spinner size={12} color="#fff" />}
+          {canAfford ? 'Échanger' : 'Solde insuffisant'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Rewards() {
+  const [rewards, setRewards] = useState([]);
+  const [balance, setBalance] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const token = localStorage.getItem('token');
+
+  const loadAll = () => {
+    Promise.all([
+      apiFetch(`${API_URL}/api/rewards`).then((r) => r.json()),
+      apiFetch(`${API_URL}/api/rewards/balance`).then((r) => r.json()),
+      apiFetch(`${API_URL}/api/rewards/history`).then((r) => r.json()),
+    ]).then(([rewardsData, balanceData, historyData]) => {
+      setRewards(rewardsData);
+      setBalance(balanceData);
+      setHistory(historyData);
+      setLoading(false);
+    });
+  };
+
+  useEffect(() => {
+    if (!token) { setLoading(false); return; }
+    loadAll();
+  }, [token]);
+
+  const handleRedeemed = () => {
+    setShowConfetti(true);
+    setTimeout(() => setShowConfetti(false), 1300);
+    loadAll();
+  };
+
+  if (loading) return <PageLoader />;
+
+  if (!token) {
+    return (
+      <div className="bg-black min-h-screen flex flex-col items-center justify-center p-6 text-center">
+        <span className="text-4xl mb-4">🎁</span>
+        <h1 className="text-xl font-semibold text-white mb-2">Connecte-toi pour voir les récompenses</h1>
+        <a href="/login" className="text-white px-5 py-2.5 rounded-lg font-medium mt-2" style={{ backgroundColor: ACCENT }}>
+          Se connecter
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
+      <Confetti show={showConfetti} />
+      <div className="max-w-6xl mx-auto flex flex-col gap-6">
+
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-semibold text-white">Récompenses</h1>
+            <p className="text-white/40 text-sm mt-1">Échange tes points contre des récompenses</p>
+          </div>
+
+          <div className="flex items-center gap-4 bg-white/5 border border-white/10 rounded-2xl px-5 py-3 shrink-0">
+            <div>
+              <p className="text-white/40 text-[11px] uppercase tracking-wide">Solde disponible</p>
+              <p className="text-xl font-semibold flex items-center gap-1.5" style={{ color: ACCENT }}>
+                <CoinIcon size={18} />
+                {balance?.balance ?? 0}
+              </p>
+            </div>
+            <div className="w-px h-9 bg-white/10" />
+            <div>
+              <p className="text-white/40 text-[11px] uppercase tracking-wide">Gagnés</p>
+              <p className="text-xl font-semibold text-white">{balance?.earned ?? 0}</p>
+            </div>
+            <div className="w-px h-9 bg-white/10" />
+            <div>
+              <p className="text-white/40 text-[11px] uppercase tracking-wide">Dépensés</p>
+              <p className="text-xl font-semibold text-white/50">{balance?.spent ?? 0}</p>
+            </div>
+          </div>
+        </div>
+
+        {rewards.length === 0 ? (
+          <EmptyState
+            icon="🎁"
+            title="Aucune récompense pour l'instant"
+            subtitle="Les récompenses ajoutées par l'admin apparaîtront ici."
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            {rewards.map((r) => (
+              <RewardCard key={r.id} reward={r} balance={balance?.balance ?? 0} onRedeemed={handleRedeemed} />
+            ))}
+          </div>
+        )}
+
+        {history.length > 0 && (
+          <div>
+            <p className="text-white/40 text-xs uppercase tracking-wide mb-3">Historique</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {history.map((h) => (
+                <div key={h.id} className="bg-white/5 border border-white/10 rounded-xl p-3.5 flex items-center gap-3">
+                  {h.image_url ? (
+                    <img src={h.image_url} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" onError={(e) => { e.target.style.display = 'none'; }} />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-black/40 flex items-center justify-center text-lg shrink-0">🎁</div>
+                  )}
+                  <p className="text-sm text-white/70 flex-1 min-w-0 truncate">{h.title}</p>
+                  <span className="text-xs text-white/40 flex items-center gap-1 shrink-0">
+                    −{h.cost_at_redemption} <CoinIcon size={12} />
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+      </div>
+      <style>{`.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }`}</style>
+    </div>
+  );
+}
+
+export default Rewards;
+</file>
+
+<file path="frontend/src/utils/imageCompress.js">
+export function compressImage(file, maxWidth = 800, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxWidth / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 </file>
 
 <file path="frontend/src/App.css">
@@ -1171,7 +1541,92 @@ export default AdminCourses;
 </file>
 
 <file path="frontend/src/index.css">
+:root,
+[data-theme="dark"] {
+  --bg: #000000;
+  --surface: rgba(255, 255, 255, 0.05);
+  --surface-strong: #0d0d0d;
+  --border: rgba(255, 255, 255, 0.1);
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.5);
+  --text-muted: rgba(255, 255, 255, 0.3);
+}
+
+[data-theme="light"] {
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --surface-strong: #ffffff;
+  --border: rgba(0, 0, 0, 0.1);
+  --text-primary: #1a1a1a;
+  --text-secondary: rgba(0, 0, 0, 0.55);
+  --text-muted: rgba(0, 0, 0, 0.35);
+}
 @import "tailwindcss";
+
+
+/* ============================================
+   Mode clair — corrections automatiques globales
+   Ces règles ré-écrivent les couleurs codées en dur
+   (bg-black, text-white, etc.) dès que le mode clair
+   est actif, sans avoir à modifier chaque page.
+   ============================================ */
+
+[data-theme="light"] .bg-black,
+[data-theme="light"] [class~="bg-[#0a0a0a]"],
+[data-theme="light"] [class~="bg-[#0c0c0c]"],
+[data-theme="light"] [class~="bg-[#0d0d0d]"],
+[data-theme="light"] [class~="bg-[#0f0f0f]"],
+[data-theme="light"] [class~="bg-[#141414]"],
+[data-theme="light"] [class~="bg-[#161616]"],
+[data-theme="light"] [class~="bg-[#1a1a1a]"] {
+  background-color: var(--surface-strong) !important;
+}
+
+[data-theme="light"] .bg-black\/30,
+[data-theme="light"] .bg-black\/40,
+[data-theme="light"] .bg-black\/60 {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] .bg-white\/5,
+[data-theme="light"] .bg-white\/10 {
+  background-color: var(--surface) !important;
+}
+
+[data-theme="light"] .border-white\/5,
+[data-theme="light"] .border-white\/6,
+[data-theme="light"] .border-white\/8,
+[data-theme="light"] .border-white\/10,
+[data-theme="light"] .border-white\/15,
+[data-theme="light"] .border-white\/20,
+[data-theme="light"] [class~="border-white/[0.06]"] {
+  border-color: var(--border) !important;
+}
+
+[data-theme="light"] .text-white {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .text-white\/80,
+[data-theme="light"] .text-white\/70,
+[data-theme="light"] .text-white\/65,
+[data-theme="light"] .text-white\/60 {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="light"] .text-white\/50,
+[data-theme="light"] .text-white\/40,
+[data-theme="light"] .text-white\/35 {
+  color: var(--text-secondary) !important;
+  opacity: 0.85;
+}
+
+[data-theme="light"] .text-white\/30,
+[data-theme="light"] .text-white\/25,
+[data-theme="light"] .text-white\/20,
+[data-theme="light"] .text-white\/15 {
+  color: var(--text-muted) !important;
+}
 </file>
 
 <file path="frontend/src/main.jsx">
@@ -1179,10 +1634,13 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
+import { ThemeProvider } from './contexts/ThemeContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <App />
+    <ThemeProvider>
+      <App />
+    </ThemeProvider>
   </StrictMode>,
 )
 </file>
@@ -1264,6 +1722,18 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
 })
+</file>
+
+<file path="Commands.txt">
+cd D:\odoo-docker
+docker compose up -d
+
+git add .
+git commit -m "updates"
+git push
+
+
+npx repomix --output repomix.txt
 </file>
 
 <file path="backend/middleware/authMiddleware.js">
@@ -1533,133 +2003,6 @@ export const categoryLabels = {
 };
 </file>
 
-<file path="frontend/src/pages/Courses.jsx">
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { apiFetch } from '../utils/api';
-import PageLoader from '../components/PageLoader';
-import EmptyState from '../components/EmptyState';
-const ACCENT = '#f86635';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-function Courses() {
-  const [courses, setCourses] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const token = localStorage.getItem('token');
-
-  useEffect(() => {
-    if (!token) { setLoading(false); return; }
-    apiFetch(`${API_URL}/api/courses`)
-      .then((r) => r.json())
-      .then((data) => {
-        setCourses(data);
-        setLoading(false);
-      });
-  }, [token]);
-
-  if (loading) return <PageLoader />;
-
-  if (!token) {
-    return (
-      <div className="bg-black min-h-screen flex flex-col items-center justify-center p-6 text-center">
-        <span className="text-4xl mb-4">🔒</span>
-        <h1 className="text-xl font-semibold text-white mb-2">Connecte-toi pour voir les cours</h1>
-        <a href="/login" className="text-white px-5 py-2.5 rounded-lg font-medium mt-2" style={{ backgroundColor: ACCENT }}>
-          Se connecter
-        </a>
-      </div>
-    );
-  }
-
-  const totalScore = courses.reduce((sum, c) => sum + (c.best_score || 0), 0);
-  const totalMax = courses.reduce((sum, c) => sum + (c.max_score || 0), 0);
-  const completedCount = courses.filter((c) => c.completed).length;
-
-  return (
-    <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
-      <div className="max-w-3xl mx-auto flex flex-col gap-5">
-
-        <div>
-          <h1 className="text-lg font-semibold text-white">Formation</h1>
-          <p className="text-white/40 text-xs">Suis les cours et gagne des points d'apprentissage</p>
-        </div>
-
-        <div className="rounded-2xl p-6 text-center" style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}>
-          <p className="text-white/80 text-xs uppercase tracking-wide mb-1">Points d'apprentissage</p>
-          <p className="text-white text-4xl font-semibold">{totalScore}</p>
-          <p className="text-white/70 text-xs mt-2">{completedCount}/{courses.length} cours complétés</p>
-        </div>
-
-        <div className="flex flex-col gap-3">
-          {courses.length === 0 && (
-            <EmptyState
-              icon="🎓"
-              title="Aucune formation pour l'instant"
-              subtitle="Les cours ajoutés par l'admin apparaîtront ici dès qu'ils seront disponibles."
-            />
-          )}
-
-          {courses.map((course, i) => (
-            <Link
-              key={course.id}
-              to={`/courses/${course.id}`}
-              className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:border-orange-400/50 transition-all block"
-              style={{ animation: `fadeIn 0.4s ease ${i * 0.06}s both` }}
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-white font-medium">{course.title}</p>
-                    {course.completed && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: `${ACCENT}22`, color: ACCENT }}>
-                        Complété
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-white/40 text-sm">{course.description}</p>
-                  {course.completed && (
-                    <p className="text-xs mt-2" style={{ color: ACCENT }}>
-                      Score : {course.best_score} / {course.max_score} points
-                    </p>
-                  )}
-                </div>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-1">
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-              </div>
-            </Link>
-          ))}
-        </div>
-
-      </div>
-      <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }`}</style>
-    </div>
-  );
-}
-
-export default Courses;
-</file>
-
-<file path="frontend/src/utils/api.js">
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-export async function apiFetch(url, options = {}) {
-  const token = localStorage.getItem('token');
-  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
-  if (token) headers.Authorization = `Bearer ${token}`;
-
-  const res = await fetch(url, { ...options, headers });
-  if (res.status === 401) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = '/login';
-  }
-  return res;
-}
-
-export { API_URL };
-</file>
-
 <file path="frontend/index.html">
 <!doctype html>
 <html lang="en">
@@ -1794,23 +2137,22 @@ module.exports = router;
 </file>
 
 <file path="backend/db.js">
-require('dotenv').config();
 const { Pool } = require('pg');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
 });
 
-// Empêche le crash du serveur si une connexion est coupée en arrière-plan
+// Sans ce handler, une erreur sur une connexion inactive (ex: Neon qui coupe
+// la connexion après un moment) fait planter silencieusement tout le pool,
+// et toutes les routes suivantes échouent avec "Connection terminated".
 pool.on('error', (err) => {
-  console.error('Erreur inattendue sur une connexion PostgreSQL inactive', err);
+  console.error('Erreur inattendue sur une connexion PostgreSQL inactive :', err.message);
 });
-
-// Test de connexion au démarrage, sans garder la connexion ouverte
-pool.query('SELECT NOW()')
-  .then(() => console.log('Connecté à PostgreSQL avec succès'))
-  .catch((err) => console.error('Erreur de connexion à PostgreSQL', err.message));
 
 module.exports = pool;
 </file>
@@ -1818,62 +2160,67 @@ module.exports = pool;
 <file path="frontend/src/components/Badge.jsx">
 const ACCENT = '#f86635';
 
-const icons = {
-  appel: (color) => (
-    <path d="M28 30 Q28 26 32 26 L36 26 Q39 26 40 29 L42 35 Q43 38 40 40 Q42 46 48 48 Q50 45 53 46 L58 48 Q61 49 60 52 L58 56 Q56 60 51 59 Q35 55 30 39 Q28 34 28 30 Z" fill={color} />
+export const icons = {
+  appel: (
+    <path d="M6.6 10.8c1.4 2.8 3.8 5.2 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.9 21 3 13.1 3 3.4c0-.6.4-1 1-1h3.4c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.4 0 .8-.2 1L6.6 10.8Z" fill="currentColor" />
   ),
-  rdv: (color) => (
-    <>
-      <rect x="24" y="28" width="30" height="26" rx="3" fill="none" stroke={color} strokeWidth="3" />
-      <line x1="24" y1="36" x2="54" y2="36" stroke={color} strokeWidth="3" />
-      <circle cx="32" cy="44" r="2.5" fill={color} />
-      <circle cx="40" cy="44" r="2.5" fill={color} />
-      <circle cx="46" cy="44" r="2.5" fill={color} />
-    </>
+  rdv: (
+    <g fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3.5" y="5" width="17" height="15.5" rx="2" />
+      <path d="M3.5 10h17" />
+      <path d="M8 3v4M16 3v4" />
+    </g>
   ),
-  devis: (color) => (
-    <>
-      <path d="M28 24 L44 24 L52 32 L52 56 L28 56 Z" fill="none" stroke={color} strokeWidth="3" strokeLinejoin="round" />
-      <path d="M44 24 L44 32 L52 32" fill="none" stroke={color} strokeWidth="3" strokeLinejoin="round" />
-      <line x1="33" y1="42" x2="47" y2="42" stroke={color} strokeWidth="2.5" />
-      <line x1="33" y1="48" x2="47" y2="48" stroke={color} strokeWidth="2.5" />
-    </>
+  devis: (
+    <g fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
+      <path d="M6 3h8l5 5v13H6Z" />
+      <path d="M14 3v5h5" />
+      <path d="M9 13h6M9 17h6" />
+    </g>
   ),
-  commande: (color) => (
-    <>
-      <path d="M26 32 L54 32 L51 58 L29 58 Z" fill="none" stroke={color} strokeWidth="3" strokeLinejoin="round" />
-      <path d="M32 32 Q32 22 40 22 Q48 22 48 32" fill="none" stroke={color} strokeWidth="3" />
-    </>
+  commande: (
+    <g fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
+      <path d="M4 8h16l-1.5 12h-13Z" />
+      <path d="M8 8a4 4 0 0 1 8 0" />
+    </g>
   ),
-  total: (color) => (
-    <path d="M39 26 L44 37 L55 38 L47 46 L49 57 L39 51 L29 57 L31 46 L23 38 L34 37 Z" fill={color} />
+  total: (
+    <path d="M12 2.5l2.6 5.9 6.4.6-4.8 4.3 1.4 6.2L12 16.4l-5.6 3.1 1.4-6.2-4.8-4.3 6.4-.6Z" fill="currentColor" />
   ),
-  streak: (color, bgColor) => (
-    <>
-      <path d="M39 24 C44 32 50 34 50 42 C50 50 45 55 39 55 C33 55 28 50 28 42 C28 34 34 32 39 24 Z" fill={color} />
-      <path d="M39 35 C41 39 44 41 44 45 C44 48 42 51 39 51 C36 51 34 48 34 45 C34 41 37 39 39 35 Z" fill={bgColor} />
-    </>
+  streak: (
+    <path fillRule="evenodd" fill="currentColor" d="M12 2c1.5 3 4 4 4 8.5C16 15 14.2 18 12 18s-4-3-4-7.5C8 6 10.5 5 12 2Zm0 8c.8 1.3 1.8 2 1.8 3.6 0 1.5-.8 2.9-1.8 2.9s-1.8-1.4-1.8-2.9c0-1.6 1-2.3 1.8-3.6Z" />
   ),
-  target: (color) => (
-    <path d="M28 41 L36 49 L52 30" fill="none" stroke={color} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+  target: (
+    <g fill="none" stroke="currentColor" strokeWidth="1.6">
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="4.5" />
+      <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none" />
+    </g>
   ),
 };
 
 function Badge({ category, unlocked, label, size = 72 }) {
-  const color = unlocked ? ACCENT : '#454545';
-  const bgColor = unlocked ? '#1a1a1a' : '#161616';
-  const borderColor = unlocked ? ACCENT : '#3a3a3a';
-  const iconFn = icons[category];
+  const iconSize = size * 0.4;
 
   return (
-    <div style={{ textAlign: 'center', opacity: unlocked ? 1 : 0.55 }}>
-      <svg width={size} height={size * 1.13} viewBox="0 0 78 88">
-        <path d="M39 3 L71 17 L71 49 Q71 69 39 84 Q7 69 7 49 L7 17 Z" fill={bgColor} stroke={borderColor} strokeWidth="1.5" />
-        <circle cx="39" cy="41" r="20" fill="none" stroke={borderColor} strokeWidth="1.5" opacity="0.5" />
-        {iconFn ? iconFn(color, bgColor) : null}
-      </svg>
+    <div style={{ textAlign: 'center' }}>
+      <div
+        className="relative flex items-center justify-center mx-auto transition-all duration-300"
+        style={{
+          width: size,
+          height: size * 1.05,
+          clipPath: 'polygon(50% 0%, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%)',
+          background: unlocked ? `linear-gradient(155deg, #ffab74, ${ACCENT} 45%, #c9501f)` : '#141414',
+          border: unlocked ? 'none' : '1px solid rgba(255,255,255,0.08)',
+          boxShadow: unlocked ? `0 0 18px ${ACCENT}4d` : 'none',
+        }}
+      >
+        <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" style={{ color: unlocked ? '#fff' : 'rgba(255,255,255,0.22)' }}>
+          {icons[category]}
+        </svg>
+      </div>
       {label !== null && label !== undefined && (
-        <p style={{ fontSize: 10, color: unlocked ? '#fff' : 'rgba(255,255,255,0.35)', marginTop: 6, fontWeight: 500, lineHeight: 1.3 }}>
+        <p style={{ fontSize: 10, color: unlocked ? '#fff' : 'rgba(255,255,255,0.35)', marginTop: 7, fontWeight: 500, lineHeight: 1.3 }}>
           {label}
         </p>
       )}
@@ -1939,9 +2286,560 @@ function WeeklyTargetHistory() {
 export default WeeklyTargetHistory;
 </file>
 
+<file path="frontend/src/pages/admin/AdminCourses.jsx">
+import { useEffect, useState } from 'react';
+import { apiFetch } from '../../utils/api';
+import { compressImage } from '../../utils/imageCompress';
+import PageLoader from '../../components/PageLoader';
+import Spinner from '../../components/Spinner';
+
+const ACCENT = '#f86635';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+function CourseFields({ values, onChange }) {
+  const [bannerLoading, setBannerLoading] = useState(false);
+
+    const handleBannerFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setBannerLoading(true);
+    try {
+      const compressed = await compressImage(file, 1000, 0.7);
+      onChange('bannerUrl', compressed);
+    } catch (err) {
+      alert('Erreur lors du traitement de l\'image');
+    }
+    setBannerLoading(false);
+  };
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <input
+        value={values.title} onChange={(e) => onChange('title', e.target.value)}
+        placeholder="Titre du cours"
+        className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 sm:col-span-2"
+      />
+      <input
+        value={values.description} onChange={(e) => onChange('description', e.target.value)}
+        placeholder="Description"
+        className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 sm:col-span-2"
+      />
+      <label className="p-2.5 rounded-lg bg-black border border-white/10 text-white/50 text-sm cursor-pointer hover:text-white transition-colors sm:col-span-2 flex items-center justify-center gap-2">
+        {bannerLoading ? 'Chargement...' : values.bannerUrl ? "Changer l'image de bannière" : 'Choisir une image de bannière'}
+        <input type="file" accept="image/*" onChange={handleBannerFile} className="hidden" />
+      </label>
+      {values.bannerUrl && (
+        <div className="sm:col-span-2 rounded-lg overflow-hidden border border-white/10 h-28">
+          <img src={values.bannerUrl} alt="Aperçu bannière" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
+        </div>
+      )}
+      <textarea
+        value={values.contentText} onChange={(e) => onChange('contentText', e.target.value)}
+        placeholder="Contenu du cours (texte complet, comme un article)"
+        rows={8}
+        className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 sm:col-span-2"
+      />
+      <input
+        value={values.duration} onChange={(e) => onChange('duration', e.target.value)}
+        placeholder="Durée estimée (minutes)" type="number"
+        className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60"
+      />
+    </div>
+  );
+}
+
+// Formulaire réutilisable pour ajouter OU modifier une question.
+// En mode "ajout local" (dans le formulaire de création de cours), onSubmit
+// reçoit juste les données, sans appel API — le parent gère la liste locale.
+// En mode "édition d'une question existante", onSubmit fait l'appel API.
+function QuestionEditorForm({ initial, onSubmit, onCancel, saving }) {
+  const [question, setQuestion] = useState(initial?.question || '');
+  const [points, setPoints] = useState(initial?.points || 10);
+  const [options, setOptions] = useState(
+    initial?.options?.map((o) => ({ text: o.option_text, correct: o.is_correct })) ||
+    [{ text: '', correct: true }, { text: '', correct: false }, { text: '', correct: false }]
+  );
+  const [error, setError] = useState('');
+
+  const updateOption = (i, field, value) => {
+    setOptions((prev) => prev.map((o, idx) => {
+      if (field === 'correct') return { ...o, correct: idx === i };
+      return idx === i ? { ...o, [field]: value } : o;
+    }));
+  };
+
+  const addOption = () => {
+    if (options.length < 5) setOptions((prev) => [...prev, { text: '', correct: false }]);
+  };
+
+  const removeOption = (i) => {
+    if (options.length > 2) setOptions((prev) => prev.filter((_, idx) => idx !== i));
+  };
+
+  const handleSubmit = () => {
+    if (!question.trim() || options.some((o) => !o.text.trim())) {
+      setError('Remplis la question et toutes les options');
+      return;
+    }
+    setError('');
+    onSubmit({
+      question,
+      points: Number(points),
+      options: options.map((o) => ({ option_text: o.text, is_correct: o.correct })),
+    });
+  };
+
+  return (
+    <div className="bg-black/40 border border-white/10 rounded-xl p-4">
+      {error && <p className="text-red-400 text-xs mb-2">{error}</p>}
+      <input
+        value={question} onChange={(e) => setQuestion(e.target.value)}
+        placeholder="Texte de la question"
+        className="w-full p-2 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 mb-2"
+      />
+      <div className="flex items-center gap-2 mb-3">
+        <label className="text-xs text-white/40">Points :</label>
+        <input
+          type="number" value={points} onChange={(e) => setPoints(e.target.value)}
+          className="w-20 p-1.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60"
+        />
+      </div>
+      <div className="flex flex-col gap-2">
+        {options.map((opt, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <button
+              onClick={() => updateOption(i, 'correct')}
+              className="w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center"
+              style={{ borderColor: opt.correct ? ACCENT : 'rgba(255,255,255,0.2)' }}
+              title="Marquer comme bonne réponse"
+            >
+              {opt.correct && <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: ACCENT }} />}
+            </button>
+            <input
+              value={opt.text} onChange={(e) => updateOption(i, 'text', e.target.value)}
+              placeholder={`Option ${i + 1}`}
+              className="flex-1 p-2 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60"
+            />
+            {options.length > 2 && (
+              <button onClick={() => removeOption(i)} className="text-white/30 hover:text-red-400 text-xs shrink-0">✕</button>
+            )}
+          </div>
+        ))}
+        {options.length < 5 && (
+          <button onClick={addOption} className="text-xs text-white/40 hover:text-white text-left">+ Ajouter une option</button>
+        )}
+      </div>
+      <div className="flex items-center gap-2 mt-3">
+        <button
+          onClick={handleSubmit}
+          disabled={saving}
+          className="px-4 py-2 rounded-lg text-white text-xs font-medium disabled:opacity-60 flex items-center gap-2"
+          style={{ backgroundColor: ACCENT }}
+        >
+          {saving && <Spinner size={12} color="#fff" />}
+          {initial ? 'Enregistrer la question' : 'Ajouter la question'}
+        </button>
+        {onCancel && (
+          <button onClick={onCancel} className="px-4 py-2 rounded-lg text-white/60 text-xs border border-white/10 hover:text-white transition-colors">
+            Annuler
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Formulaire unique : infos du cours + questions, tout avant de créer.
+function NewCourseForm({ onCreated }) {
+  const [values, setValues] = useState({ title: '', description: '', bannerUrl: '', contentText: '', duration: '' });
+  const [questions, setQuestions] = useState([]);
+  const [addingQuestion, setAddingQuestion] = useState(false);
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleChange = (field, value) => setValues((prev) => ({ ...prev, [field]: value }));
+
+  const handleAddQuestion = (q) => {
+    setQuestions((prev) => [...prev, q]);
+    setAddingQuestion(false);
+  };
+
+  const handleEditQuestion = (q) => {
+    setQuestions((prev) => prev.map((old, i) => (i === editingIndex ? q : old)));
+    setEditingIndex(null);
+  };
+
+  const handleDeleteQuestion = (i) => {
+    setQuestions((prev) => prev.filter((_, idx) => idx !== i));
+  };
+
+  const handleCreate = async () => {
+    if (!values.title.trim()) { setError('Le titre est obligatoire'); return; }
+    setError('');
+    setSaving(true);
+    try {
+      const res = await apiFetch(`${API_URL}/api/admin/courses`, {
+        method: 'POST',
+        body: JSON.stringify({
+          title: values.title, description: values.description, content_type: 'text',
+          content_text: values.contentText, banner_url: values.bannerUrl || null,
+          duration_minutes: values.duration ? Number(values.duration) : null,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || 'Erreur');
+        setSaving(false);
+        return;
+      }
+      const created = await res.json();
+
+            await Promise.all(
+        questions.map((q) =>
+          apiFetch(`${API_URL}/api/admin/courses/${created.id}/questions`, {
+            method: 'POST',
+            body: JSON.stringify(q),
+          })
+        )
+      );
+
+      setValues({ title: '', description: '', bannerUrl: '', contentText: '', duration: '' });
+      setQuestions([]);
+      onCreated();
+    } catch (err) {
+      setError('Erreur réseau');
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-5">
+      <p className="text-sm font-semibold text-white mb-3">Nouveau cours</p>
+      {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
+      <CourseFields values={values} onChange={handleChange} />
+
+      <div className="mt-4">
+        <p className="text-xs font-medium text-white/60 mb-2">Questions du quiz ({questions.length})</p>
+        <div className="flex flex-col gap-2 mb-2">
+          {questions.map((q, i) => (
+            editingIndex === i ? (
+              <QuestionEditorForm
+                key={i}
+                initial={q}
+                saving={false}
+                onSubmit={handleEditQuestion}
+                onCancel={() => setEditingIndex(null)}
+              />
+            ) : (
+              <div key={i} className="bg-black/30 border border-white/10 rounded-lg p-3 flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm text-white/80">{i + 1}. {q.question} <span className="text-white/30 text-xs">({q.points} pts)</span></p>
+                  <div className="mt-1 flex flex-col gap-0.5">
+                    {q.options.map((o, oi) => (
+                      <p key={oi} className="text-xs" style={{ color: o.is_correct ? ACCENT : 'rgba(255,255,255,0.4)' }}>
+                        {o.is_correct ? '✓' : '○'} {o.option_text}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button onClick={() => setEditingIndex(i)} className="text-xs text-white/50 hover:text-white">Modifier</button>
+                  <button onClick={() => handleDeleteQuestion(i)} className="text-xs text-red-400/70 hover:text-red-400">Supprimer</button>
+                </div>
+              </div>
+            )
+          ))}
+        </div>
+
+        {addingQuestion ? (
+          <QuestionEditorForm
+            saving={false}
+            onSubmit={handleAddQuestion}
+            onCancel={() => setAddingQuestion(false)}
+          />
+        ) : (
+          <button onClick={() => setAddingQuestion(true)} className="text-xs" style={{ color: ACCENT }}>
+            + Ajouter une question
+          </button>
+        )}
+      </div>
+
+      <button
+        onClick={handleCreate}
+        disabled={saving}
+        className="mt-4 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-60 flex items-center gap-2"
+        style={{ backgroundColor: ACCENT }}
+      >
+        {saving && <Spinner size={13} color="#fff" />}
+        Créer le cours
+      </button>
+    </div>
+  );
+}
+
+function EditCourseForm({ course, onSaved, onCancel }) {
+  const [values, setValues] = useState({
+    title: course.title || '',
+    description: course.description || '',
+    bannerUrl: course.banner_url || '',
+    contentText: course.content_text || '',
+    duration: course.duration_minutes || '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleChange = (field, value) => setValues((prev) => ({ ...prev, [field]: value }));
+
+  const handleSave = async () => {
+    if (!values.title.trim()) { setError('Le titre est obligatoire'); return; }
+    setError('');
+    setSaving(true);
+    try {
+      const res = await apiFetch(`${API_URL}/api/admin/courses/${course.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          title: values.title, description: values.description,
+          content_text: values.contentText, banner_url: values.bannerUrl || null,
+          duration_minutes: values.duration ? Number(values.duration) : null,
+        }),
+      });
+      if (res.ok) {
+        onSaved();
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Erreur');
+      }
+    } catch (err) {
+      setError('Erreur réseau');
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="bg-black/40 border border-white/10 rounded-xl p-4 mb-3">
+      <p className="text-xs font-medium text-white/60 mb-2">Modifier le cours</p>
+      {error && <p className="text-red-400 text-xs mb-2">{error}</p>}
+      <CourseFields values={values} onChange={handleChange} />
+      <div className="flex items-center gap-2 mt-3">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="px-4 py-2 rounded-lg text-white text-xs font-medium disabled:opacity-60 flex items-center gap-2"
+          style={{ backgroundColor: ACCENT }}
+        >
+          {saving && <Spinner size={12} color="#fff" />}
+          Enregistrer
+        </button>
+        <button
+          onClick={onCancel}
+          className="px-4 py-2 rounded-lg text-white/60 text-xs border border-white/10 hover:text-white transition-colors"
+        >
+          Annuler
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CourseCard({ course, onRefresh }) {
+  const [expanded, setExpanded] = useState(false);
+  const [detail, setDetail] = useState(null);
+  const [addingQuestion, setAddingQuestion] = useState(false);
+  const [editingQuestionId, setEditingQuestionId] = useState(null);
+  const [savingQuestion, setSavingQuestion] = useState(false);
+  const [isEditingCourse, setIsEditingCourse] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const loadDetail = async () => {
+    const res = await apiFetch(`${API_URL}/api/admin/courses/${course.id}`);
+    const data = await res.json();
+    setDetail(data);
+  };
+
+  const toggleExpand = () => {
+    if (!expanded && !detail) loadDetail();
+    setExpanded((e) => !e);
+  };
+
+  const handleDeleteCourse = async () => {
+    if (!confirm('Supprimer ce cours et toutes ses questions ?')) return;
+    setDeleting(true);
+    await apiFetch(`${API_URL}/api/admin/courses/${course.id}`, { method: 'DELETE' });
+    onRefresh();
+  };
+
+  const handleAddQuestion = async (q) => {
+    setSavingQuestion(true);
+    await apiFetch(`${API_URL}/api/admin/courses/${course.id}/questions`, {
+      method: 'POST',
+      body: JSON.stringify(q),
+    });
+    setSavingQuestion(false);
+    setAddingQuestion(false);
+    loadDetail();
+    onRefresh();
+  };
+
+  const handleSaveQuestion = async (qId, q) => {
+    setSavingQuestion(true);
+    await apiFetch(`${API_URL}/api/admin/questions/${qId}`, {
+      method: 'PUT',
+      body: JSON.stringify(q),
+    });
+    setSavingQuestion(false);
+    setEditingQuestionId(null);
+    loadDetail();
+  };
+
+  const handleDeleteQuestion = async (qId) => {
+    if (!confirm('Supprimer cette question ?')) return;
+    await apiFetch(`${API_URL}/api/admin/questions/${qId}`, { method: 'DELETE' });
+    loadDetail();
+    onRefresh();
+  };
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+      <div className="p-4 flex items-center gap-3">
+        {course.banner_url && (
+          <img
+            src={course.banner_url}
+            alt=""
+            className="w-14 h-14 rounded-lg object-cover shrink-0 border border-white/10"
+            onError={(e) => { e.target.style.display = 'none'; }}
+          />
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-white font-medium">{course.title}</p>
+          <p className="text-white/40 text-xs mt-0.5">{course.question_count} question(s)</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+          <button
+            onClick={() => { setIsEditingCourse((v) => !v); if (!expanded) toggleExpand(); }}
+            className="text-xs px-3 py-1.5 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors"
+          >
+            Modifier
+          </button>
+          <button onClick={toggleExpand} className="text-xs px-3 py-1.5 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
+            {expanded ? 'Fermer' : 'Gérer'}
+          </button>
+          <button
+            onClick={handleDeleteCourse}
+            disabled={deleting}
+            className="text-xs px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors"
+          >
+            Supprimer
+          </button>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="border-t border-white/10 p-4">
+          {!detail && <Spinner size={16} color={ACCENT} />}
+          {detail && (
+            <>
+              {isEditingCourse && (
+                <EditCourseForm
+                  course={detail}
+                  onSaved={() => { setIsEditingCourse(false); loadDetail(); onRefresh(); }}
+                  onCancel={() => setIsEditingCourse(false)}
+                />
+              )}
+
+              <div className="flex flex-col gap-2">
+                {detail.questions.map((q, qi) => (
+                  editingQuestionId === q.id ? (
+                    <QuestionEditorForm
+                      key={q.id}
+                      initial={q}
+                      saving={savingQuestion}
+                      onSubmit={(data) => handleSaveQuestion(q.id, data)}
+                      onCancel={() => setEditingQuestionId(null)}
+                    />
+                  ) : (
+                    <div key={q.id} className="bg-black/30 border border-white/10 rounded-lg p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm text-white/80">{qi + 1}. {q.question} <span className="text-white/30 text-xs">({q.points} pts)</span></p>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button onClick={() => setEditingQuestionId(q.id)} className="text-xs text-white/50 hover:text-white">Modifier</button>
+                          <button onClick={() => handleDeleteQuestion(q.id)} className="text-xs text-red-400/70 hover:text-red-400">Supprimer</button>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex flex-col gap-1">
+                        {q.options.map((o) => (
+                          <p key={o.id} className="text-xs" style={{ color: o.is_correct ? ACCENT : 'rgba(255,255,255,0.4)' }}>
+                            {o.is_correct ? '✓' : '○'} {o.option_text}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                ))}
+              </div>
+
+              {!addingQuestion ? (
+                <button onClick={() => setAddingQuestion(true)} className="mt-3 text-xs" style={{ color: ACCENT }}>
+                  + Ajouter une question
+                </button>
+              ) : (
+                <div className="mt-3">
+                  <QuestionEditorForm
+                    saving={savingQuestion}
+                    onSubmit={handleAddQuestion}
+                    onCancel={() => setAddingQuestion(false)}
+                  />
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AdminCourses() {
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadCourses = () => {
+    apiFetch(`${API_URL}/api/admin/courses`)
+      .then((r) => r.json())
+      .then((data) => { setCourses(data); setLoading(false); });
+  };
+
+  useEffect(() => { loadCourses(); }, []);
+
+  if (loading) return <PageLoader />;
+
+  return (
+    <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
+      <div className="max-w-3xl mx-auto flex flex-col gap-5">
+        <div>
+          <h1 className="text-lg font-semibold text-white">Administration — Formations</h1>
+          <p className="text-white/40 text-xs">Ajoute et gère les cours et leurs quiz</p>
+        </div>
+
+        <NewCourseForm onCreated={loadCourses} />
+
+        <div className="flex flex-col gap-3">
+          {courses.length === 0 && <p className="text-white/30 text-sm text-center">Aucun cours pour l'instant</p>}
+          {courses.map((c) => (
+            <CourseCard key={c.id} course={c} onRefresh={loadCourses} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default AdminCourses;
+</file>
+
 <file path="frontend/src/pages/Badges.jsx">
 import { useEffect, useState } from 'react';
-import Badge from '../components/Badge';
+import Badge, { icons as categoryIcons } from '../components/Badge';
 import PageLoader from '../components/PageLoader';
 import BadgeUnlockModal from '../components/BadgeUnlockModal';
 import { apiFetch } from '../utils/api';
@@ -1950,7 +2848,44 @@ import { badgeDefinitions, categoryLabels } from '../data/badgeDefinitions';
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-function CategorySection({ cat, badges, value, index }) {
+function ProgressRing({ percent, size = 100 }) {
+  const r = (size - 12) / 2;
+  const circumference = 2 * Math.PI * r;
+  return (
+    <div className="relative flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="8" />
+        <circle
+          cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#fff" strokeWidth="8"
+          strokeDasharray={`${(percent / 100) * circumference} ${circumference}`}
+          strokeLinecap="round"
+          style={{ transition: 'stroke-dasharray 0.8s ease' }}
+        />
+      </svg>
+      <span className="absolute text-lg font-bold text-white">{percent}%</span>
+    </div>
+  );
+}
+
+function NextUpCard({ badge, value }) {
+  const percent = Math.min(Math.round((value / badge.threshold) * 100), 100);
+  const remaining = badge.threshold - value;
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-4 hover:border-orange-400/40 transition-colors">
+      <Badge category={badge.category} unlocked={false} label={null} size={46} />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-white truncate">{badge.label}</p>
+        <p className="text-[11px] text-white/40 mb-1.5">{categoryLabels[badge.category]} · encore {remaining}</p>
+        <div className="w-full bg-white/10 rounded-full h-1.5">
+          <div className="h-1.5 rounded-full transition-all duration-500" style={{ width: `${percent}%`, backgroundColor: ACCENT }} />
+        </div>
+      </div>
+      <span className="text-xs font-semibold text-white/50 shrink-0">{value}/{badge.threshold}</span>
+    </div>
+  );
+}
+
+function CategoryExplorer({ cat, badges, value }) {
   const sorted = [...badges].sort((a, b) => a.threshold - b.threshold);
   const nextBadge = sorted.find((b) => value < b.threshold);
   const currentBadge = [...sorted].reverse().find((b) => value >= b.threshold);
@@ -1962,29 +2897,18 @@ function CategorySection({ cat, badges, value, index }) {
   const unlockedInCat = sorted.filter((b) => value >= b.threshold).length;
 
   return (
-    <div
-      className="bg-white/5 border border-white/10 rounded-2xl p-5"
-      style={{ animation: `fadeIn 0.4s ease ${index * 0.06}s both` }}
-    >
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <p className="text-sm font-semibold text-white">{categoryLabels[cat]}</p>
-          <p className="text-[11px] text-white/35 mt-0.5">{unlockedInCat}/{sorted.length} débloqués</p>
-        </div>
-        <span className="text-lg font-semibold text-white">{value}</span>
-      </div>
-
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 animate-[fadeIn_0.3s_ease]">
       <div className="flex items-center gap-4 mb-5 pb-5 border-b border-white/[0.06]">
-        <Badge category={cat} unlocked={!!currentBadge} label={null} size={60} />
+        <Badge category={cat} unlocked={!!currentBadge} label={null} size={64} />
         <div className="flex-1">
-          <p className="text-sm text-white font-medium">{focusBadge.label}</p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-white font-medium">{focusBadge.label}</p>
+            <span className="text-xs text-white/40">{unlockedInCat}/{sorted.length}</span>
+          </div>
           {nextBadge ? (
             <>
               <div className="w-full bg-white/10 rounded-full h-1.5 mt-2.5">
-                <div
-                  className="h-1.5 rounded-full transition-all duration-500"
-                  style={{ width: `${progressPercent}%`, backgroundColor: ACCENT }}
-                />
+                <div className="h-1.5 rounded-full transition-all duration-500" style={{ width: `${progressPercent}%`, backgroundColor: ACCENT }} />
               </div>
               <p className="text-[11px] text-white/40 mt-1.5">{value} / {nextBadge.threshold}</p>
             </>
@@ -1994,9 +2918,9 @@ function CategorySection({ cat, badges, value, index }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
+      <div className="grid grid-cols-4 sm:grid-cols-8 gap-4">
         {sorted.map((b) => (
-          <Badge key={b.id} category={b.category} unlocked={value >= b.threshold} label={b.threshold} size={44} />
+          <Badge key={b.id} category={b.category} unlocked={value >= b.threshold} label={b.threshold} size={52} />
         ))}
       </div>
     </div>
@@ -2009,6 +2933,7 @@ function Badges() {
   const [seenBadges, setSeenBadges] = useState([]);
   const [newlyUnlocked, setNewlyUnlocked] = useState([]);
   const [currentUnlockIndex, setCurrentUnlockIndex] = useState(0);
+  const [activeTab, setActiveTab] = useState('total');
 
   useEffect(() => {
     Promise.all([
@@ -2071,6 +2996,12 @@ function Badges() {
   const overallPercent = Math.round((unlockedCount / totalCount) * 100);
   const categories = ['total', 'streak', 'target', 'appel', 'rdv', 'devis', 'commande'];
 
+  const nextUpBadges = badgeDefinitions
+    .filter((b) => !isUnlocked(b))
+    .map((b) => ({ badge: b, value: getValue(b.category), remaining: b.threshold - getValue(b.category) }))
+    .sort((a, b) => a.remaining - b.remaining)
+    .slice(0, 3);
+
   return (
     <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
       {newlyUnlocked.length > 0 && (
@@ -2082,26 +3013,65 @@ function Badges() {
         />
       )}
 
-      <div className="max-w-3xl mx-auto flex flex-col gap-5">
+      <div className="max-w-4xl mx-auto flex flex-col gap-6">
 
-        <div className="rounded-2xl p-6 text-center" style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}>
-          <p className="text-white/80 text-xs uppercase tracking-wide mb-1">Collection de badges</p>
-          <p className="text-white text-4xl font-semibold">{unlockedCount}<span className="text-lg text-white/70"> / {totalCount}</span></p>
-          <div className="w-full max-w-xs mx-auto bg-white/25 rounded-full h-2 mt-4">
-            <div className="h-2 rounded-full bg-white transition-all duration-700" style={{ width: `${overallPercent}%` }} />
-          </div>
-          <p className="text-white/70 text-xs mt-2">{overallPercent}% de la collection débloquée</p>
+        <div>
+          <h1 className="text-lg sm:text-xl font-semibold text-white">Badges</h1>
+          <p className="text-white/40 text-sm mt-1">Ta collection de badges, débloqués au fil de tes activités</p>
         </div>
 
-        {categories.map((cat, i) => (
-          <CategorySection
-            key={cat}
-            cat={cat}
-            badges={badgeDefinitions.filter((b) => b.category === cat)}
-            value={getValue(cat)}
-            index={i}
+        <div className="rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row items-center gap-6" style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}>
+          <ProgressRing percent={overallPercent} size={100} />
+          <div className="text-center sm:text-left flex-1">
+            <p className="text-white/80 text-xs uppercase tracking-wide">Collection de badges</p>
+            <p className="text-white text-3xl sm:text-4xl font-bold mt-1">{unlockedCount}<span className="text-lg text-white/70 font-normal"> / {totalCount} débloqués</span></p>
+            <p className="text-white/70 text-xs mt-2">{stats.streak > 0 ? `Série en cours : ${stats.streak} jour${stats.streak > 1 ? 's' : ''}` : 'Enregistre une activité pour démarrer ta série'}</p>
+          </div>
+        </div>
+
+        {nextUpBadges.length > 0 && (
+          <div>
+            <p className="text-white/40 text-xs uppercase tracking-wide mb-3">Prochains à débloquer</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {nextUpBadges.map(({ badge, value }) => (
+                <NextUpCard key={badge.id} badge={badge} value={value} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div>
+          <p className="text-white/40 text-xs uppercase tracking-wide mb-3">Catégories</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+            {categories.map((cat) => {
+              const active = activeTab === cat;
+              const catBadges = badgeDefinitions.filter((b) => b.category === cat);
+              const catUnlocked = catBadges.filter(isUnlocked).length;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setActiveTab(cat)}
+                  className="flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all"
+                  style={active
+                    ? { backgroundColor: `${ACCENT}17`, borderColor: `${ACCENT}80` }
+                    : { backgroundColor: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" style={{ color: active ? ACCENT : 'rgba(255,255,255,0.4)' }}>
+                    {categoryIcons[cat]}
+                  </svg>
+                  <p className="text-xs font-medium text-center" style={{ color: active ? '#fff' : 'rgba(255,255,255,0.55)' }}>{categoryLabels[cat]}</p>
+                  <p className="text-[10px]" style={{ color: active ? ACCENT : 'rgba(255,255,255,0.3)' }}>{catUnlocked}/{catBadges.length}</p>
+                </button>
+              );
+            })}
+          </div>
+
+          <CategoryExplorer
+            cat={activeTab}
+            badges={badgeDefinitions.filter((b) => b.category === activeTab)}
+            value={getValue(activeTab)}
           />
-        ))}
+        </div>
 
       </div>
 
@@ -2111,6 +3081,197 @@ function Badges() {
 }
 
 export default Badges;
+</file>
+
+<file path="frontend/src/pages/Courses.jsx">
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { apiFetch } from '../utils/api';
+import PageLoader from '../components/PageLoader';
+import EmptyState from '../components/EmptyState';
+
+const ACCENT = '#f86635';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+function Courses() {
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const token = localStorage.getItem('token');
+
+  useEffect(() => {
+    if (!token) { setLoading(false); return; }
+    apiFetch(`${API_URL}/api/courses`)
+      .then((r) => r.json())
+      .then((data) => {
+        setCourses(data);
+        setLoading(false);
+      });
+  }, [token]);
+
+  if (loading) return <PageLoader />;
+
+  if (!token) {
+    return (
+      <div className="bg-black min-h-screen flex flex-col items-center justify-center p-6 text-center">
+        <span className="text-4xl mb-4">🔒</span>
+        <h1 className="text-xl font-semibold text-white mb-2">Connecte-toi pour voir les cours</h1>
+        <a href="/login" className="text-white px-5 py-2.5 rounded-lg font-medium mt-2" style={{ backgroundColor: ACCENT }}>
+          Se connecter
+        </a>
+      </div>
+    );
+  }
+
+  const totalScore = courses.reduce((sum, c) => sum + (c.best_score || 0), 0);
+  const totalMax = courses.reduce((sum, c) => sum + (c.max_score || 0), 0);
+  const completedCount = courses.filter((c) => c.completed).length;
+  const progressPercent = courses.length > 0 ? Math.round((completedCount / courses.length) * 100) : 0;
+
+  return (
+    <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
+      <div className="max-w-6xl mx-auto flex flex-col gap-6">
+
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-semibold text-white">Formation</h1>
+            <p className="text-white/40 text-sm mt-1">Suis les cours et gagne des points d'apprentissage</p>
+          </div>
+
+          <div className="flex items-center gap-4 bg-white/5 border border-white/10 rounded-2xl px-5 py-3 shrink-0">
+            <div>
+              <p className="text-white/40 text-[11px] uppercase tracking-wide">Points gagnés</p>
+              <p className="text-xl font-semibold" style={{ color: ACCENT }}>{totalScore}<span className="text-white/30 text-sm font-normal"> / {totalMax}</span></p>
+            </div>
+            <div className="w-px h-9 bg-white/10" />
+            <div>
+              <p className="text-white/40 text-[11px] uppercase tracking-wide">Complétés</p>
+              <p className="text-xl font-semibold text-white">{completedCount}<span className="text-white/30 text-sm font-normal"> / {courses.length}</span></p>
+            </div>
+            <div className="w-11 h-11 rounded-full shrink-0 relative flex items-center justify-center">
+              <svg width="44" height="44" className="-rotate-90">
+                <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="4" />
+                <circle
+                  cx="22" cy="22" r="18" fill="none" stroke={ACCENT} strokeWidth="4"
+                  strokeDasharray={`${(progressPercent / 100) * 113} 113`}
+                  strokeLinecap="round"
+                />
+              </svg>
+              <span className="absolute text-[10px] font-semibold text-white">{progressPercent}%</span>
+            </div>
+          </div>
+        </div>
+
+        {courses.length === 0 && (
+          <EmptyState
+            icon="🎓"
+            title="Aucune formation pour l'instant"
+            subtitle="Les cours ajoutés par l'admin apparaîtront ici dès qu'ils seront disponibles."
+          />
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+          {courses.map((course, i) => (
+            <Link
+              key={course.id}
+              to={`/courses/${course.id}`}
+              className="group bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-orange-400/50 hover:-translate-y-0.5 transition-all duration-200 flex flex-col"
+              style={{ animation: `fadeIn 0.4s ease ${i * 0.05}s both` }}
+            >
+              <div className="relative aspect-video bg-black/40 overflow-hidden">
+                {course.banner_url ? (
+                  <img
+                    src={course.banner_url}
+                    alt=""
+                    className="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-300"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-3xl text-white/15">🎓</div>
+                )}
+                {course.completed && (
+                  <span
+                    className="absolute top-3 right-3 text-[10px] font-semibold px-2.5 py-1 rounded-full text-white backdrop-blur-sm"
+                    style={{ backgroundColor: `${ACCENT}dd` }}
+                  >
+                    Complété
+                  </span>
+                )}
+              </div>
+
+              <div className="p-4 flex-1 flex flex-col">
+                <p className="text-white font-medium leading-snug">{course.title}</p>
+                <p className="text-white/40 text-sm mt-1 line-clamp-2 flex-1">{course.description}</p>
+                {course.completed ? (
+                  <p className="text-xs mt-3 font-medium" style={{ color: ACCENT }}>
+                    Score : {course.best_score} / {course.max_score} points
+                  </p>
+                ) : (
+                  <p className="text-xs mt-3 text-white/30">Pas encore commencé</p>
+                )}
+              </div>
+            </Link>
+          ))}
+        </div>
+
+      </div>
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+      `}</style>
+    </div>
+  );
+}
+
+export default Courses;
+</file>
+
+<file path="frontend/src/utils/api.js">
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+const cache = new Map();
+const CACHE_TTL = 30000; // 30 secondes
+
+export async function apiFetch(url, options = {}) {
+  const token = localStorage.getItem('token');
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const method = (options.method || 'GET').toUpperCase();
+  const isGet = method === 'GET';
+
+  // Si on a déjà cette donnée en mémoire depuis moins de 30s, on la renvoie
+  // directement, sans repasser par le serveur.
+  if (isGet) {
+    const cached = cache.get(url);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return { ok: true, status: 200, json: async () => cached.data };
+    }
+  }
+
+  const res = await fetch(url, { ...options, headers });
+
+  if (res.status === 401) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+    return res;
+  }
+
+  if (isGet && res.ok) {
+    // On sauvegarde la réponse pour la prochaine fois.
+    res.clone().json().then((data) => {
+      cache.set(url, { data, timestamp: Date.now() });
+    }).catch(() => {});
+  } else if (!isGet && res.ok) {
+    // Dès qu'on crée/modifie/supprime quelque chose, tout le cache est vidé
+    // pour être sûr de ne jamais réafficher une donnée obsolète.
+    cache.clear();
+  }
+
+  return res;
+}
+
+export { API_URL };
 </file>
 
 <file path="backend/routes/auth.js">
@@ -2704,6 +3865,118 @@ function Signup() {
 export default Signup;
 </file>
 
+<file path="frontend/src/pages/Login.jsx">
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import yealeadLogo from '../assets/yealead.png';
+import Spinner from '../components/Spinner';
+
+const ACCENT = '#f86635';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+function Login() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error); setLoading(false); return; }
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      navigate('/');
+    } catch (err) {
+      setError('Erreur de connexion');
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-black flex items-center justify-center p-4 relative">
+      <button
+        onClick={() => navigate(-1)}
+        className="absolute top-6 left-6 text-white/50 hover:text-white text-sm flex items-center gap-1 transition-colors"
+      >
+        ← Retour
+      </button>
+
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-8 max-w-sm w-full animate-[popIn_0.3s_ease]">
+        <img src={yealeadLogo} alt="Yealead" className="w-10 h-10 mx-auto mb-4" />
+        <h1 className="text-xl font-semibold text-black mb-1 text-center">Connexion</h1>
+        <p className="text-black/50 text-sm mb-6 text-center">Accède à ton espace SalesTrack</p>
+
+        {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
+
+        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
+          className="w-full p-3 rounded-lg border border-black/15 mb-3 outline-none focus:border-orange-500 transition-colors" />
+        <input type="password" placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)}
+          className="w-full p-3 rounded-lg border border-black/15 mb-4 outline-none focus:border-orange-500 transition-colors" />
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full text-white p-3 rounded-lg font-medium hover:brightness-110 active:scale-95 transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+          style={{ backgroundColor: ACCENT }}
+        >
+          {loading && <Spinner size={16} color="#fff" />}
+          {loading ? 'Connexion...' : 'Se connecter'}
+        </button>
+        <p className="text-center text-sm text-black/50 mt-4">
+          Pas de compte ? <Link to="/signup" style={{ color: ACCENT }} className="font-medium">S'inscrire</Link>
+        </p>
+      </form>
+      <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>
+    </div>
+  );
+}
+
+export default Login;
+</file>
+
+<file path="backend/index.js">
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const activitiesRoutes = require('./routes/activities');
+const profileRoutes = require('./routes/profile');
+const coursesRoutes = require('./routes/courses');
+const adminRoutes = require('./routes/admin');
+const rewardsRoutes = require('./routes/rewards');
+
+const app = express();
+
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
+
+app.use('/api/activities', activitiesRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/courses', coursesRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/rewards', rewardsRoutes);
+
+app.get('/', (req, res) => {
+  res.send('API Commercial Tracker fonctionne');
+});
+
+const authRoutes = require('./routes/auth');
+app.use('/api/auth', authRoutes);
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Serveur démarré sur http://localhost:${PORT}`);
+});
+</file>
+
 <file path="backend/routes/admin.js">
 const express = require('express');
 const router = express.Router();
@@ -2759,14 +4032,14 @@ router.get('/courses/:id', async (req, res) => {
 });
 
 router.post('/courses', async (req, res) => {
-  const { title, description, content_type, content_url, duration_minutes, banner_url } = req.body;
+  const { title, description, content_type, content_url, content_text, duration_minutes, banner_url } = req.body;
   if (!title) return res.status(400).json({ error: 'Le titre est obligatoire' });
 
   try {
     const result = await pool.query(
-      `INSERT INTO courses (title, description, content_type, content_url, duration_minutes, banner_url)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [title, description || null, content_type || 'pdf', content_url || null, duration_minutes || null, banner_url || null]
+      `INSERT INTO courses (title, description, content_type, content_url, content_text, duration_minutes, banner_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [title, description || null, content_type || 'pdf', content_url || null, content_text || null, duration_minutes || null, banner_url || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -2776,7 +4049,7 @@ router.post('/courses', async (req, res) => {
 });
 
 router.put('/courses/:id', async (req, res) => {
-  const { title, description, content_type, content_url, duration_minutes, banner_url } = req.body;
+  const { title, description, content_type, content_url, content_text, duration_minutes, banner_url } = req.body;
   try {
     const result = await pool.query(
       `UPDATE courses SET
@@ -2784,10 +4057,11 @@ router.put('/courses/:id', async (req, res) => {
         description = COALESCE($2, description),
         content_type = COALESCE($3, content_type),
         content_url = COALESCE($4, content_url),
-        duration_minutes = COALESCE($5, duration_minutes),
-        banner_url = COALESCE($6, banner_url)
-       WHERE id = $7 RETURNING *`,
-      [title, description, content_type, content_url, duration_minutes, banner_url, req.params.id]
+        content_text = COALESCE($5, content_text),
+        duration_minutes = COALESCE($6, duration_minutes),
+        banner_url = COALESCE($7, banner_url)
+       WHERE id = $8 RETURNING *`,
+      [title, description, content_type, content_url, content_text, duration_minutes, banner_url, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Cours introuvable' });
     res.json(result.rows[0]);
@@ -2846,6 +4120,30 @@ router.delete('/questions/:id', async (req, res) => {
   try {
     await pool.query('DELETE FROM quiz_questions WHERE id = $1', [req.params.id]);
     res.json({ message: 'Question supprimée' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.put('/questions/:id', async (req, res) => {
+  const { question, points, options } = req.body;
+  if (!question || !options || options.length < 2) {
+    return res.status(400).json({ error: 'Question et au moins 2 options requises' });
+  }
+  const hasCorrect = options.some((o) => o.is_correct);
+  if (!hasCorrect) return res.status(400).json({ error: 'Une réponse correcte doit être sélectionnée' });
+
+  try {
+    await pool.query('UPDATE quiz_questions SET question = $1, points = $2 WHERE id = $3', [question, points || 10, req.params.id]);
+    await pool.query('DELETE FROM quiz_options WHERE question_id = $1', [req.params.id]);
+    for (const opt of options) {
+      await pool.query(
+        'INSERT INTO quiz_options (question_id, option_text, is_correct) VALUES ($1, $2, $3)',
+        [req.params.id, opt.option_text, !!opt.is_correct]
+      );
+    }
+    res.json({ message: 'Question mise à jour' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -3014,117 +4312,63 @@ router.get('/odoo-stats', async (req, res) => {
   }
 });
 
+router.get('/rewards', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM rewards ORDER BY cost ASC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.post('/rewards', async (req, res) => {
+  const { title, description, cost, image_url } = req.body;
+  if (!title || !cost) return res.status(400).json({ error: 'Titre et coût obligatoires' });
+
+  try {
+    const result = await pool.query(
+      'INSERT INTO rewards (title, description, cost, image_url) VALUES ($1, $2, $3, $4) RETURNING *',
+      [title, description || null, cost, image_url || null]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.put('/rewards/:id', async (req, res) => {
+  const { title, description, cost, image_url } = req.body;
+  try {
+    const result = await pool.query(
+      `UPDATE rewards SET
+        title = COALESCE($1, title),
+        description = COALESCE($2, description),
+        cost = COALESCE($3, cost),
+        image_url = COALESCE($4, image_url)
+       WHERE id = $5 RETURNING *`,
+      [title, description, cost, image_url, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Récompense introuvable' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.delete('/rewards/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM rewards WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Récompense supprimée' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 module.exports = router;
-</file>
-
-<file path="backend/index.js">
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const activitiesRoutes = require('./routes/activities');
-const profileRoutes = require('./routes/profile');
-const coursesRoutes = require('./routes/courses');
-const adminRoutes = require('./routes/admin');
-
-const app = express();
-
-app.use(cors());
-app.use(express.json({ limit: '10mb' }));
-
-app.use('/api/activities', activitiesRoutes);
-app.use('/api/profile', profileRoutes);
-app.use('/api/courses', coursesRoutes);
-app.use('/api/admin', adminRoutes);
-
-app.get('/', (req, res) => {
-  res.send('API Commercial Tracker fonctionne');
-});
-
-const authRoutes = require('./routes/auth');
-app.use('/api/auth', authRoutes);
-
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Serveur démarré sur http://localhost:${PORT}`);
-});
-</file>
-
-<file path="frontend/src/pages/Login.jsx">
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import yealeadLogo from '../assets/yealead.png';
-import Spinner from '../components/Spinner';
-
-const ACCENT = '#f86635';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      const res = await fetch(`${API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error); setLoading(false); return; }
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      navigate('/');
-    } catch (err) {
-      setError('Erreur de connexion');
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4 relative">
-      <button
-        onClick={() => navigate(-1)}
-        className="absolute top-6 left-6 text-white/50 hover:text-white text-sm flex items-center gap-1 transition-colors"
-      >
-        ← Retour
-      </button>
-
-      <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-8 max-w-sm w-full animate-[popIn_0.3s_ease]">
-        <img src={yealeadLogo} alt="Yealead" className="w-10 h-10 mx-auto mb-4" />
-        <h1 className="text-xl font-semibold text-black mb-1 text-center">Connexion</h1>
-        <p className="text-black/50 text-sm mb-6 text-center">Accède à ton espace SalesTrack</p>
-
-        {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
-
-        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
-          className="w-full p-3 rounded-lg border border-black/15 mb-3 outline-none focus:border-orange-500 transition-colors" />
-        <input type="password" placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)}
-          className="w-full p-3 rounded-lg border border-black/15 mb-4 outline-none focus:border-orange-500 transition-colors" />
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full text-white p-3 rounded-lg font-medium hover:brightness-110 active:scale-95 transition-all disabled:opacity-70 flex items-center justify-center gap-2"
-          style={{ backgroundColor: ACCENT }}
-        >
-          {loading && <Spinner size={16} color="#fff" />}
-          {loading ? 'Connexion...' : 'Se connecter'}
-        </button>
-        <p className="text-center text-sm text-black/50 mt-4">
-          Pas de compte ? <Link to="/signup" style={{ color: ACCENT }} className="font-medium">S'inscrire</Link>
-        </p>
-      </form>
-      <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>
-    </div>
-  );
-}
-
-export default Login;
 </file>
 
 <file path="frontend/src/pages/Profile.jsx">
@@ -3512,500 +4756,6 @@ function Profile() {
 export default Profile;
 </file>
 
-<file path="frontend/src/pages/CourseDetail.jsx">
-import { useEffect, useState, useRef, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import * as pdfjsLib from 'pdfjs-dist';
-import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
-import { apiFetch } from '../utils/api';
-import PageLoader from '../components/PageLoader';
-import Spinner from '../components/Spinner';
-import Confetti from '../components/Confetti';
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
-
-const ACCENT = '#f86635';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-function PdfCanvasPage({ pdfDoc, pageNum, containerWidth, zoom }) {
-  const canvasRef = useRef(null);
-
-  useEffect(() => {
-    let renderTask = null;
-    let cancelled = false;
-    if (!pdfDoc || !containerWidth) return;
-
-    pdfDoc.getPage(pageNum).then((page) => {
-      if (cancelled) return;
-
-      // 1. Détecter la densité de pixels de l'écran mobile (Retina = 2x ou 3x)
-      const dpr = Math.min(window.devicePixelRatio || 1, 3);
-
-      // 2. Calcul de l'échelle d'affichage de base
-      const baseViewport = page.getViewport({ scale: 1 });
-      const cssScale = (containerWidth / baseViewport.width) * zoom;
-
-      // 3. Viewport haute résolution pour le moteur de rendu
-      const renderViewport = page.getViewport({ scale: cssScale * dpr });
-
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const context = canvas.getContext('2d', { alpha: false });
-
-      // 4. Dimensions réelles (buffer HD)
-      canvas.width = Math.floor(renderViewport.width);
-      canvas.height = Math.floor(renderViewport.height);
-
-      // 5. Dimensions CSS (affichage à l'écran)
-      canvas.style.width = `${Math.floor(baseViewport.width * cssScale)}px`;
-      canvas.style.height = 'auto';
-
-      renderTask = page.render({
-        canvasContext: context,
-        viewport: renderViewport,
-      });
-
-      renderTask.promise.catch((err) => {
-        if (err?.name !== 'RenderingCancelledException') {
-          console.error(err);
-        }
-      });
-    });
-
-    return () => {
-      cancelled = true;
-      if (renderTask) renderTask.cancel();
-    };
-  }, [pdfDoc, pageNum, containerWidth, zoom]);
-
-  return <canvas ref={canvasRef} className="block mb-3 rounded-lg shadow-xl mx-auto bg-white" />;
-}
-
-function PdfViewer({ url }) {
-  const containerRef = useRef(null);
-  const wrapperRef = useRef(null);
-  const [pdfDoc, setPdfDoc] = useState(null);
-  const [numPages, setNumPages] = useState(0);
-  const [containerWidth, setContainerWidth] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [zoom, setZoom] = useState(1);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(false);
-    setErrorMsg('');
-    pdfjsLib.getDocument({ url, disableStream: true, disableRange: true }).promise
-      .then((doc) => {
-        if (cancelled) return;
-        setPdfDoc(doc);
-        setNumPages(doc.numPages);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error('Erreur PDF.js :', err);
-        if (!cancelled) {
-          setError(true);
-          setErrorMsg(err?.message || String(err));
-          setLoading(false);
-        }
-      });
-    return () => { cancelled = true; };
-  }, [url]);
-
-  const measure = useCallback(() => {
-    if (containerRef.current) {
-      setContainerWidth(containerRef.current.clientWidth - 16);
-    }
-  }, []);
-
-  useEffect(() => {
-    measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  }, [measure, isFullscreen]);
-
-  useEffect(() => {
-    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', onFsChange);
-    return () => document.removeEventListener('fullscreenchange', onFsChange);
-  }, []);
-
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      wrapperRef.current?.requestFullscreen?.();
-    } else {
-      document.exitFullscreen?.();
-    }
-  };
-
-  const handleDownload = () => {
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = '';
-    a.target = '_blank';
-    a.click();
-  };
-
-  const pages = Array.from({ length: numPages }, (_, i) => i + 1);
-
-  return (
-    <div
-      ref={wrapperRef}
-      className="flex-1 min-h-0 flex flex-col bg-[#0a0a0a] border border-white/10 rounded-xl overflow-hidden"
-      style={isFullscreen ? { backgroundColor: '#0a0a0a' } : undefined}
-    >
-      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-white/10 shrink-0 bg-[#0d0d0d]">
-        <span className="text-[11px] text-white/40">{numPages > 0 ? `${numPages} page${numPages > 1 ? 's' : ''}` : ''}</span>
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setZoom((z) => Math.max(0.6, +(z - 0.2).toFixed(1)))}
-            title="Réduire"
-            className="w-8 h-8 rounded-lg bg-black/60 border border-white/10 hover:border-white/30 text-white/80 hover:text-white flex items-center justify-center text-sm font-semibold transition-all cursor-pointer"
-          >
-            −
-          </button>
-          <button
-            onClick={() => setZoom(1)}
-            title="Taille standard"
-            className="px-2.5 h-8 rounded-lg bg-black/60 border border-white/10 hover:border-white/30 text-white/70 hover:text-white text-xs font-medium transition-all cursor-pointer"
-          >
-            {Math.round(zoom * 100)}%
-          </button>
-          <button
-            onClick={() => setZoom((z) => Math.min(2.5, +(z + 0.2).toFixed(1)))}
-            title="Agrandir"
-            className="w-8 h-8 rounded-lg bg-black/60 border border-white/10 hover:border-white/30 text-white/80 hover:text-white flex items-center justify-center text-sm font-semibold transition-all cursor-pointer"
-          >
-            +
-          </button>
-          <button
-            onClick={handleDownload}
-            title="Télécharger"
-            className="w-8 h-8 rounded-lg bg-black/60 border border-white/10 hover:border-white/30 text-white/80 hover:text-white flex items-center justify-center transition-all cursor-pointer ml-1"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-          </button>
-          <button
-            onClick={toggleFullscreen}
-            title={isFullscreen ? 'Quitter plein écran' : 'Plein écran'}
-            className="w-8 h-8 rounded-lg bg-black/60 border border-white/10 hover:border-white/30 text-white/80 hover:text-white flex items-center justify-center transition-all cursor-pointer"
-          >
-            {isFullscreen ? (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
-              </svg>
-            ) : (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M15 3h6v6m0-6-7 7M9 21H3v-6m0 6 7-7" />
-              </svg>
-            )}
-          </button>
-        </div>
-      </div>
-
-      <div
-        ref={containerRef}
-        className="flex-1 min-h-0 overflow-y-auto overflow-x-auto p-2"
-        style={{ scrollbarWidth: 'thin', scrollbarColor: `${ACCENT} #1a1a1a` }}
-      >
-        {loading && (
-          <div className="h-full flex flex-col items-center justify-center gap-3 py-16">
-            <Spinner size={28} color={ACCENT} />
-            <p className="text-xs text-white/50">Chargement du document...</p>
-          </div>
-        )}
-        {error && (
-          <div className="h-full flex flex-col items-center justify-center text-white/40 text-sm py-16 gap-2 px-4 text-center">
-            <p>Impossible d'afficher le document.</p>
-            <p className="text-white/25 text-xs break-all">{errorMsg}</p>
-          </div>
-        )}
-        {!loading && !error && pdfDoc && containerWidth > 0 && (
-          <div className="flex flex-col items-center min-w-max mx-auto">
-            {pages.map((p) => (
-              <PdfCanvasPage key={p} pdfDoc={pdfDoc} pageNum={p} containerWidth={containerWidth} zoom={zoom} />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function CourseDetail() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const token = localStorage.getItem('token');
-
-  const [course, setCourse] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [step, setStep] = useState('reading');
-  const [answers, setAnswers] = useState({});
-  // Stocke la correction reçue du serveur pour chaque question déjà répondue :
-  // { [questionId]: { correct: bool, correctOptionId: number } }
-  const [answerResults, setAnswerResults] = useState({});
-  const [checkingId, setCheckingId] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (!token) { navigate('/login'); return; }
-    apiFetch(`${API_URL}/api/courses/${id}`)
-      .then((r) => r.json())
-      .then((data) => {
-        setCourse(data);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, [id, token]);
-
-  const handleSelectAnswer = async (questionId, optionId) => {
-    if (answers[questionId] || checkingId) return;
-
-    setCheckingId(questionId);
-    // On fixe la réponse choisie tout de suite pour désactiver les boutons,
-    // le résultat (vert/rouge) arrive juste après via l'API.
-    setAnswers((prev) => ({ ...prev, [questionId]: optionId }));
-
-    try {
-      const res = await apiFetch(`${API_URL}/api/courses/questions/${questionId}/answer`, {
-        method: 'POST',
-        body: JSON.stringify({ optionId }),
-      });
-      const data = await res.json();
-      setAnswerResults((prev) => ({ ...prev, [questionId]: data }));
-    } catch (err) {
-      console.error(err);
-    }
-    setCheckingId(null);
-  };
-
-  const handleRestart = () => {
-    setAnswers({});
-    setAnswerResults({});
-    setResult(null);
-    setError('');
-    setStep('reading');
-  };
-
-  const allAnswered = course?.questions?.length > 0 && course.questions.every((q) => answers[q.id]);
-
-  const handleSubmit = async () => {
-    if (!allAnswered) {
-      setError('Réponds à toutes les questions avant de valider');
-      return;
-    }
-    setError('');
-    setSubmitting(true);
-    try {
-      const res = await apiFetch(`${API_URL}/api/courses/${id}/submit`, {
-        method: 'POST',
-        body: JSON.stringify({ answers }),
-      });
-      const data = await res.json();
-      setResult(data);
-      setStep('result');
-    } catch (err) {
-      setError('Erreur lors de la soumission');
-    }
-    setSubmitting(false);
-  };
-
-  if (loading) return <PageLoader />;
-  if (!course) return null;
-
-  const answeredCount = Object.keys(answers).length;
-  const totalQuestions = course.questions?.length || 0;
-
-  return (
-    <div className="bg-black text-white h-[calc(100dvh-64px)] overflow-hidden flex flex-col p-3 sm:p-5">
-      <div className="max-w-5xl w-full mx-auto flex-1 flex flex-col min-h-0 gap-2.5">
-        <div className="flex items-center justify-between gap-3 flex-wrap shrink-0">
-          <Link
-            to="/courses"
-            className="text-white/40 text-xs hover:text-white transition-colors inline-flex items-center gap-1.5"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-            Retour aux formations
-          </Link>
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-semibold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2.5 py-0.5 rounded-full">
-              Formation Yealead
-            </span>
-          </div>
-        </div>
-
-        {step === 'reading' && (
-          <div className="flex-1 flex flex-col min-h-0 gap-2.5 animate-[fadeIn_0.25s_ease]">
-            <div className="shrink-0">
-              <h1 className="text-base sm:text-lg font-bold text-white leading-tight">{course.title}</h1>
-              <p className="text-xs text-white/50 mt-0.5">{course.description}</p>
-            </div>
-
-            <PdfViewer url={course.content_url || '/Strategie-prescription.pdf'} />
-
-            <button
-              onClick={() => setStep('quiz')}
-              className="shrink-0 w-full text-white py-3 rounded-xl font-semibold text-sm transition-all hover:brightness-110 active:scale-[0.99] shadow-lg cursor-pointer flex items-center justify-center gap-2"
-              style={{ backgroundColor: ACCENT }}
-            >
-              <span>J'ai terminé la lecture, passer au quiz</span>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </button>
-          </div>
-        )}
-
-        {step === 'quiz' && (
-          <div className="flex-1 flex flex-col min-h-0 gap-3 animate-[fadeIn_0.25s_ease]">
-            <div className="flex items-center justify-between border-b border-white/10 pb-2 shrink-0">
-              <div>
-                <h1 className="text-base font-bold text-white">Quiz — {course.title}</h1>
-                <p className="text-[11px] text-white/40">{answeredCount} / {totalQuestions} questions répondues</p>
-              </div>
-              <button
-                onClick={handleRestart}
-                className="text-xs px-2.5 py-1 rounded-lg border border-white/15 text-white/60 hover:text-white transition-all cursor-pointer shrink-0"
-              >
-                Recommencer
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto space-y-4 pr-1" style={{ scrollbarWidth: 'thin' }}>
-              {course.questions.map((q, qi) => {
-                const selectedOptionId = answers[q.id];
-                const isAnswered = !!selectedOptionId;
-                const isChecking = checkingId === q.id;
-                const qResult = answerResults[q.id];
-
-                return (
-                  <div key={q.id} className="bg-[#0f0f0f] border border-white/10 rounded-xl p-4 transition-all">
-                    <div className="flex items-start justify-between gap-3 mb-3">
-                      <p className="text-white font-medium text-sm">
-                        <span className="text-white/40 mr-1.5">{qi + 1}.</span> {q.question}
-                      </p>
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-white/5 text-white/40 border border-white/10 shrink-0">
-                        {q.points} pts
-                      </span>
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      {q.options.map((opt) => {
-                        const isChosen = selectedOptionId === opt.id;
-                        // Le "vrai/faux" ne vient plus des données préchargées
-                        // (elles ne contiennent plus is_correct), mais de la
-                        // réponse du serveur reçue après le clic.
-                        const isCorrect = !!qResult && qResult.correctOptionId === opt.id;
-                        const showFeedback = isAnswered && !!qResult;
-
-                        let optionStyle = 'bg-black/60 border-white/10 text-white/80 hover:border-white/30 cursor-pointer';
-
-                        if (isAnswered && isChecking) {
-                          optionStyle = isChosen
-                            ? 'bg-white/10 border-white/30 text-white/80 cursor-default'
-                            : 'bg-black/30 border-white/5 text-white/25 cursor-default opacity-40';
-                        } else if (showFeedback) {
-                          if (isChosen) {
-                            optionStyle = isCorrect
-                              ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 font-medium cursor-default ring-1 ring-emerald-500'
-                              : 'bg-rose-950/60 border-rose-500 text-rose-300 font-medium cursor-default ring-1 ring-rose-500';
-                          } else if (isCorrect) {
-                            optionStyle = 'bg-emerald-950/30 border-emerald-500/70 text-emerald-400 font-medium cursor-default';
-                          } else {
-                            optionStyle = 'bg-black/30 border-white/5 text-white/25 cursor-default opacity-40';
-                          }
-                        }
-
-                        return (
-                          <button
-                            key={opt.id}
-                            disabled={isAnswered}
-                            onClick={() => handleSelectAnswer(q.id, opt.id)}
-                            className={`w-full text-left p-3 rounded-lg text-xs sm:text-sm border transition-all flex items-center justify-between gap-2 ${optionStyle}`}
-                          >
-                            <span>{opt.option_text}</span>
-                            {isChosen && isChecking && <Spinner size={13} color="#fff" />}
-                            {showFeedback && (
-                              <span className="shrink-0 text-xs font-semibold">
-                                {isChosen && isCorrect && '✓ Correct'}
-                                {isChosen && !isCorrect && '✕ Incorrect'}
-                                {!isChosen && isCorrect && '✓ Bonne réponse'}
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {error && <p className="text-red-400 text-xs text-center shrink-0">{error}</p>}
-
-            <button
-              onClick={handleSubmit}
-              disabled={!allAnswered || submitting}
-              className="shrink-0 w-full text-white py-3 rounded-xl font-semibold text-sm transition-all hover:brightness-110 active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-lg"
-              style={{ backgroundColor: ACCENT }}
-            >
-              {submitting && <Spinner size={15} color="#fff" />}
-              {submitting ? 'Validation...' : 'Valider mes réponses'}
-            </button>
-          </div>
-        )}
-
-        {step === 'result' && result && (
-          <div className="flex-1 flex flex-col items-center justify-center text-center bg-[#0c0c0c] border border-white/10 rounded-2xl p-6 animate-[fadeIn_0.25s_ease]">
-            <Confetti show={result.percent >= 70} />
-            <div
-              className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center text-2xl font-bold text-white shadow-xl"
-              style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}
-            >
-              {result.percent}%
-            </div>
-            <h2 className="text-xl font-bold text-white mb-1">
-              {result.percent >= 70 ? 'Félicitations !' : 'Score insuffisant'}
-            </h2>
-            <p className="text-white/50 text-xs mb-6">
-              Tu as obtenu {result.score} / {result.maxScore} points.
-            </p>
-            <div className="flex items-center justify-center gap-3">
-              <button
-                onClick={handleRestart}
-                className="text-xs px-5 py-2.5 rounded-xl text-white/80 border border-white/15 hover:text-white transition-all cursor-pointer"
-              >
-                Recommencer
-              </button>
-              <Link
-                to="/courses"
-                className="text-xs px-5 py-2.5 rounded-xl text-white font-semibold transition-all hover:brightness-110 shadow-lg"
-                style={{ backgroundColor: ACCENT }}
-              >
-                Retour aux formations
-              </Link>
-            </div>
-          </div>
-        )}
-      </div>
-      <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
-    </div>
-  );
-}
-
-export default CourseDetail;
-</file>
-
 <file path="backend/routes/activities.js">
 const express = require('express');
 const router = express.Router();
@@ -4352,10 +5102,10 @@ function Dashboard() {
 
   if (!token) {
     return (
-      <div className="bg-black min-h-screen flex flex-col items-center justify-center p-6 text-center">
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center" style={{ backgroundColor: 'var(--bg)' }}>
         <span className="text-4xl mb-4">🔒</span>
-        <h1 className="text-xl font-semibold text-white mb-2">Connecte-toi pour voir ton dashboard</h1>
-        <p className="text-white/40 text-sm mb-6">Tes statistiques personnelles apparaîtront ici</p>
+        <h1 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Connecte-toi pour voir ton dashboard</h1>
+        <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>Tes statistiques personnelles apparaîtront ici</p>
         <a href="/login" className="text-white px-5 py-2.5 rounded-lg font-medium" style={{ backgroundColor: ACCENT }}>
           Se connecter
         </a>
@@ -4364,15 +5114,15 @@ function Dashboard() {
   }
 
   return (
-    <div className="bg-black p-4 sm:p-6 pb-12">
+    <div className="p-4 sm:p-6 pb-12" style={{ backgroundColor: 'var(--bg)' }}>
       <div className="max-w-5xl mx-auto flex flex-col gap-5">
         <div>
-          <h1 className="text-lg sm:text-xl font-semibold text-white">Salut {prenom} 👋</h1>
-          <p className="text-white/40 text-sm">Voici ton activité récente</p>
+          <h1 className="text-lg sm:text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>Salut {prenom} 👋</h1>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Voici ton activité récente</p>
         </div>
 
-        <div className="bg-white/5 border border-white/10 rounded-xl p-4 sm:p-5">
-          <p className="text-sm text-white/50 mb-4">Objectifs du jour</p>
+        <div className="rounded-xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>Objectifs du jour</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {allTypes.map((type, i) => {
               const s = getStat(type);
@@ -4384,12 +5134,12 @@ function Dashboard() {
               return (
                 <div
                   key={type}
-                  className="bg-black/40 border border-white/10 rounded-xl p-3 flex flex-col items-center text-center hover:border-orange-400/40 transition-all"
-                  style={{ animation: `popIn 0.4s ease ${i * 0.06}s both` }}
+                  className="rounded-xl p-3 flex flex-col items-center text-center hover:border-orange-400/40 transition-all"
+                  style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)', animation: `popIn 0.4s ease ${i * 0.06}s both` }}
                 >
                   <div className="relative w-16 h-16 mb-2">
                     <svg viewBox="0 0 64 64" className="w-16 h-16 -rotate-90">
-                      <circle cx="32" cy="32" r="26" stroke="rgba(255,255,255,0.1)" strokeWidth="5" fill="none" />
+                      <circle cx="32" cy="32" r="26" stroke="var(--border)" strokeWidth="5" fill="none" />
                       <circle
                         cx="32" cy="32" r="26" stroke={ACCENT} strokeWidth="5" fill="none" strokeLinecap="round"
                         strokeDasharray={circumference}
@@ -4401,17 +5151,17 @@ function Dashboard() {
                       <img src={icons[type]} alt={type} className="w-5 h-5 opacity-80" />
                     </div>
                   </div>
-                  <p className="text-sm font-semibold text-white"><AnimatedNumber value={current} />/{target}</p>
-                  <p className="text-[11px] text-white/40">{labels[type]}</p>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}><AnimatedNumber value={current} />/{target}</p>
+                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{labels[type]}</p>
                 </div>
               );
             })}
           </div>
         </div>
 
-        <div className="bg-white/5 border border-white/10 rounded-xl p-4 sm:p-5">
-          <p className="text-sm text-white/50 mb-1">Activités par jour (7 derniers jours)</p>
-          <p className="text-xl sm:text-2xl font-semibold text-white mb-4">
+        <div className="rounded-xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>Activités par jour (7 derniers jours)</p>
+          <p className="text-xl sm:text-2xl font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
             {daily.reduce((sum, d) => sum + Number(d.total), 0)} activités
           </p>
           <LineChart data={daily} />
@@ -4426,9 +5176,445 @@ function Dashboard() {
 export default Dashboard;
 </file>
 
+<file path="frontend/src/pages/CourseDetail.jsx">
+import { useEffect, useState, useRef } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { apiFetch } from '../utils/api';
+import PageLoader from '../components/PageLoader';
+import Spinner from '../components/Spinner';
+import Confetti from '../components/Confetti';
+
+const ACCENT = '#f86635';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+function ScoreRing({ percent, size = 96 }) {
+  const r = (size - 10) / 2;
+  const circumference = 2 * Math.PI * r;
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="7" />
+        <circle
+          cx={size / 2} cy={size / 2} r={r} fill="none" stroke={ACCENT} strokeWidth="7"
+          strokeDasharray={`${(percent / 100) * circumference} ${circumference}`}
+          strokeLinecap="round"
+        />
+      </svg>
+      <span className="absolute text-xl font-semibold text-white">{percent}%</span>
+    </div>
+  );
+}
+
+function renderCourseContent(text) {
+  const lines = text.split('\n');
+  const blocks = [];
+  let currentList = null;
+
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      currentList = null;
+      return;
+    }
+    if (trimmed.startsWith('## ')) {
+      currentList = null;
+      blocks.push({ type: 'heading', text: trimmed.slice(3) });
+    } else if (trimmed.startsWith('- ')) {
+      if (!currentList) {
+        currentList = { type: 'list', items: [] };
+        blocks.push(currentList);
+      }
+      currentList.items.push(trimmed.slice(2));
+    } else {
+      currentList = null;
+      blocks.push({ type: 'paragraph', text: trimmed });
+    }
+  });
+
+  return blocks;
+}
+
+function CourseDetail() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const token = localStorage.getItem('token');
+
+  const [course, setCourse] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [step, setStep] = useState('reading');
+  const [answers, setAnswers] = useState({});
+  const [answerResults, setAnswerResults] = useState({});
+  const [checkingId, setCheckingId] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+  const [activeHeadingIndex, setActiveHeadingIndex] = useState(0);
+
+  useEffect(() => {
+    if (!token) { navigate('/login'); return; }
+    apiFetch(`${API_URL}/api/courses/${id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setCourse(data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [id, token]);
+
+  useEffect(() => {
+    if (step !== 'reading' || !course?.content_text) return;
+    const headingEls = document.querySelectorAll('[data-heading-id]');
+    if (headingEls.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveHeadingIndex(Number(entry.target.dataset.headingId));
+          }
+        });
+      },
+      { root: null, threshold: 0, rootMargin: '0px 0px -70% 0px' }
+    );
+    headingEls.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [step, course]);
+
+  const scrollToHeading = (id) => {
+    const el = document.querySelector(`[data-heading-id="${id}"]`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const handleSelectAnswer = async (questionId, optionId) => {
+    if (answers[questionId] || checkingId) return;
+
+    setCheckingId(questionId);
+    setAnswers((prev) => ({ ...prev, [questionId]: optionId }));
+
+    try {
+      const res = await apiFetch(`${API_URL}/api/courses/questions/${questionId}/answer`, {
+        method: 'POST',
+        body: JSON.stringify({ optionId }),
+      });
+      const data = await res.json();
+      setAnswerResults((prev) => ({ ...prev, [questionId]: data }));
+    } catch (err) {
+      console.error(err);
+    }
+    setCheckingId(null);
+  };
+
+  const handleRestart = () => {
+    setAnswers({});
+    setAnswerResults({});
+    setResult(null);
+    setError('');
+    setStep('reading');
+  };
+
+  const allAnswered = course?.questions?.length > 0 && course.questions.every((q) => answers[q.id]);
+
+  const handleSubmit = async () => {
+    if (!allAnswered) {
+      setError('Réponds à toutes les questions avant de valider');
+      return;
+    }
+    setError('');
+    setSubmitting(true);
+    try {
+      const res = await apiFetch(`${API_URL}/api/courses/${id}/submit`, {
+        method: 'POST',
+        body: JSON.stringify({ answers }),
+      });
+      const data = await res.json();
+      setResult(data);
+      setStep('result');
+    } catch (err) {
+      setError('Erreur lors de la soumission');
+    }
+    setSubmitting(false);
+  };
+
+  if (loading) return <PageLoader />;
+  if (!course) return null;
+
+  const contentBlocks = course.content_text ? renderCourseContent(course.content_text) : [];
+  const headings = contentBlocks.map((b, i) => ({ ...b, index: i })).filter((b) => b.type === 'heading');
+
+  const answeredCount = Object.keys(answers).length;
+  const totalQuestions = course.questions?.length || 0;
+
+  return (
+    <div className={`bg-black text-white flex flex-col ${step === 'reading' ? 'min-h-[calc(100vh-64px)]' : 'h-[calc(100dvh-64px)] overflow-hidden'}`}>
+
+      {step === 'reading' && (
+        <div className="max-w-5xl w-full mx-auto flex-1 flex flex-col gap-4 p-4 sm:p-6">
+          <Link
+            to="/courses"
+            className="text-white/40 text-xs hover:text-white transition-colors inline-flex items-center gap-1.5 shrink-0"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            Retour aux formations
+          </Link>
+
+          {/* Carte d'info compacte : petite image + titre/description/meta */}
+          <div className="flex flex-col sm:flex-row gap-4 bg-white/5 border border-white/10 rounded-2xl p-4 shrink-0">
+            <div className="w-full sm:w-48 aspect-video rounded-xl overflow-hidden bg-black shrink-0">
+              {course.banner_url ? (
+                <img
+                  src={course.banner_url}
+                  alt=""
+                  className="w-full h-full object-cover"
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-2xl text-white/15">🎓</div>
+              )}
+            </div>
+            <div className="flex-1 flex flex-col justify-center min-w-0">
+              <span className="text-[11px] font-semibold text-orange-400 mb-1.5">Formation Yealead</span>
+              <h1 className="text-lg sm:text-xl font-bold text-white leading-tight">{course.title}</h1>
+              {course.description && <p className="text-white/50 text-sm mt-1.5">{course.description}</p>}
+              {course.duration_minutes && (
+                <span className="text-[11px] font-medium text-white/50 bg-white/5 border border-white/10 px-2.5 py-1 rounded-full w-fit mt-3">
+                  {course.duration_minutes} min de lecture
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Grille : contenu + sommaire, chacun dans sa propre carte */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_240px] gap-4 items-start">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-7">
+              {course.content_text ? (
+                <div>
+                  {contentBlocks.map((block, i) => {
+                    if (block.type === 'heading') {
+                      return (
+                        <h2 key={i} data-heading-id={i} className="text-white font-semibold text-base sm:text-lg mt-7 mb-3 first:mt-0 pb-2 border-b border-white/10 scroll-mt-6">
+                          {block.text}
+                        </h2>
+                      );
+                    }
+                    if (block.type === 'list') {
+                      return (
+                        <ul key={i} className="flex flex-col gap-2 mb-4">
+                          {block.items.map((item, ii) => (
+                            <li key={ii} className="flex items-start gap-2.5 text-sm text-white/70 leading-relaxed">
+                              <span className="w-1.5 h-1.5 rounded-full mt-2 shrink-0" style={{ backgroundColor: ACCENT }} />
+                              {item}
+                            </li>
+                          ))}
+                        </ul>
+                      );
+                    }
+                    return (
+                      <p key={i} className="text-sm text-white/70 leading-relaxed mb-4">
+                        {block.text}
+                      </p>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-white/30 text-sm text-center py-10">Aucun contenu disponible pour ce cours.</p>
+              )}
+
+              <button
+                onClick={() => setStep('quiz')}
+                className="w-full text-white py-3 rounded-xl font-semibold text-sm transition-all hover:brightness-110 active:scale-[0.99] shadow-lg cursor-pointer flex items-center justify-center gap-2 mt-6"
+                style={{ backgroundColor: ACCENT }}
+              >
+                <span>J'ai terminé la lecture, passer au quiz</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+            </div>
+
+            {headings.length > 0 && (
+              <aside className="bg-white/5 border border-white/10 rounded-2xl p-5 lg:sticky lg:top-6">
+                <p className="text-white/30 text-[11px] uppercase tracking-wide mb-4">Sommaire</p>
+                <nav className="relative flex flex-col gap-5">
+                  <div className="absolute left-[5px] top-1.5 bottom-1.5 w-px bg-white/10" />
+                  {headings.map((h) => {
+                    const isActive = activeHeadingIndex === h.index;
+                    const isPast = h.index < activeHeadingIndex;
+                    return (
+                      <button
+                        key={h.index}
+                        onClick={() => scrollToHeading(h.index)}
+                        className="relative flex items-start gap-3 text-left"
+                      >
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0 mt-1 transition-all"
+                          style={{
+                            backgroundColor: isActive || isPast ? ACCENT : '#1a1a1a',
+                            border: isActive || isPast ? 'none' : '1px solid rgba(255,255,255,0.2)',
+                            boxShadow: isActive ? `0 0 0 4px ${ACCENT}33` : 'none',
+                          }}
+                        />
+                        <span
+                          className="text-xs leading-snug transition-colors"
+                          style={{ color: isActive ? '#fff' : isPast ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.35)', fontWeight: isActive ? 600 : 400 }}
+                        >
+                          {h.text}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </nav>
+              </aside>
+            )}
+          </div>
+        </div>
+      )}
+
+      {step === 'quiz' && (
+        <div className="max-w-3xl w-full mx-auto flex-1 flex flex-col min-h-0 gap-4 p-4 sm:p-6">
+          <div className="shrink-0">
+            <div className="flex items-center justify-between mb-2">
+              <h1 className="text-base sm:text-lg font-bold text-white">Quiz — {course.title}</h1>
+              <button
+                onClick={handleRestart}
+                className="text-xs px-2.5 py-1 rounded-lg border border-white/15 text-white/60 hover:text-white transition-all cursor-pointer shrink-0"
+              >
+                Recommencer
+              </button>
+            </div>
+            <div className="flex gap-1.5">
+              {course.questions.map((q) => (
+                <div
+                  key={q.id}
+                  className="h-1.5 flex-1 rounded-full transition-colors"
+                  style={{ backgroundColor: answers[q.id] ? ACCENT : 'rgba(255,255,255,0.1)' }}
+                />
+              ))}
+            </div>
+            <p className="text-[11px] text-white/40 mt-1.5">{answeredCount} / {totalQuestions} questions répondues</p>
+          </div>
+
+          <div className="flex-1 overflow-y-auto space-y-4 pr-1" style={{ scrollbarWidth: 'thin' }}>
+            {course.questions.map((q, qi) => {
+              const selectedOptionId = answers[q.id];
+              const isAnswered = !!selectedOptionId;
+              const isChecking = checkingId === q.id;
+              const qResult = answerResults[q.id];
+
+              return (
+                <div key={q.id} className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-5 transition-all">
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <p className="text-white font-medium text-sm">
+                      <span className="text-white/40 mr-1.5">{qi + 1}.</span> {q.question}
+                    </p>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-white/5 text-white/40 border border-white/10 shrink-0">
+                      {q.points} pts
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    {q.options.map((opt) => {
+                      const isChosen = selectedOptionId === opt.id;
+                      const isCorrect = !!qResult && qResult.correctOptionId === opt.id;
+                      const showFeedback = isAnswered && !!qResult;
+
+                      let optionStyle = 'bg-black/60 border-white/10 text-white/80 hover:border-white/30 cursor-pointer';
+
+                      if (isAnswered && isChecking) {
+                        optionStyle = isChosen
+                          ? 'bg-white/10 border-white/30 text-white/80 cursor-default'
+                          : 'bg-black/30 border-white/5 text-white/25 cursor-default opacity-40';
+                      } else if (showFeedback) {
+                        if (isChosen) {
+                          optionStyle = isCorrect
+                            ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 font-medium cursor-default ring-1 ring-emerald-500'
+                            : 'bg-rose-950/60 border-rose-500 text-rose-300 font-medium cursor-default ring-1 ring-rose-500';
+                        } else if (isCorrect) {
+                          optionStyle = 'bg-emerald-950/30 border-emerald-500/70 text-emerald-400 font-medium cursor-default';
+                        } else {
+                          optionStyle = 'bg-black/30 border-white/5 text-white/25 cursor-default opacity-40';
+                        }
+                      }
+
+                      return (
+                        <button
+                          key={opt.id}
+                          disabled={isAnswered}
+                          onClick={() => handleSelectAnswer(q.id, opt.id)}
+                          className={`w-full text-left p-3.5 rounded-xl text-xs sm:text-sm border transition-all flex items-center justify-between gap-2 ${optionStyle}`}
+                        >
+                          <span>{opt.option_text}</span>
+                          {isChosen && isChecking && <Spinner size={13} color="#fff" />}
+                          {showFeedback && (
+                            <span className="shrink-0 text-xs font-semibold">
+                              {isChosen && isCorrect && '✓ Correct'}
+                              {isChosen && !isCorrect && '✕ Incorrect'}
+                              {!isChosen && isCorrect && '✓ Bonne réponse'}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {error && <p className="text-red-400 text-xs text-center shrink-0">{error}</p>}
+
+          <button
+            onClick={handleSubmit}
+            disabled={!allAnswered || submitting}
+            className="shrink-0 w-full text-white py-3.5 rounded-xl font-semibold text-sm transition-all hover:brightness-110 active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+            style={{ backgroundColor: ACCENT }}
+          >
+            {submitting && <Spinner size={15} color="#fff" />}
+            {submitting ? 'Validation...' : 'Valider mes réponses'}
+          </button>
+        </div>
+      )}
+
+      {step === 'result' && result && (
+        <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
+          <Confetti show={result.percent >= 70} />
+          <ScoreRing percent={result.percent} size={110} />
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-1 mt-5">
+            {result.percent >= 70 ? 'Félicitations !' : 'Score insuffisant'}
+          </h2>
+          <p className="text-white/50 text-sm mb-8">
+            Tu as obtenu {result.score} / {result.maxScore} points.
+          </p>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={handleRestart}
+              className="text-xs px-5 py-2.5 rounded-xl text-white/80 border border-white/15 hover:text-white transition-all cursor-pointer"
+            >
+              Recommencer
+            </button>
+            <Link
+              to="/courses"
+              className="text-xs px-5 py-2.5 rounded-xl text-white font-semibold transition-all hover:brightness-110 shadow-lg"
+              style={{ backgroundColor: ACCENT }}
+            >
+              Retour aux formations
+            </Link>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+export default CourseDetail;
+</file>
+
 <file path="frontend/src/pages/Feed.jsx">
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../utils/api';
+import { compressImage } from '../utils/imageCompress';
 import Spinner from '../components/Spinner';
 import PageLoader from '../components/PageLoader';
 import phoneIcon from '../assets/Phone.png';
@@ -4494,22 +5680,18 @@ function ActivityCard({ activity, index, icons, onUpdate, onDelete }) {
     ? activity.description
     : `${activity.description.slice(0, 140)}...`;
 
-  const handleImageChange = (e) => {
+  const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Image trop lourde (max 5 Mo)');
-      return;
-    }
     setError('');
     setImageLoading(true);
-    const reader = new FileReader();
-    reader.onload = () => {
-      setImageUrl(reader.result);
-      setImageLoading(false);
-    };
-    reader.onerror = () => setImageLoading(false);
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImage(file, 1000, 0.7);
+      setImageUrl(compressed);
+    } catch (err) {
+      setError('Erreur lors du traitement de l\'image');
+    }
+    setImageLoading(false);
   };
 
   const handleSave = async () => {
@@ -4726,9 +5908,18 @@ function ActivityCard({ activity, index, icons, onUpdate, onDelete }) {
   );
 }
 
+const TYPE_FILTERS = [
+  { key: 'all', label: 'Tout' },
+  { key: 'appel', label: 'Appels' },
+  { key: 'rdv', label: 'Rendez-vous' },
+  { key: 'devis', label: 'Devis' },
+  { key: 'commande', label: 'Commandes' },
+];
+
 function Feed() {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
   const token = localStorage.getItem('token');
 
   const loadActivities = () => {
@@ -4770,26 +5961,95 @@ function Feed() {
     );
   }
 
+  const filteredActivities = filter === 'all' ? activities : activities.filter((a) => a.type === filter);
+
+  // Stats de la semaine, calculées côté client à partir de ce qui est déjà chargé
+  const now = new Date();
+  const weekAgo = new Date(now);
+  weekAgo.setDate(now.getDate() - 7);
+  const weekActivities = activities.filter((a) => new Date(a.date_activite) >= weekAgo);
+  const weekCounts = { appel: 0, rdv: 0, devis: 0, commande: 0 };
+  weekActivities.forEach((a) => {
+    weekCounts[a.type] = (weekCounts[a.type] || 0) + Number(a.nombre || 1);
+  });
+  const weekTotal = Object.values(weekCounts).reduce((sum, n) => sum + n, 0);
+
+  const typeLabels = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
+
   return (
-    <div className="bg-black p-4 sm:p-6 pb-12">
-      <div className="max-w-xl mx-auto">
+    <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
+      <div className="max-w-5xl mx-auto">
         <h1 className="text-xl font-semibold text-white mb-1">Feed</h1>
-        <p className="text-white/40 text-sm mb-6">Toutes tes activités, façon flux social</p>
+        <p className="text-white/40 text-sm mb-5">Toutes tes activités, façon flux social</p>
 
-        {activities.length === 0 && (
-          <EmptyState
-            icon="📭"
-            title="Ton feed est vide"
-            subtitle="Enregistre ta première activité et elle apparaîtra ici, comme un post."
-            actionLabel="Enregistrer une activité"
-            actionHref="/nouvelle-activite"
-          />
-        )}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6 items-start">
 
-        <div className="flex flex-col gap-4">
-          {activities.map((a, i) => (
-            <ActivityCard key={a.batch_id} activity={a} index={i} icons={icons} onUpdate={handleUpdate} onDelete={handleDelete} />
-          ))}
+          <div>
+            <div className="flex gap-2 overflow-x-auto pb-1 mb-4" style={{ scrollbarWidth: 'thin' }}>
+              {TYPE_FILTERS.map((f) => {
+                const active = filter === f.key;
+                return (
+                  <button
+                    key={f.key}
+                    onClick={() => setFilter(f.key)}
+                    className="px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all shrink-0"
+                    style={active
+                      ? { backgroundColor: ACCENT, color: '#fff' }
+                      : { backgroundColor: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.55)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  >
+                    {f.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {filteredActivities.length === 0 && (
+              <EmptyState
+                icon="📭"
+                title={filter === 'all' ? "Ton feed est vide" : "Aucune activité de ce type"}
+                subtitle={filter === 'all' ? "Enregistre ta première activité et elle apparaîtra ici, comme un post." : "Change de filtre ou enregistre une nouvelle activité de ce type."}
+                actionLabel={filter === 'all' ? "Enregistrer une activité" : undefined}
+                actionHref={filter === 'all' ? "/nouvelle-activite" : undefined}
+              />
+            )}
+
+            <div className="flex flex-col gap-4">
+              {filteredActivities.map((a, i) => (
+                <ActivityCard key={a.batch_id} activity={a} index={i} icons={icons} onUpdate={handleUpdate} onDelete={handleDelete} />
+              ))}
+            </div>
+          </div>
+
+          <aside className="hidden lg:flex flex-col gap-4 sticky top-6">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+              <p className="text-white/40 text-[11px] uppercase tracking-wide mb-1">Cette semaine</p>
+              <p className="text-2xl font-semibold text-white mb-3">{weekTotal} <span className="text-sm text-white/40 font-normal">activités</span></p>
+              <div className="flex flex-col gap-2.5">
+                {Object.keys(typeLabels).map((type) => (
+                  <div key={type} className="flex items-center gap-2.5">
+                    <img src={icons[type]} alt="" className="w-4 h-4 opacity-60 shrink-0" />
+                    <span className="text-xs text-white/60 flex-1">{typeLabels[type]}</span>
+                    <span className="text-xs font-semibold text-white">{weekCounts[type]}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+              <p className="text-white/40 text-[11px] uppercase tracking-wide mb-1">Total</p>
+              <p className="text-2xl font-semibold text-white">{activities.length} <span className="text-sm text-white/40 font-normal">activités</span></p>
+              <p className="text-[11px] text-white/30 mt-1">depuis le début</p>
+            </div>
+
+            <a
+              href="/nouvelle-activite"
+              className="text-center text-white text-sm font-medium py-3 rounded-2xl transition-all hover:brightness-110"
+              style={{ backgroundColor: ACCENT }}
+            >
+              + Nouvelle activité
+            </a>
+          </aside>
+
         </div>
       </div>
     </div>
@@ -4809,9 +6069,11 @@ import NouvelleActivite from './pages/NouvelleActivite';
 import Feed from './pages/Feed';
 import Profile from './pages/Profile';
 import Badges from './pages/Badges';
+import Rewards from './pages/Rewards';
 import Courses from './pages/Courses';
 import CourseDetail from './pages/CourseDetail';
 import AdminCourses from './pages/admin/AdminCourses';
+import AdminRewards from './pages/admin/AdminRewards';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminRoute from './components/AdminRoute';
 import Login from './pages/Login';
@@ -4882,10 +6144,12 @@ function App() {
         <Route path="/feed" element={<AppLayout><Feed /></AppLayout>} />
         <Route path="/profile" element={<AppLayout><Profile /></AppLayout>} />
         <Route path="/badges" element={<AppLayout><Badges /></AppLayout>} />
+        <Route path="/rewards" element={<AppLayout><Rewards /></AppLayout>} />
         <Route path="/courses" element={<AppLayout><Courses /></AppLayout>} />
         <Route path="/courses/:id" element={<AppLayout><CourseDetail /></AppLayout>} />
         <Route path="/admin" element={<AdminRoute><AppLayout><AdminDashboard /></AppLayout></AdminRoute>} />
         <Route path="/admin/courses" element={<AdminRoute><AppLayout><AdminCourses /></AppLayout></AdminRoute>} />
+        <Route path="/admin/rewards" element={<AdminRoute><AppLayout><AdminRewards /></AppLayout></AdminRoute>} />
       </Routes>
     </BrowserRouter>
   );
@@ -4895,13 +6159,14 @@ export default App;
 </file>
 
 <file path="frontend/src/components/Navbar.jsx">
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import yealeadLogo from '../assets/yealead.png';
-import addIcon from '../assets/add.png';
-import dashboardIcon from '../assets/dashboard.png';
-import feedIcon from '../assets/feed.png';
 import Spinner from './Spinner';
+import { Icon } from '../data/icons';
+import CoinIcon from './CoinIcon';
+import { apiFetch, API_URL } from '../utils/api';
+import { useTheme } from '../contexts/ThemeContext';
 
 const ACCENT = '#f86635';
 
@@ -4910,25 +6175,35 @@ function Navbar() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   const [loggingOut, setLoggingOut] = useState(false);
+  const [points, setPoints] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
-  const links = [
-    { path: '/nouvelle-activite', label: 'Nouvelle activité', icon: addIcon },
-    { path: '/', label: 'Dashboard', icon: dashboardIcon },
-    { path: '/feed', label: 'Feed', icon: feedIcon },
-    {
-      path: '/courses', label: 'Formation', svgIcon: (
-        <path d="M22 10v6M2 10l10-5 10 5-10 5-10-5Z M6 12v5c3 3 9 3 12 0v-5" />
-      ),
-    },
-    {
-      path: '/badges', label: 'Badges', svgIcon: (
-        <>
-          <circle cx="12" cy="8" r="6" />
-          <path d="M8.21 13.89L7 23l5-3 5 3-1.21-9.12" />
-        </>
-      ),
-    },
+  useEffect(() => {
+    if (!user) return;
+    apiFetch(`${API_URL}/api/rewards/balance`)
+      .then((r) => r.json())
+      .then((data) => setPoints(data.balance))
+      .catch(() => { });
+  }, [location.pathname]);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
+
+    const primaryLinks = [
+    { path: '/nouvelle-activite', label: 'Nouvelle activité', iconName: 'add' },
+    { path: '/', label: 'Dashboard', iconName: 'dashboard' },
+    { path: '/feed', label: 'Feed', iconName: 'feed' },
   ];
+
+  const secondaryLinks = [
+    { path: '/courses', label: 'Formation', iconName: 'formation' },
+    { path: '/badges', label: 'Badges', iconName: 'badges' },
+    { path: '/rewards', label: 'Récompenses', iconName: 'gift' },
+  ];
+
+  const links = [...primaryLinks, ...secondaryLinks];
 
   const handleLogout = () => {
     setLoggingOut(true);
@@ -4939,73 +6214,187 @@ function Navbar() {
     }, 300);
   };
 
+    const renderIcon = (link, active) => (
+    <Icon
+      name={link.iconName}
+      size={16}
+      className="shrink-0"
+      style={{ opacity: active ? 1 : 0.6 }}
+    />
+  );
+
   return (
-    <nav className="bg-black border-b border-white/10 px-3 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-20 gap-2">
-      <Link to="/nouvelle-activite" className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">
-        <img src={yealeadLogo} alt="Yealead" className="w-8 h-8 sm:w-9 sm:h-9 object-contain" />
-        <span className="text-white font-semibold text-base sm:text-lg hidden sm:inline">SalesTrack</span>
-      </Link>
+    <nav className="bg-black border-b border-white/10 sticky top-0 z-30">
+      <div className="px-3 sm:px-6 py-3 flex items-center justify-between gap-2">
+        <Link to="/nouvelle-activite" className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">
+          <img src={yealeadLogo} alt="Yealead" className="w-8 h-8 sm:w-9 sm:h-9 object-contain" />
+          <span className="text-white font-semibold text-base sm:text-lg hidden sm:inline">SalesTrack</span>
+        </Link>
 
-      <div className="flex gap-1 bg-white/5 rounded-full p-1 overflow-x-auto max-w-full">
-        {links.map((link) => {
-          const active = location.pathname === link.path;
-          return (
-            <Link
-              key={link.path}
-              to={link.path}
-              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-full text-xs sm:text-sm transition-all duration-200 whitespace-nowrap shrink-0"
-              style={active ? { backgroundColor: ACCENT, color: '#fff', fontWeight: 500, boxShadow: `0 0 16px ${ACCENT}66` } : { color: 'rgba(255,255,255,0.55)' }}
-              onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = '#fff'; }}
-              onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = 'rgba(255,255,255,0.55)'; }}
-            >
-              {link.icon ? (
-                <img src={link.icon} alt="" className="w-4 h-4 shrink-0" style={{ filter: active ? 'brightness(0) invert(1)' : 'brightness(0) invert(1) opacity(0.6)' }} />
-              ) : (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-                  {link.svgIcon}
-                </svg>
-              )}
-              <span className="hidden sm:inline">{link.label}</span>
-            </Link>
-          );
-        })}
-      </div>
+        {/* 3 liens principaux, visibles sur tous les écrans */}
+        <div className="flex gap-1 bg-white/5 rounded-full p-1 overflow-x-auto max-w-full">
+          {primaryLinks.map((link) => {
+            const active = location.pathname === link.path;
+            return (
+              <Link
+                key={link.path}
+                to={link.path}
+                className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-full text-xs sm:text-sm transition-all duration-200 whitespace-nowrap shrink-0"
+                style={active ? { backgroundColor: ACCENT, color: '#fff', fontWeight: 500, boxShadow: `0 0 16px ${ACCENT}66` } : { color: 'rgba(255,255,255,0.55)' }}
+                onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = '#fff'; }}
+                onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = 'rgba(255,255,255,0.55)'; }}
+              >
+                {renderIcon(link, active)}
+                <span className="hidden sm:inline">{link.label}</span>
+              </Link>
+            );
+          })}
+          {/* Les 3 autres liens réapparaissent ici seulement sur grand écran */}
+          {secondaryLinks.map((link) => {
+            const active = location.pathname === link.path;
+            return (
+              <Link
+                key={link.path}
+                to={link.path}
+                className="hidden md:flex items-center gap-2 px-4 py-2 rounded-full text-sm transition-all duration-200 whitespace-nowrap shrink-0"
+                style={active ? { backgroundColor: ACCENT, color: '#fff', fontWeight: 500, boxShadow: `0 0 16px ${ACCENT}66` } : { color: 'rgba(255,255,255,0.55)' }}
+                onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = '#fff'; }}
+                onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = 'rgba(255,255,255,0.55)'; }}
+              >
+                {renderIcon(link, active)}
+                <span>{link.label}</span>
+              </Link>
+            );
+          })}
+        </div>
 
-      {user ? (
         <div className="flex items-center gap-2 shrink-0">
-          <Link to="/profile" className="hover:opacity-80 transition-opacity">
-            {user.photo_url ? (
-              <img src={user.photo_url} alt="" className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover" />
-            ) : (
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden bg-white flex items-center justify-center p-1">
-                <img src={yealeadLogo} alt="Profil" className="w-full h-full object-contain" />
-              </div>
-            )}
-          </Link>
-          <button
-            onClick={handleLogout}
-            disabled={loggingOut}
-            className="w-8 h-8 sm:w-auto sm:h-auto flex items-center justify-center sm:px-3 sm:py-1.5 rounded-full border border-white/15 text-white/50 hover:text-white hover:border-white/30 transition-all disabled:opacity-60 gap-1.5 shrink-0"
-            aria-label="Déconnexion"
+                    <button
+            onClick={toggleTheme}
+            className="w-9 h-9 rounded-full border border-white/15 flex items-center justify-center text-white/70 hover:text-white transition-colors shrink-0"
+            aria-label="Changer de thème"
           >
-            {loggingOut ? (
-              <Spinner size={14} color="currentColor" />
+            {theme === 'dark' ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+              </svg>
             ) : (
-              <img src={yealeadLogo} alt="" className="w-4 h-4 object-contain" style={{ filter: 'brightness(0) invert(0.7)' }} />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z" />
+              </svg>
             )}
-            <span className="text-xs hidden sm:inline">{loggingOut ? '' : 'Déconnexion'}</span>
+          </button>
+
+          {user && points !== null && (
+            <Link
+              to="/rewards"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/5 border border-white/10 hover:border-white/20 transition-colors"
+            >
+              <CoinIcon size={16} />
+              <span className="text-white text-xs font-semibold">{points}</span>
+            </Link>
+          )}
+
+          {user ? (
+            <>
+              <Link to="/profile" className="hover:opacity-80 transition-opacity hidden sm:block">
+                {user.photo_url ? (
+                  <img src={user.photo_url} alt="" className="w-9 h-9 rounded-full object-cover" />
+                ) : (
+                  <div className="w-9 h-9 rounded-full overflow-hidden bg-white flex items-center justify-center p-1">
+                    <img src={yealeadLogo} alt="Profil" className="w-full h-full object-contain" />
+                  </div>
+                )}
+              </Link>
+              <button
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="hidden md:flex items-center justify-center px-3 py-1.5 rounded-full border border-white/15 text-white/50 hover:text-white hover:border-white/30 transition-all disabled:opacity-60 gap-1.5 shrink-0"
+                aria-label="Déconnexion"
+              >
+                {loggingOut ? <Spinner size={14} color="currentColor" /> : (
+                  <img src={yealeadLogo} alt="" className="w-4 h-4 object-contain" style={{ filter: 'brightness(0) invert(0.7)' }} />
+                )}
+                <span className="text-xs">{loggingOut ? '' : 'Déconnexion'}</span>
+              </button>
+            </>
+          ) : (
+            <Link
+              to="/login"
+              className="hidden md:flex items-center gap-1.5 text-sm px-5 py-2 rounded-full text-white transition-all whitespace-nowrap shrink-0 hover:brightness-110 active:scale-95"
+              style={{ backgroundColor: ACCENT, boxShadow: `0 2px 12px ${ACCENT}50` }}
+            >
+              <img src={yealeadLogo} alt="" className="w-4 h-4 object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
+              Connexion
+            </Link>
+          )}
+
+          {/* Bouton hamburger */}
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+                        className="md:hidden w-9 h-9 rounded-full border border-white/15 flex items-center justify-center text-white/70 hover:text-white transition-colors shrink-0"
+            aria-label="Menu"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {menuOpen ? <path d="M18 6 6 18M6 6l12 12" /> : <path d="M3 12h18M3 6h18M3 18h18" />}
+            </svg>
           </button>
         </div>
-      ) : (
-        <Link
-          to="/login"
-          className="flex items-center gap-1.5 text-xs sm:text-sm px-3 sm:px-5 py-2 rounded-full text-white transition-all whitespace-nowrap shrink-0 hover:brightness-110 active:scale-95"
-          style={{ backgroundColor: ACCENT, boxShadow: `0 2px 12px ${ACCENT}50` }}
-        >
-          <img src={yealeadLogo} alt="" className="w-4 h-4 object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
-          Connexion
-        </Link>
+      </div>
+
+      {/* Menu déroulant mobile */}
+      {menuOpen && (
+                <div className="md:hidden border-t border-white/10 px-3 py-3 flex flex-col gap-1 bg-black animate-[fadeIn_0.15s_ease]">
+          {secondaryLinks.map((link) => {
+            const active = location.pathname === link.path;
+            return (
+              <Link
+                key={link.path}
+                to={link.path}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors"
+                style={active ? { backgroundColor: ACCENT, color: '#fff', fontWeight: 500 } : { color: 'rgba(255,255,255,0.7)' }}
+              >
+                {renderIcon(link, active)}
+                <span>{link.label}</span>
+              </Link>
+            );
+          })}
+          {user ? (
+            <>
+              <Link to="/profile" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/70 hover:text-white transition-colors">
+                {user.photo_url ? (
+                  <img src={user.photo_url} alt="" className="w-5 h-5 rounded-full object-cover" />
+                ) : (
+                  <div className="w-5 h-5 rounded-full overflow-hidden bg-white flex items-center justify-center p-0.5">
+                    <img src={yealeadLogo} alt="" className="w-full h-full object-contain" />
+                  </div>
+                )}
+                <span>Profil</span>
+              </Link>
+              <button
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/50 hover:text-white transition-colors text-left"
+              >
+                {loggingOut ? <Spinner size={14} color="currentColor" /> : (
+                  <img src={yealeadLogo} alt="" className="w-4 h-4 object-contain" style={{ filter: 'brightness(0) invert(0.5)' }} />
+                )}
+                Déconnexion
+              </button>
+            </>
+          ) : (
+            <Link
+              to="/login"
+              className="flex items-center justify-center gap-1.5 text-sm px-5 py-2.5 rounded-lg text-white mt-1"
+              style={{ backgroundColor: ACCENT }}
+            >
+              Connexion
+            </Link>
+          )}
+        </div>
       )}
+      <style>{`@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }`}</style>
     </nav>
   );
 }

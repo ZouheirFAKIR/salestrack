@@ -8,10 +8,7 @@ import BadgeUnlockModal from '../components/BadgeUnlockModal';
 import EmptyState from '../components/EmptyState';
 import { apiFetch } from '../utils/api';
 import { badgeDefinitions } from '../data/badgeDefinitions';
-import phoneIcon from '../assets/Phone.png';
-import calendarIcon from '../assets/calendar.png';
-import documentIcon from '../assets/document.png';
-import cartIcon from '../assets/Cart.png';
+import { Icon } from '../data/icons';
 
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -40,13 +37,12 @@ function NouvelleActivite() {
   const prenom = user?.nom?.split(' ')[0] || 'Commercial';
 
   const activityTypes = [
-    { key: 'appel', label: 'Appel', icon: phoneIcon },
-    { key: 'rdv', label: 'Rendez-vous', icon: calendarIcon },
-    { key: 'devis', label: 'Devis', icon: documentIcon },
-    { key: 'commande', label: 'Commande', icon: cartIcon },
+    { key: 'appel', label: 'Appel' },
+    { key: 'rdv', label: 'Rendez-vous' },
+    { key: 'devis', label: 'Devis' },
+    { key: 'commande', label: 'Commande' },
   ];
 
-  const icons = { appel: phoneIcon, rdv: calendarIcon, devis: documentIcon, commande: cartIcon };
   const labels = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
 
   const getDateParts = () => {
@@ -191,7 +187,7 @@ function NouvelleActivite() {
   if (pageLoading) return <PageLoader />;
 
   return (
-    <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 flex items-center justify-center">
+    <div className="min-h-[calc(100vh-64px)] p-4 sm:p-6 flex items-center justify-center" style={{ backgroundColor: 'var(--bg)' }}>
       <Confetti show={showConfetti} />
       {showSuccess && <SuccessModal onClose={() => setShowSuccess(false)} />}
       {completedType && (
@@ -215,15 +211,15 @@ function NouvelleActivite() {
         <div className="lg:col-span-2 flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h1 className="text-lg font-semibold text-white">Nouvelle activité</h1>
-              <p className="text-white/40 text-xs">Sélectionne un type puis confirme</p>
+              <h1 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Nouvelle activité</h1>
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Sélectionne un type puis confirme</p>
             </div>
 
-            <div className="flex items-center gap-3 sm:gap-4 bg-[#0a0a0a] border border-white/10 rounded-2xl px-4 sm:px-5 py-2.5 sm:py-3">
+            <div className="flex items-center gap-3 sm:gap-4 rounded-2xl px-4 sm:px-5 py-2.5 sm:py-3" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
               <div>
-                <p className="text-white/40 text-[10px] sm:text-[11px] uppercase tracking-wide mb-0.5">Aujourd'hui</p>
-                <p className="text-white text-sm sm:text-base font-medium capitalize">{getDateParts().jourComplet}</p>
-                <p className="text-white/35 text-[10px] sm:text-[11px] mt-0.5">{getDateParts().annee}</p>
+                <p className="text-[10px] sm:text-[11px] uppercase tracking-wide mb-0.5" style={{ color: 'var(--text-secondary)' }}>Aujourd'hui</p>
+                <p className="text-sm sm:text-base font-medium capitalize" style={{ color: 'var(--text-primary)' }}>{getDateParts().jourComplet}</p>
+                <p className="text-[10px] sm:text-[11px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>{getDateParts().annee}</p>
               </div>
               <div
                 className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex flex-col items-center justify-center shrink-0"
@@ -242,22 +238,25 @@ function NouvelleActivite() {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {activityTypes.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => handleTypeClick(t)}
-                className="p-3 rounded-xl border transition-all duration-150 active:scale-95 hover:scale-[1.03] flex flex-col items-center"
-                style={type === t.key
-                  ? { backgroundColor: ACCENT, borderColor: ACCENT, boxShadow: `0 0 20px ${ACCENT}55` }
-                  : { backgroundColor: '#0a0a0a', borderColor: 'rgba(255,255,255,0.12)' }}
-              >
-                <img src={t.icon} alt={t.label} className="w-6 h-6 mb-1" />
-                <span className="text-xs text-white">{t.label}</span>
-              </button>
-            ))}
+            {activityTypes.map((t) => {
+              const isActive = type === t.key;
+              return (
+                <button
+                  key={t.key}
+                  onClick={() => handleTypeClick(t)}
+                  className="p-3 rounded-xl border transition-all duration-150 active:scale-95 hover:scale-[1.03] flex flex-col items-center"
+                  style={isActive
+                    ? { backgroundColor: ACCENT, borderColor: ACCENT, boxShadow: `0 0 20px ${ACCENT}55` }
+                    : { backgroundColor: 'var(--surface-strong)', borderColor: 'var(--border)' }}
+                >
+                  <Icon name={t.key} size={22} className="mb-1" style={{ color: isActive ? '#fff' : 'var(--text-primary)' }} />
+                  <span className="text-xs" style={{ color: isActive ? '#fff' : 'var(--text-primary)' }}>{t.label}</span>
+                </button>
+              );
+            })}
           </div>
 
-          <div className="p-4 sm:p-5 bg-white/5 border border-white/10 rounded-2xl flex-1 flex flex-col justify-center min-h-40">
+          <div className="p-4 sm:p-5 rounded-2xl flex-1 flex flex-col justify-center min-h-40" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
             {!type && (
               <EmptyState
                 icon="👆"
@@ -268,17 +267,17 @@ function NouvelleActivite() {
 
             {type === 'appel' && (
               <div className="animate-[fadeIn_0.2s_ease]">
-                <p className="text-sm text-white/50 mb-3">Détail de l'appel</p>
+                <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>Détail de l'appel</p>
                 <div className="grid grid-cols-2 gap-2 mb-4">
                   {['sortant', 'entrant'].map((s) => (
                     <button key={s} onClick={() => setSens(s)} className="p-2.5 rounded-lg text-sm border transition-all active:scale-95"
-                      style={sens === s ? { backgroundColor: ACCENT, borderColor: ACCENT, color: '#fff', fontWeight: 500 } : { backgroundColor: '#000', borderColor: 'rgba(255,255,255,0.15)', color: '#fff' }}>
+                      style={sens === s ? { backgroundColor: ACCENT, borderColor: ACCENT, color: '#fff', fontWeight: 500 } : { backgroundColor: 'var(--surface-strong)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
                       {s === 'sortant' ? 'Sortant' : 'Entrant'}
                     </button>
                   ))}
                   {['repond', 'ne_repond_pas'].map((s) => (
                     <button key={s} onClick={() => setStatut(s)} className="p-2.5 rounded-lg text-sm border transition-all active:scale-95"
-                      style={statut === s ? { backgroundColor: ACCENT, borderColor: ACCENT, color: '#fff', fontWeight: 500 } : { backgroundColor: '#000', borderColor: 'rgba(255,255,255,0.15)', color: '#fff' }}>
+                      style={statut === s ? { backgroundColor: ACCENT, borderColor: ACCENT, color: '#fff', fontWeight: 500 } : { backgroundColor: 'var(--surface-strong)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
                       {s === 'repond' ? 'Répond' : 'Ne répond pas'}
                     </button>
                   ))}
@@ -288,11 +287,11 @@ function NouvelleActivite() {
 
             {type === 'rdv' && (
               <div className="animate-[fadeIn_0.2s_ease]">
-                <p className="text-sm text-white/50 mb-3">Détail du rendez-vous</p>
+                <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>Détail du rendez-vous</p>
                 <div className="grid grid-cols-2 gap-2 mb-4">
                   {['present', 'absent'].map((s) => (
                     <button key={s} onClick={() => setStatut(s)} className="p-2.5 rounded-lg text-sm border transition-all active:scale-95"
-                      style={statut === s ? { backgroundColor: ACCENT, borderColor: ACCENT, color: '#fff', fontWeight: 500 } : { backgroundColor: '#000', borderColor: 'rgba(255,255,255,0.15)', color: '#fff' }}>
+                      style={statut === s ? { backgroundColor: ACCENT, borderColor: ACCENT, color: '#fff', fontWeight: 500 } : { backgroundColor: 'var(--surface-strong)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
                       {s === 'present' ? 'Présent' : 'Absent'}
                     </button>
                   ))}
@@ -302,18 +301,19 @@ function NouvelleActivite() {
 
             {(type === 'devis' || type === 'commande') && (
               <div className="animate-[fadeIn_0.2s_ease] text-center mb-2">
-                <img src={icons[type]} alt={type} className="w-8 h-8 mx-auto mb-2 opacity-70" />
-                <p className="text-white text-sm">{labels[type]}</p>
+                <Icon name={type} size={28} className="mx-auto mb-2" style={{ color: 'var(--text-secondary)' }} />
+                <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{labels[type]}</p>
               </div>
             )}
 
             {type && (
               <div className="animate-[fadeIn_0.2s_ease]">
-                <p className="text-sm text-white/50 mb-2">Nombre</p>
+                <p className="text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>Nombre</p>
                 <div className="flex items-center gap-3 mb-4">
                   <button
                     onClick={() => setNombre((n) => Math.max(1, n - 1))}
-                    className="w-9 h-9 rounded-lg border border-white/15 text-white text-lg flex items-center justify-center hover:bg-white/10 active:scale-95 transition-all"
+                    className="w-9 h-9 rounded-lg border text-lg flex items-center justify-center active:scale-95 transition-all"
+                    style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                   >
                     −
                   </button>
@@ -323,11 +323,13 @@ function NouvelleActivite() {
                     max="1000"
                     value={nombre}
                     onChange={(e) => setNombre(Math.max(1, Math.min(1000, parseInt(e.target.value) || 1)))}
-                    className="w-16 text-center p-2 rounded-lg bg-black border border-white/15 text-white outline-none focus:border-orange-500"
+                    className="w-16 text-center p-2 rounded-lg border outline-none focus:border-orange-500"
+                    style={{ backgroundColor: 'var(--surface-strong)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                   />
                   <button
                     onClick={() => setNombre((n) => Math.min(1000, n + 1))}
-                    className="w-9 h-9 rounded-lg border border-white/15 text-white text-lg flex items-center justify-center hover:bg-white/10 active:scale-95 transition-all"
+                    className="w-9 h-9 rounded-lg border text-lg flex items-center justify-center active:scale-95 transition-all"
+                    style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                   >
                     +
                   </button>
@@ -355,24 +357,24 @@ function NouvelleActivite() {
         </div>
 
         <div className="lg:col-span-1 flex flex-col gap-3">
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+          <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-semibold" style={{ backgroundColor: ACCENT }}>
                 {prenom.charAt(0).toUpperCase()}
               </div>
               <div>
-                <p className="text-white text-sm font-medium">{prenom}</p>
-                <p className="text-white/40 text-xs">Aujourd'hui</p>
+                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{prenom}</p>
+                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Aujourd'hui</p>
               </div>
             </div>
             <p className="text-4xl font-bold" style={{ color: ACCENT }}>
-              {totalToday}<span className="text-xl text-white/30 font-medium"> / {totalObjectif}</span>
+              {totalToday}<span className="text-xl font-medium" style={{ color: 'var(--text-muted)' }}> / {totalObjectif}</span>
             </p>
-            <p className="text-xs text-white/40 mt-1">activités enregistrées aujourd'hui</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>activités enregistrées aujourd'hui</p>
           </div>
 
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
-            <p className="text-xs text-white/50 uppercase tracking-wide">Objectifs du jour</p>
+          <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <p className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Objectifs du jour</p>
             {activityTypes.map((t) => {
               const current = getStat(t.key);
               const target = typeQuotas[t.key] || 5;
@@ -381,12 +383,12 @@ function NouvelleActivite() {
                 <div key={t.key}>
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
-                      <img src={icons[t.key]} alt={t.key} className="w-4 h-4 opacity-60" />
-                      <span className="text-xs text-white/60">{labels[t.key]}</span>
+                      <Icon name={t.key} size={14} style={{ color: 'var(--text-secondary)' }} />
+                      <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{labels[t.key]}</span>
                     </div>
-                    <span className="text-xs font-medium text-white">{current}/{target}</span>
+                    <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{current}/{target}</span>
                   </div>
-                  <div className="w-full bg-white/10 rounded-full h-1.5">
+                  <div className="w-full rounded-full h-1.5" style={{ backgroundColor: 'var(--border)' }}>
                     <div
                       className="h-1.5 rounded-full transition-all duration-500"
                       style={{ width: `${percent}%`, backgroundColor: ACCENT }}

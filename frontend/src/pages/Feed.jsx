@@ -3,10 +3,7 @@ import { apiFetch } from '../utils/api';
 import { compressImage } from '../utils/imageCompress';
 import Spinner from '../components/Spinner';
 import PageLoader from '../components/PageLoader';
-import phoneIcon from '../assets/Phone.png';
-import calendarIcon from '../assets/calendar.png';
-import documentIcon from '../assets/document.png';
-import cartIcon from '../assets/Cart.png';
+import { Icon } from '../data/icons';
 import EmptyState from '../components/EmptyState';
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -41,11 +38,10 @@ const getTitleText = (activity) => {
     devis: n > 1 ? `${n} devis envoyés` : 'Devis envoyé',
     commande: n > 1 ? `${n} commandes conclues` : 'Commande conclue',
   };
-  const emojis = { appel: '📞', rdv: '📅', devis: '📄', commande: '🛒' };
-  return `${emojis[activity.type]} ${labels[activity.type]}`;
+  return labels[activity.type];
 };
 
-function ActivityCard({ activity, index, icons, onUpdate, onDelete }) {
+function ActivityCard({ activity, index, onUpdate, onDelete }) {
   const [editing, setEditing] = useState(false);
   const [description, setDescription] = useState(activity.description || '');
   const [imageUrl, setImageUrl] = useState(activity.image_url || '');
@@ -66,7 +62,7 @@ function ActivityCard({ activity, index, icons, onUpdate, onDelete }) {
     ? activity.description
     : `${activity.description.slice(0, 140)}...`;
 
-    const handleImageChange = async (e) => {
+  const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     setError('');
@@ -135,7 +131,7 @@ function ActivityCard({ activity, index, icons, onUpdate, onDelete }) {
           <p className="text-xs text-white/35">{new Date(activity.date_activite).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
         </div>
         <div className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center shrink-0">
-          <img src={icons[activity.type]} alt={activity.type} className="w-4 h-4 opacity-80" />
+                    <Icon name={activity.type} size={15} style={{ color: 'var(--text-primary)' }} />
         </div>
         <button
           onClick={() => setConfirmDelete(true)}
@@ -174,7 +170,10 @@ function ActivityCard({ activity, index, icons, onUpdate, onDelete }) {
 
       <div className="px-4 pb-1 pt-3">
         <div className="mb-3">
-          <p className="text-base font-semibold text-white">{getTitleText(activity)}</p>
+          <p className="text-base font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <Icon name={activity.type} size={17} style={{ color: 'var(--text-secondary)' }} />
+            {getTitleText(activity)}
+          </p>
         </div>
 
         {(activity.sens || activity.statut) && (
@@ -294,9 +293,18 @@ function ActivityCard({ activity, index, icons, onUpdate, onDelete }) {
   );
 }
 
+const TYPE_FILTERS = [
+  { key: 'all', label: 'Tout' },
+  { key: 'appel', label: 'Appels' },
+  { key: 'rdv', label: 'Rendez-vous' },
+  { key: 'devis', label: 'Devis' },
+  { key: 'commande', label: 'Commandes' },
+];
+
 function Feed() {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
   const token = localStorage.getItem('token');
 
   const loadActivities = () => {
@@ -321,7 +329,7 @@ function Feed() {
     setActivities((prev) => prev.filter((a) => a.batch_id !== batchId));
   };
 
-  const icons = { appel: phoneIcon, rdv: calendarIcon, devis: documentIcon, commande: cartIcon };
+
 
   if (loading) return <PageLoader />;
 
@@ -338,26 +346,95 @@ function Feed() {
     );
   }
 
+  const filteredActivities = filter === 'all' ? activities : activities.filter((a) => a.type === filter);
+
+  // Stats de la semaine, calculées côté client à partir de ce qui est déjà chargé
+  const now = new Date();
+  const weekAgo = new Date(now);
+  weekAgo.setDate(now.getDate() - 7);
+  const weekActivities = activities.filter((a) => new Date(a.date_activite) >= weekAgo);
+  const weekCounts = { appel: 0, rdv: 0, devis: 0, commande: 0 };
+  weekActivities.forEach((a) => {
+    weekCounts[a.type] = (weekCounts[a.type] || 0) + Number(a.nombre || 1);
+  });
+  const weekTotal = Object.values(weekCounts).reduce((sum, n) => sum + n, 0);
+
+  const typeLabels = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
+
   return (
-    <div className="bg-black p-4 sm:p-6 pb-12">
-      <div className="max-w-xl mx-auto">
+    <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
+      <div className="max-w-5xl mx-auto">
         <h1 className="text-xl font-semibold text-white mb-1">Feed</h1>
-        <p className="text-white/40 text-sm mb-6">Toutes tes activités, façon flux social</p>
+        <p className="text-white/40 text-sm mb-5">Toutes tes activités, façon flux social</p>
 
-        {activities.length === 0 && (
-          <EmptyState
-            icon="📭"
-            title="Ton feed est vide"
-            subtitle="Enregistre ta première activité et elle apparaîtra ici, comme un post."
-            actionLabel="Enregistrer une activité"
-            actionHref="/nouvelle-activite"
-          />
-        )}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6 items-start">
 
-        <div className="flex flex-col gap-4">
-          {activities.map((a, i) => (
-            <ActivityCard key={a.batch_id} activity={a} index={i} icons={icons} onUpdate={handleUpdate} onDelete={handleDelete} />
-          ))}
+          <div>
+            <div className="flex gap-2 overflow-x-auto pb-1 mb-4" style={{ scrollbarWidth: 'thin' }}>
+              {TYPE_FILTERS.map((f) => {
+                const active = filter === f.key;
+                return (
+                  <button
+                    key={f.key}
+                    onClick={() => setFilter(f.key)}
+                    className="px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all shrink-0"
+                    style={active
+                      ? { backgroundColor: ACCENT, color: '#fff' }
+                      : { backgroundColor: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.55)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  >
+                    {f.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {filteredActivities.length === 0 && (
+              <EmptyState
+                icon="📭"
+                title={filter === 'all' ? "Ton feed est vide" : "Aucune activité de ce type"}
+                subtitle={filter === 'all' ? "Enregistre ta première activité et elle apparaîtra ici, comme un post." : "Change de filtre ou enregistre une nouvelle activité de ce type."}
+                actionLabel={filter === 'all' ? "Enregistrer une activité" : undefined}
+                actionHref={filter === 'all' ? "/nouvelle-activite" : undefined}
+              />
+            )}
+
+            <div className="flex flex-col gap-4">
+              {filteredActivities.map((a, i) => (
+                <ActivityCard key={a.batch_id} activity={a} index={i} onUpdate={handleUpdate} onDelete={handleDelete} />
+              ))}
+            </div>
+          </div>
+
+          <aside className="hidden lg:flex flex-col gap-4 sticky top-6">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+              <p className="text-white/40 text-[11px] uppercase tracking-wide mb-1">Cette semaine</p>
+              <p className="text-2xl font-semibold text-white mb-3">{weekTotal} <span className="text-sm text-white/40 font-normal">activités</span></p>
+              <div className="flex flex-col gap-2.5">
+                {Object.keys(typeLabels).map((type) => (
+                  <div key={type} className="flex items-center gap-2.5">
+                    <Icon name={type} size={15} style={{ color: 'var(--text-secondary)' }} className="shrink-0" />
+                    <span className="text-xs text-white/60 flex-1">{typeLabels[type]}</span>
+                    <span className="text-xs font-semibold text-white">{weekCounts[type]}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+              <p className="text-white/40 text-[11px] uppercase tracking-wide mb-1">Total</p>
+              <p className="text-2xl font-semibold text-white">{activities.length} <span className="text-sm text-white/40 font-normal">activités</span></p>
+              <p className="text-[11px] text-white/30 mt-1">depuis le début</p>
+            </div>
+
+            <a
+              href="/nouvelle-activite"
+              className="text-center text-white text-sm font-medium py-3 rounded-2xl transition-all hover:brightness-110"
+              style={{ backgroundColor: ACCENT }}
+            >
+              + Nouvelle activité
+            </a>
+          </aside>
+
         </div>
       </div>
     </div>

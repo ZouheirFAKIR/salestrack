@@ -2,10 +2,7 @@ import { useEffect, useState } from 'react';
 import LineChart from '../components/LineChart';
 import PageLoader from '../components/PageLoader';
 import { apiFetch } from '../utils/api';
-import phoneIcon from '../assets/Phone.png';
-import calendarIcon from '../assets/calendar.png';
-import documentIcon from '../assets/document.png';
-import cartIcon from '../assets/Cart.png';
+import { Icon } from '../data/icons';
 
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -35,7 +32,7 @@ function Dashboard() {
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   const prenom = user?.nom?.split(' ')[0];
 
-  const icons = { appel: phoneIcon, rdv: calendarIcon, devis: documentIcon, commande: cartIcon };
+  
   const labels = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
   const allTypes = ['appel', 'rdv', 'devis', 'commande'];
 
@@ -59,10 +56,10 @@ function Dashboard() {
 
   if (!token) {
     return (
-      <div className="bg-black min-h-screen flex flex-col items-center justify-center p-6 text-center">
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center" style={{ backgroundColor: 'var(--bg)' }}>
         <span className="text-4xl mb-4">🔒</span>
-        <h1 className="text-xl font-semibold text-white mb-2">Connecte-toi pour voir ton dashboard</h1>
-        <p className="text-white/40 text-sm mb-6">Tes statistiques personnelles apparaîtront ici</p>
+        <h1 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Connecte-toi pour voir ton dashboard</h1>
+        <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>Tes statistiques personnelles apparaîtront ici</p>
         <a href="/login" className="text-white px-5 py-2.5 rounded-lg font-medium" style={{ backgroundColor: ACCENT }}>
           Se connecter
         </a>
@@ -71,15 +68,15 @@ function Dashboard() {
   }
 
   return (
-    <div className="bg-black p-4 sm:p-6 pb-12">
+    <div className="p-4 sm:p-6 pb-12" style={{ backgroundColor: 'var(--bg)' }}>
       <div className="max-w-5xl mx-auto flex flex-col gap-5">
         <div>
-          <h1 className="text-lg sm:text-xl font-semibold text-white">Salut {prenom} 👋</h1>
-          <p className="text-white/40 text-sm">Voici ton activité récente</p>
+          <h1 className="text-lg sm:text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>Salut {prenom} 👋</h1>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Voici ton activité récente</p>
         </div>
 
-        <div className="bg-white/5 border border-white/10 rounded-xl p-4 sm:p-5">
-          <p className="text-sm text-white/50 mb-4">Objectifs du jour</p>
+        <div className="rounded-xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>Objectifs du jour</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {allTypes.map((type, i) => {
               const s = getStat(type);
@@ -91,12 +88,12 @@ function Dashboard() {
               return (
                 <div
                   key={type}
-                  className="bg-black/40 border border-white/10 rounded-xl p-3 flex flex-col items-center text-center hover:border-orange-400/40 transition-all"
-                  style={{ animation: `popIn 0.4s ease ${i * 0.06}s both` }}
+                  className="rounded-xl p-3 flex flex-col items-center text-center hover:border-orange-400/40 transition-all"
+                  style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)', animation: `popIn 0.4s ease ${i * 0.06}s both` }}
                 >
                   <div className="relative w-16 h-16 mb-2">
                     <svg viewBox="0 0 64 64" className="w-16 h-16 -rotate-90">
-                      <circle cx="32" cy="32" r="26" stroke="rgba(255,255,255,0.1)" strokeWidth="5" fill="none" />
+                      <circle cx="32" cy="32" r="26" stroke="var(--border)" strokeWidth="5" fill="none" />
                       <circle
                         cx="32" cy="32" r="26" stroke={ACCENT} strokeWidth="5" fill="none" strokeLinecap="round"
                         strokeDasharray={circumference}
@@ -104,21 +101,21 @@ function Dashboard() {
                         style={{ transition: 'stroke-dashoffset 0.8s ease' }}
                       />
                     </svg>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <img src={icons[type]} alt={type} className="w-5 h-5 opacity-80" />
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                      <Icon name={type} size={18} style={{ color: 'var(--text-primary)' }} />
                     </div>
                   </div>
-                  <p className="text-sm font-semibold text-white"><AnimatedNumber value={current} />/{target}</p>
-                  <p className="text-[11px] text-white/40">{labels[type]}</p>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}><AnimatedNumber value={current} />/{target}</p>
+                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{labels[type]}</p>
                 </div>
               );
             })}
           </div>
         </div>
 
-        <div className="bg-white/5 border border-white/10 rounded-xl p-4 sm:p-5">
-          <p className="text-sm text-white/50 mb-1">Activités par jour (7 derniers jours)</p>
-          <p className="text-xl sm:text-2xl font-semibold text-white mb-4">
+        <div className="rounded-xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>Activités par jour (7 derniers jours)</p>
+          <p className="text-xl sm:text-2xl font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
             {daily.reduce((sum, d) => sum + Number(d.total), 0)} activités
           </p>
           <LineChart data={daily} />

@@ -1,19 +1,18 @@
-require('dotenv').config();
 const { Pool } = require('pg');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
 });
 
-// Empêche le crash du serveur si une connexion est coupée en arrière-plan
+// Sans ce handler, une erreur sur une connexion inactive (ex: Neon qui coupe
+// la connexion après un moment) fait planter silencieusement tout le pool,
+// et toutes les routes suivantes échouent avec "Connection terminated".
 pool.on('error', (err) => {
-  console.error('Erreur inattendue sur une connexion PostgreSQL inactive', err);
+  console.error('Erreur inattendue sur une connexion PostgreSQL inactive :', err.message);
 });
-
-// Test de connexion au démarrage, sans garder la connexion ouverte
-pool.query('SELECT NOW()')
-  .then(() => console.log('Connecté à PostgreSQL avec succès'))
-  .catch((err) => console.error('Erreur de connexion à PostgreSQL', err.message));
 
 module.exports = pool;

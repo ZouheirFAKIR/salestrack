@@ -35,8 +35,8 @@ function LineChart({ data }) {
           const y = height - padding - (t / max) * (height - padding * 2);
           return (
             <g key={i}>
-              <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
-              <text x={padding - 8} y={y + 4} textAnchor="end" fontSize="10" fill="rgba(255,255,255,0.35)">{t}</text>
+              <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="var(--border)" strokeWidth="1" />
+              <text x={padding - 8} y={y + 4} textAnchor="end" fontSize="10" fill="var(--text-secondary)">{t}</text>
             </g>
           );
         })}
@@ -50,9 +50,9 @@ function LineChart({ data }) {
         {points.map((p, i) => (
           <g key={i} className="group">
             <circle cx={p.x} cy={p.y} r="10" fill="transparent" className="cursor-pointer" />
-            <circle cx={p.x} cy={p.y} r="4" fill={ACCENT} stroke="#000" strokeWidth="2" style={{ animation: `popIn 0.3s ease ${0.6 + i * 0.05}s both` }} />
-            <text x={p.x} y={p.y - 14} textAnchor="middle" fontSize="11" fill="#fff" className="opacity-0 group-hover:opacity-100 transition-opacity">{p.total}</text>
-            <text x={p.x} y={height + 22} textAnchor="middle" fontSize="11" fill="rgba(255,255,255,0.4)">{jourFr(data[i].jour)}</text>
+            <circle cx={p.x} cy={p.y} r="4" fill={ACCENT} stroke="var(--bg)" strokeWidth="2" style={{ animation: `popIn 0.3s ease ${0.6 + i * 0.05}s both` }} />
+            <text x={p.x} y={p.y - 14} textAnchor="middle" fontSize="11" fill="var(--text-primary)" className="opacity-0 group-hover:opacity-100 transition-opacity">{p.total}</text>
+            <text x={p.x} y={height + 22} textAnchor="middle" fontSize="11" fill="var(--text-secondary)">{jourFr(data[i].jour)}</text>
           </g>
         ))}
       </svg>

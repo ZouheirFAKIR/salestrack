@@ -67,8 +67,9 @@ function TypeQuotasForm({ commercialId, onSaved }) {
       <button
         onClick={handleSaveAll}
         disabled={saving}
-        className="w-full text-white text-sm font-medium py-2.5 rounded-lg disabled:opacity-60 flex items-center justify-center gap-2"
-        style={{ backgroundColor: saved ? '#22c55e' : ACCENT }}
+        className="w-full text-sm font-medium py-2.5 rounded-lg disabled:opacity-60 flex items-center justify-center gap-2"
+        style={{ color: '#fff' }}
+        
       >
         {saving && <Spinner size={13} color="#fff" />}
         {saving ? 'Enregistrement...' : saved ? '✓ Objectifs enregistrés' : 'Enregistrer les objectifs'}
@@ -253,8 +254,9 @@ function AdminDashboard() {
             </Link>
             <button
               onClick={handleDownloadReport}
-              className="text-xs px-3 py-2 rounded-lg text-white font-medium flex items-center gap-1.5"
-              style={{ backgroundColor: ACCENT }}
+              className="text-xs px-3 py-2 rounded-lg font-medium flex items-center gap-1.5"
+              style={{ backgroundColor: ACCENT, color: '#fff' }}
+              
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
@@ -278,7 +280,7 @@ function AdminDashboard() {
                 onClick={() => setSelected(c)}
                 className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:border-orange-400/50 transition-all text-left flex items-center gap-4"
               >
-                <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0" style={{ backgroundColor: ACCENT }}>
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold shrink-0" style={{ backgroundColor: ACCENT, color: '#fff' }}>
                   {c.nom?.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">

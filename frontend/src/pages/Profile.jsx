@@ -172,7 +172,7 @@ function Profile() {
                 ) : (
                   <div
                     className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-semibold"
-                    style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}
+                    
                   >
                     {nom.charAt(0).toUpperCase() || '?'}
                   </div>
@@ -211,7 +211,7 @@ function Profile() {
 
             <div className="rounded-xl p-5 flex items-center gap-2" style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}>
               <span className="text-base shrink-0">💡</span>
-              <p className="text-white text-[11px] leading-tight">Garde ton profil à jour pour faciliter le suivi de l'équipe</p>
+              <p className="text-[11px] leading-tight" style={{ color: '#fff' }}>Garde ton profil à jour pour faciliter le suivi de l'équipe</p>
             </div>
           </div>
 
@@ -260,8 +260,8 @@ function Profile() {
               <button
                 onClick={handleSave}
                 disabled={saving || photoLoading}
-                className="w-full mt-6 text-white p-2.5 rounded-lg font-medium transition-all active:scale-95 hover:brightness-110 disabled:opacity-60 flex items-center justify-center gap-2"
-                style={{ backgroundColor: ACCENT, boxShadow: `0 4px 20px ${ACCENT}30` }}
+                className="w-full mt-6 p-2.5 rounded-lg font-medium transition-all active:scale-95 hover:brightness-110 disabled:opacity-60 flex items-center justify-center gap-2"
+                style={{ backgroundColor: ACCENT, boxShadow: `0 4px 20px ${ACCENT}30`, color: '#fff' }}
               >
                 {saving && <Spinner size={15} color="#fff" />}
                 {saving ? 'Enregistrement...' : 'Enregistrer les modifications'}
@@ -361,7 +361,7 @@ function Profile() {
                 <p className="text-sm font-semibold text-white mb-1">Espace administrateur</p>
                 <p className="text-white/40 text-xs mb-4">Gère les commerciaux, les quotas et les formations</p>
                 <div className="flex gap-2 flex-wrap">
-                  <Link to="/admin" className="text-xs px-4 py-2 rounded-lg text-white font-medium" style={{ backgroundColor: ACCENT }}>
+                  <Link to="/admin" className="text-xs px-4 py-2 rounded-lg font-medium" style={{ backgroundColor: ACCENT, color: '#fff' }}>
                     Dashboard admin
                   </Link>
                   <Link to="/admin/courses" className="text-xs px-4 py-2 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">

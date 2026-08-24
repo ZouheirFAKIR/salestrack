@@ -1,1 +1,89 @@
+* {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+:root,
+[data-theme="dark"] {
+  --bg: #000000;
+  --surface: rgba(255, 255, 255, 0.05);
+  --surface-strong: #0d0d0d;
+  --border: rgba(255, 255, 255, 0.1);
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.5);
+  --text-muted: rgba(255, 255, 255, 0.3);
+}
+
+[data-theme="light"] {
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --surface-strong: #ffffff;
+  --border: rgba(0, 0, 0, 0.1);
+  --text-primary: #000000;
+  --text-secondary: #000000;
+  --text-muted: rgba(0, 0, 0, 0.5);
+}
 @import "tailwindcss";
+
+
+/* ============================================
+   Mode clair — corrections automatiques globales
+   Ces règles ré-écrivent les couleurs codées en dur
+   (bg-black, text-white, etc.) dès que le mode clair
+   est actif, sans avoir à modifier chaque page.
+   ============================================ */
+
+[data-theme="light"] .bg-black,
+[data-theme="light"] [class~="bg-[#0a0a0a]"],
+[data-theme="light"] [class~="bg-[#0c0c0c]"],
+[data-theme="light"] [class~="bg-[#0d0d0d]"],
+[data-theme="light"] [class~="bg-[#0f0f0f]"],
+[data-theme="light"] [class~="bg-[#141414]"],
+[data-theme="light"] [class~="bg-[#161616]"],
+[data-theme="light"] [class~="bg-[#1a1a1a]"] {
+  background-color: var(--surface-strong) !important;
+}
+
+[data-theme="light"] .bg-black\/30,
+[data-theme="light"] .bg-black\/40,
+[data-theme="light"] .bg-black\/60 {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] .bg-white\/5,
+[data-theme="light"] .bg-white\/10 {
+  background-color: var(--surface) !important;
+}
+
+[data-theme="light"] .border-white\/5,
+[data-theme="light"] .border-white\/6,
+[data-theme="light"] .border-white\/8,
+[data-theme="light"] .border-white\/10,
+[data-theme="light"] .border-white\/15,
+[data-theme="light"] .border-white\/20,
+[data-theme="light"] [class~="border-white/[0.06]"] {
+  border-color: var(--border) !important;
+}
+
+[data-theme="light"] .text-white {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .text-white\/80,
+[data-theme="light"] .text-white\/70,
+[data-theme="light"] .text-white\/65,
+[data-theme="light"] .text-white\/60 {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="light"] .text-white\/50,
+[data-theme="light"] .text-white\/40,
+[data-theme="light"] .text-white\/35 {
+  color: var(--text-secondary) !important;
+  opacity: 0.85;
+}
+
+[data-theme="light"] .text-white\/30,
+[data-theme="light"] .text-white\/25,
+[data-theme="light"] .text-white\/20,
+[data-theme="light"] .text-white\/15 {
+  color: var(--text-muted) !important;
+}
