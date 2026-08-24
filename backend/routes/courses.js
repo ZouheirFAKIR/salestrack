@@ -34,6 +34,14 @@ router.get('/:id', authMiddleware, async (req, res) => {
     const course = await pool.query('SELECT * FROM courses WHERE id = $1', [req.params.id]);
     if (course.rows.length === 0) return res.status(404).json({ error: 'Cours introuvable' });
 
+    const attempt = await pool.query(
+      'SELECT score, max_score FROM quiz_attempts WHERE commercial_id = $1 AND course_id = $2',
+      [req.userId, req.params.id]
+    );
+    const completed = attempt.rows.length > 0;
+    const bestScore = completed ? attempt.rows[0].score : null;
+    const maxScore = completed ? attempt.rows[0].max_score : null;
+
     const questions = await pool.query(
       'SELECT id, question, points, order_index FROM quiz_questions WHERE course_id = $1 ORDER BY order_index ASC',
       [req.params.id]
@@ -56,7 +64,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
       options: options.filter((o) => o.question_id === q.id),
     }));
 
-    res.json({ ...course.rows[0], questions: questionsWithOptions });
+    res.json({ ...course.rows[0], questions: questionsWithOptions, completed, best_score: bestScore, max_score: maxScore });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -100,6 +108,14 @@ router.post('/:id/submit', authMiddleware, async (req, res) => {
   const courseId = req.params.id;
 
   try {
+    const existing = await pool.query(
+      'SELECT id FROM quiz_attempts WHERE commercial_id = $1 AND course_id = $2',
+      [req.userId, courseId]
+    );
+    if (existing.rows.length > 0) {
+      return res.status(403).json({ error: 'Formation déjà complétée. Contacte un admin pour la repasser.' });
+    }
+
     const questions = await pool.query(
       'SELECT id, points FROM quiz_questions WHERE course_id = $1',
       [courseId]

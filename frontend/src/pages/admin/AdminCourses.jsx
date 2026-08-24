@@ -353,6 +353,56 @@ function EditCourseForm({ course, onSaved, onCancel }) {
   );
 }
 
+function CourseCompletions({ courseId }) {
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [resettingId, setResettingId] = useState(null);
+
+  const load = () => {
+    apiFetch(`${API_URL}/api/admin/courses/${courseId}/completions`)
+      .then((r) => r.json())
+      .then((data) => { setList(data); setLoading(false); });
+  };
+
+  useEffect(() => { load(); }, [courseId]);
+
+  const handleReset = async (commercialId) => {
+    if (!confirm('Réinitialiser cette formation pour ce commercial ?')) return;
+    setResettingId(commercialId);
+    await apiFetch(`${API_URL}/api/admin/courses/${courseId}/commercials/${commercialId}/attempt`, {
+      method: 'DELETE',
+    });
+    setResettingId(null);
+    load();
+  };
+
+  if (loading) return <Spinner size={16} color={ACCENT} />;
+
+  return (
+    <div className="flex flex-col gap-1.5 mt-3">
+      {list.map((c) => (
+        <div key={c.commercial_id} className="flex items-center justify-between gap-2 bg-black/30 border border-white/10 rounded-lg p-2.5">
+          <div className="min-w-0">
+            <p className="text-xs text-white/80 truncate">{c.nom}</p>
+            <p className="text-[11px] text-white/40">
+              {c.score !== null ? `Complété — ${c.score}/${c.max_score}` : 'Pas encore commencé'}
+            </p>
+          </div>
+          {c.score !== null && (
+            <button
+              onClick={() => handleReset(c.commercial_id)}
+              disabled={resettingId === c.commercial_id}
+              className="text-[11px] px-2.5 py-1 rounded-lg border border-orange-500/30 text-orange-400 hover:bg-orange-500/10 transition-colors shrink-0 disabled:opacity-50"
+            >
+              {resettingId === c.commercial_id ? '...' : 'Réinitialiser'}
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function CourseCard({ course, onRefresh }) {
   const [expanded, setExpanded] = useState(false);
   const [detail, setDetail] = useState(null);
@@ -459,6 +509,11 @@ function CourseCard({ course, onRefresh }) {
                   onCancel={() => setIsEditingCourse(false)}
                 />
               )}
+
+              <details className="mb-3">
+                <summary className="text-xs cursor-pointer" style={{ color: ACCENT }}>Voir les commerciaux</summary>
+                <CourseCompletions courseId={course.id} />
+              </details>
 
               <div className="flex flex-col gap-2">
                 {detail.questions.map((q, qi) => (

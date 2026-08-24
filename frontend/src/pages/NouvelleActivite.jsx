@@ -9,6 +9,7 @@ import EmptyState from '../components/EmptyState';
 import { apiFetch } from '../utils/api';
 import { badgeDefinitions } from '../data/badgeDefinitions';
 import { Icon } from '../data/icons';
+import CoinIcon from '../components/CoinIcon';
 
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -31,6 +32,15 @@ function NouvelleActivite() {
   const [currentUnlockIndex, setCurrentUnlockIndex] = useState(0);
   const [typeQuotas, setTypeQuotas] = useState({ appel: 5, rdv: 2, devis: 1, commande: 1 });
   const [completedType, setCompletedType] = useState(null);
+  const [points, setPoints] = useState(null);
+
+  useEffect(() => {
+    if (!token) return;
+    apiFetch(`${API_URL}/api/rewards/balance`)
+      .then((r) => r.json())
+      .then((d) => setPoints(d.balance))
+      .catch(() => {});
+  }, [token]);
 
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -398,6 +408,18 @@ function NouvelleActivite() {
               );
             })}
           </div>
+
+          {points !== null && (
+            <div className="rounded-2xl p-4 flex items-center justify-between" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <div>
+                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Solde de points</p>
+                <p className="text-xl font-semibold flex items-center gap-1.5 mt-0.5" style={{ color: ACCENT }}>
+                  <CoinIcon size={16} />
+                  {points}
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="rounded-2xl p-4 text-center" style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}>
             <p className="text-xl mb-1">🔥</p>

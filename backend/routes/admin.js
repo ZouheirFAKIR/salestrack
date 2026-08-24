@@ -388,4 +388,34 @@ router.delete('/rewards/:id', async (req, res) => {
   }
 });
 
+router.get('/courses/:id/completions', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT u.id as commercial_id, u.nom, qa.score, qa.max_score, qa.completed_at
+       FROM users u
+       LEFT JOIN quiz_attempts qa ON qa.commercial_id = u.id AND qa.course_id = $1
+       WHERE u.role != 'admin' OR u.role IS NULL
+       ORDER BY u.nom ASC`,
+      [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.delete('/courses/:courseId/commercials/:commercialId/attempt', async (req, res) => {
+  try {
+    await pool.query(
+      'DELETE FROM quiz_attempts WHERE course_id = $1 AND commercial_id = $2',
+      [req.params.courseId, req.params.commercialId]
+    );
+    res.json({ message: 'Formation réinitialisée pour ce commercial' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 module.exports = router;

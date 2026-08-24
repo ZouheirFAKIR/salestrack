@@ -10,41 +10,167 @@ import { useTheme } from '../contexts/ThemeContext';
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-function RewardCard({ reward, balance, onRedeemed }) {
-  const { theme } = useTheme();
+function RewardDetailModal({ reward, balance, onClose, onRedeemed }) {
+  const [quantity, setQuantity] = useState(1);
+  const [confirming, setConfirming] = useState(false);
   const [redeeming, setRedeeming] = useState(false);
   const [error, setError] = useState('');
-  const canAfford = balance >= reward.cost;
 
-  const handleRedeem = async () => {
-    if (!canAfford || redeeming) return;
-    if (!confirm(`Échanger "${reward.title}" contre ${reward.cost} points ?`)) return;
+  const totalCost = reward.cost * quantity;
+  const canAfford = balance >= totalCost;
+
+  const handleCheckoutClick = () => {
     setError('');
+    if (!canAfford) {
+      setError('Solde insuffisant pour cette quantité.');
+      return;
+    }
+    setConfirming(true);
+  };
+
+  const handleConfirm = async () => {
     setRedeeming(true);
+    setError('');
     try {
-      const res = await apiFetch(`${API_URL}/api/rewards/${reward.id}/redeem`, { method: 'POST' });
+      const res = await apiFetch(`${API_URL}/api/rewards/${reward.id}/redeem`, {
+        method: 'POST',
+        body: JSON.stringify({ quantity }),
+      });
       if (res.ok) {
         onRedeemed();
+        onClose();
       } else {
         const data = await res.json();
-        setError(data.error || 'Erreur');
+        setError(data.error || 'Erreur lors de l\'échange');
+        setConfirming(false);
       }
     } catch (err) {
       setError('Erreur réseau');
+      setConfirming(false);
     }
     setRedeeming(false);
   };
 
   return (
-    <div className={`bg-white/5 border rounded-2xl overflow-hidden flex flex-col transition-all ${canAfford ? 'border-white/10 hover:border-orange-400/40 hover:-translate-y-0.5' : theme === 'dark' ? 'border-white/5 opacity-60' : 'border-white/5'}`}>
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50" onClick={onClose}>
+      <div
+        className="bg-[#0d0d0d] border border-white/10 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto grid grid-cols-1 md:grid-cols-2"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="relative bg-black/40 min-h-[240px] md:min-h-full">
+          {reward.image_url ? (
+            <img src={reward.image_url} alt="" className="w-full h-full object-cover absolute inset-0" onError={(e) => { e.target.style.display = 'none'; }} />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-4xl text-white/15 absolute inset-0">🎁</div>
+          )}
+          <button
+            onClick={onClose}
+            className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-colors z-10 md:hidden"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="p-5 sm:p-6 flex flex-col relative">
+          <button
+            onClick={onClose}
+            className="hidden md:flex absolute top-4 right-4 w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-white items-center justify-center transition-colors"
+          >
+            ×
+          </button>
+
+          <p className="text-white text-lg sm:text-xl font-semibold pr-8">{reward.title}</p>
+          {reward.description && <p className="text-white/50 text-sm mt-2 leading-relaxed">{reward.description}</p>}
+
+          <div className="flex items-center gap-1.5 mt-4">
+            <CoinIcon size={16} />
+            <span className="text-sm font-medium" style={{ color: ACCENT }}>{reward.cost} points l'unité</span>
+          </div>
+
+          <div className="flex-1" />
+
+          {!confirming ? (
+            <>
+              <div className="flex items-center justify-between mt-5">
+                <p className="text-sm text-white/60">Quantité</p>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                    className="w-8 h-8 rounded-lg border border-white/15 text-white flex items-center justify-center hover:bg-white/5 transition-colors"
+                  >
+                    −
+                  </button>
+                  <span className="text-white font-medium w-6 text-center">{quantity}</span>
+                  <button
+                    onClick={() => setQuantity((q) => Math.min(20, q + 1))}
+                    className="w-8 h-8 rounded-lg border border-white/15 text-white flex items-center justify-center hover:bg-white/5 transition-colors"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/10">
+                <p className="text-sm text-white/60">Total</p>
+                <span className="flex items-center gap-1.5 text-white font-semibold">
+                  <CoinIcon size={16} />
+                  {totalCost}
+                </span>
+              </div>
+
+              {error && <p className="text-red-400 text-xs mt-3">{error}</p>}
+
+              <button
+                onClick={handleCheckoutClick}
+                className="w-full text-white text-sm font-medium py-3 rounded-xl mt-5 transition-all hover:brightness-110"
+                style={{ backgroundColor: ACCENT }}
+              >
+                Échanger
+              </button>
+            </>
+          ) : (
+            <div className="mt-5">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
+                <p className="text-sm text-white/80">
+                  Confirmer l'échange de <span className="font-semibold text-white">{quantity} × {reward.title}</span> contre <span className="font-semibold" style={{ color: ACCENT }}>{totalCost} points</span> ?
+                </p>
+              </div>
+              {error && <p className="text-red-400 text-xs mt-3 text-center">{error}</p>}
+              <div className="flex items-center gap-2 mt-4">
+                <button
+                  onClick={() => setConfirming(false)}
+                  disabled={redeeming}
+                  className="flex-1 text-white/60 text-sm py-3 rounded-xl border border-white/15 hover:text-white transition-colors disabled:opacity-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleConfirm}
+                  disabled={redeeming}
+                  className="flex-1 text-white text-sm font-medium py-3 rounded-xl transition-all hover:brightness-110 flex items-center justify-center gap-2 disabled:opacity-60"
+                  style={{ backgroundColor: ACCENT }}
+                >
+                  {redeeming && <Spinner size={13} color="#fff" />}
+                  Confirmer
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RewardCard({ reward, onSelect }) {
+  return (
+    <button
+      onClick={() => onSelect(reward)}
+      className="text-left bg-white/5 border border-white/10 rounded-2xl overflow-hidden flex flex-col transition-all hover:border-orange-400/40 hover:-translate-y-0.5"
+    >
       <div className="relative aspect-video bg-black/40 overflow-hidden">
         {reward.image_url ? (
-          <img
-            src={reward.image_url}
-            alt=""
-            className="w-full h-full object-cover"
-            onError={(e) => { e.target.style.display = 'none'; }}
-          />
+          <img src={reward.image_url} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-3xl text-white/15">🎁</div>
         )}
@@ -56,23 +182,11 @@ function RewardCard({ reward, balance, onRedeemed }) {
           {reward.cost}
         </span>
       </div>
-
       <div className="p-4 flex-1 flex flex-col">
         <p className="text-white font-medium leading-snug">{reward.title}</p>
         {reward.description && <p className="text-white/40 text-sm mt-1 line-clamp-2 flex-1">{reward.description}</p>}
-        {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
-
-        <button
-          onClick={handleRedeem}
-          disabled={!canAfford || redeeming}
-          className="mt-4 w-full text-xs px-3 py-2.5 rounded-xl text-white font-medium disabled:cursor-not-allowed flex items-center justify-center gap-1.5 transition-all hover:brightness-110"
-          style={{ backgroundColor: canAfford ? ACCENT : 'rgba(255,255,255,0.08)' }}
-        >
-          {redeeming && <Spinner size={12} color="#fff" />}
-          {canAfford ? 'Échanger' : 'Solde insuffisant'}
-        </button>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -82,6 +196,7 @@ function Rewards() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [selectedReward, setSelectedReward] = useState(null);
   const token = localStorage.getItem('token');
 
   const loadAll = () => {
@@ -163,7 +278,7 @@ function Rewards() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {rewards.map((r) => (
-              <RewardCard key={r.id} reward={r} balance={balance?.balance ?? 0} onRedeemed={handleRedeemed} />
+              <RewardCard key={r.id} reward={r} onSelect={setSelectedReward} />
             ))}
           </div>
         )}
@@ -179,7 +294,9 @@ function Rewards() {
                   ) : (
                     <div className="w-10 h-10 rounded-lg bg-black/40 flex items-center justify-center text-lg shrink-0">🎁</div>
                   )}
-                  <p className="text-sm text-white/70 flex-1 min-w-0 truncate">{h.title}</p>
+                  <p className="text-sm text-white/70 flex-1 min-w-0 truncate">
+                    {h.quantity > 1 ? `${h.quantity} × ` : ''}{h.title}
+                  </p>
                   <span className="text-xs text-white/40 flex items-center gap-1 shrink-0">
                     −{h.cost_at_redemption} <CoinIcon size={12} />
                   </span>
@@ -190,6 +307,16 @@ function Rewards() {
         )}
 
       </div>
+
+      {selectedReward && (
+        <RewardDetailModal
+          reward={selectedReward}
+          balance={balance?.balance ?? 0}
+          onClose={() => setSelectedReward(null)}
+          onRedeemed={handleRedeemed}
+        />
+      )}
+
       <style>{`.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }`}</style>
     </div>
   );

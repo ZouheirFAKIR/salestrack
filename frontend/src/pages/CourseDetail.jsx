@@ -70,6 +70,7 @@ function CourseDetail() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [activeHeadingIndex, setActiveHeadingIndex] = useState(0);
+  const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
     if (!token) { navigate('/login'); return; }
@@ -130,6 +131,7 @@ function CourseDetail() {
     setAnswerResults({});
     setResult(null);
     setError('');
+    setRevealed(false);
     setStep('reading');
   };
 
@@ -149,7 +151,7 @@ function CourseDetail() {
       });
       const data = await res.json();
       setResult(data);
-      setStep('result');
+      setRevealed(true);
     } catch (err) {
       setError('Erreur lors de la soumission');
     }
@@ -180,7 +182,6 @@ function CourseDetail() {
             Retour aux formations
           </Link>
 
-          {/* Carte d'info compacte : petite image + titre/description/meta */}
           <div className="flex flex-col sm:flex-row gap-4 bg-white/5 border border-white/10 rounded-2xl p-4 shrink-0">
             <div className="w-full sm:w-48 aspect-video rounded-xl overflow-hidden bg-black shrink-0">
               {course.banner_url ? (
@@ -206,7 +207,6 @@ function CourseDetail() {
             </div>
           </div>
 
-          {/* Grille : contenu + sommaire, chacun dans sa propre carte */}
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_240px] gap-4 items-start">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-7">
               {course.content_text ? (
@@ -242,16 +242,27 @@ function CourseDetail() {
                 <p className="text-white/30 text-sm text-center py-10">Aucun contenu disponible pour ce cours.</p>
               )}
 
-              <button
-                onClick={() => setStep('quiz')}
-                className="w-full text-white py-3 rounded-xl font-semibold text-sm transition-all hover:brightness-110 active:scale-[0.99] shadow-lg cursor-pointer flex items-center justify-center gap-2 mt-6"
-                style={{ backgroundColor: ACCENT }}
-              >
-                <span>J'ai terminé la lecture, passer au quiz</span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-              </button>
+              {course.completed ? (
+                <div className="mt-6 p-4 rounded-xl text-center" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
+                  <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    Formation déjà complétée — score : {course.best_score} / {course.max_score}
+                  </p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+                    Contacte un admin si tu souhaites la repasser.
+                  </p>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setStep('quiz')}
+                  className="w-full text-white py-3 rounded-xl font-semibold text-sm transition-all hover:brightness-110 active:scale-[0.99] shadow-lg cursor-pointer flex items-center justify-center gap-2 mt-6"
+                  style={{ backgroundColor: ACCENT }}
+                >
+                  <span>J'ai terminé la lecture, passer au quiz</span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              )}
             </div>
 
             {headings.length > 0 && (
@@ -313,7 +324,9 @@ function CourseDetail() {
                 />
               ))}
             </div>
-            <p className="text-[11px] text-white/40 mt-1.5">{answeredCount} / {totalQuestions} questions répondues</p>
+            <p className="text-[11px] text-white/40 mt-1.5">
+              {revealed ? 'Correction de tes réponses' : `${answeredCount} / ${totalQuestions} questions répondues`}
+            </p>
           </div>
 
           <div className="flex-1 overflow-y-auto space-y-4 pr-1" style={{ scrollbarWidth: 'thin' }}>
@@ -338,11 +351,11 @@ function CourseDetail() {
                     {q.options.map((opt) => {
                       const isChosen = selectedOptionId === opt.id;
                       const isCorrect = !!qResult && qResult.correctOptionId === opt.id;
-                      const showFeedback = isAnswered && !!qResult;
+                      const showFeedback = isAnswered && !!qResult && revealed;
 
                       let optionStyle = 'bg-black/60 border-white/10 text-white/80 hover:border-white/30 cursor-pointer';
 
-                      if (isAnswered && isChecking) {
+                      if (!revealed && isAnswered) {
                         optionStyle = isChosen
                           ? 'bg-white/10 border-white/30 text-white/80 cursor-default'
                           : 'bg-black/30 border-white/5 text-white/25 cursor-default opacity-40';
@@ -385,15 +398,25 @@ function CourseDetail() {
 
           {error && <p className="text-red-400 text-xs text-center shrink-0">{error}</p>}
 
-          <button
-            onClick={handleSubmit}
-            disabled={!allAnswered || submitting}
-            className="shrink-0 w-full text-white py-3.5 rounded-xl font-semibold text-sm transition-all hover:brightness-110 active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-lg"
-            style={{ backgroundColor: ACCENT }}
-          >
-            {submitting && <Spinner size={15} color="#fff" />}
-            {submitting ? 'Validation...' : 'Valider mes réponses'}
-          </button>
+          {!revealed ? (
+            <button
+              onClick={handleSubmit}
+              disabled={!allAnswered || submitting}
+              className="shrink-0 w-full text-white py-3.5 rounded-xl font-semibold text-sm transition-all hover:brightness-110 active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+              style={{ backgroundColor: ACCENT }}
+            >
+              {submitting && <Spinner size={15} color="#fff" />}
+              {submitting ? 'Validation...' : 'Valider mes réponses'}
+            </button>
+          ) : (
+            <button
+              onClick={() => setStep('result')}
+              className="shrink-0 w-full text-white py-3.5 rounded-xl font-semibold text-sm transition-all hover:brightness-110 active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+              style={{ backgroundColor: ACCENT }}
+            >
+              Voir mon résultat
+            </button>
+          )}
         </div>
       )}
 

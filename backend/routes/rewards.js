@@ -42,7 +42,7 @@ router.get('/balance', async (req, res) => {
 router.get('/history', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT rr.id, rr.cost_at_redemption, rr.redeemed_at, r.title, r.image_url
+      `SELECT rr.id, rr.cost_at_redemption, rr.quantity, rr.redeemed_at, r.title, r.image_url
        FROM reward_redemptions rr
        JOIN rewards r ON r.id = rr.reward_id
        WHERE rr.commercial_id = $1
@@ -57,10 +57,13 @@ router.get('/history', async (req, res) => {
 });
 
 router.post('/:id/redeem', async (req, res) => {
+  const quantity = Math.max(1, Number(req.body.quantity) || 1);
+
   try {
     const rewardResult = await pool.query('SELECT * FROM rewards WHERE id = $1', [req.params.id]);
     if (rewardResult.rows.length === 0) return res.status(404).json({ error: 'Récompense introuvable' });
     const reward = rewardResult.rows[0];
+    const totalCost = reward.cost * quantity;
 
     const earnedResult = await pool.query(
       `SELECT COALESCE(SUM(best_score), 0) as earned FROM (
@@ -77,13 +80,13 @@ router.post('/:id/redeem', async (req, res) => {
     );
     const balance = Number(earnedResult.rows[0].earned) - Number(spentResult.rows[0].spent);
 
-    if (balance < reward.cost) {
+    if (balance < totalCost) {
       return res.status(400).json({ error: 'Solde insuffisant' });
     }
 
     await pool.query(
-      'INSERT INTO reward_redemptions (commercial_id, reward_id, cost_at_redemption) VALUES ($1, $2, $3)',
-      [req.userId, reward.id, reward.cost]
+      'INSERT INTO reward_redemptions (commercial_id, reward_id, cost_at_redemption, quantity) VALUES ($1, $2, $3, $4)',
+      [req.userId, reward.id, totalCost, quantity]
     );
 
     res.status(201).json({ message: 'Récompense échangée avec succès' });
