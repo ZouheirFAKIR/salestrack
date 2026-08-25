@@ -32,7 +32,10 @@ function NouvelleActivite() {
   const [currentUnlockIndex, setCurrentUnlockIndex] = useState(0);
   const [typeQuotas, setTypeQuotas] = useState({ appel: 5, rdv: 2, devis: 1, commande: 1 });
   const [completedType, setCompletedType] = useState(null);
+  const [dailyBonus, setDailyBonus] = useState(null);
   const [points, setPoints] = useState(null);
+
+  const token = localStorage.getItem('token');
 
   useEffect(() => {
     if (!token) return;
@@ -41,8 +44,6 @@ function NouvelleActivite() {
       .then((d) => setPoints(d.balance))
       .catch(() => {});
   }, [token]);
-
-  const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   const prenom = user?.nom?.split(' ')[0] || 'Commercial';
 
@@ -179,7 +180,13 @@ function NouvelleActivite() {
         setTimeout(() => setMessage(''), 2500);
         checkForNewBadges();
 
-        if (beforeCount < target && afterCount >= target) {
+        if (data.bonusAwarded) {
+          apiFetch(`${API_URL}/api/rewards/balance`)
+            .then((r) => r.json())
+            .then((d) => setPoints(d.balance))
+            .catch(() => {});
+          setTimeout(() => setDailyBonus(data.bonusPoints), 1400);
+        } else if (beforeCount < target && afterCount >= target) {
           setTimeout(() => setCompletedType({ type: justCompletedType, count: afterCount, target }), 1400);
         }
       }
@@ -205,6 +212,13 @@ function NouvelleActivite() {
           onClose={() => setCompletedType(null)}
           title={`Objectif ${labels[completedType.type]} atteint !`}
           message={`Tu as fait ${completedType.count} sur ${completedType.target} — excellent travail !`}
+        />
+      )}
+      {dailyBonus && (
+        <SuccessModal
+          onClose={() => setDailyBonus(null)}
+          title="Objectif du jour complet !"
+          message={`Tu as atteint tous tes objectifs du jour et gagné ${dailyBonus} points bonus 🎉`}
         />
       )}
       {newlyUnlocked.length > 0 && (
@@ -384,7 +398,13 @@ function NouvelleActivite() {
           </div>
 
           <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <p className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Objectifs du jour</p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Objectifs du jour</p>
+              <span className="flex items-center gap-1 text-[11px] font-medium" style={{ color: ACCENT }}>
+                <CoinIcon size={12} />
+                +5 en les complétant
+              </span>
+            </div>
             {activityTypes.map((t) => {
               const current = getStat(t.key);
               const target = typeQuotas[t.key] || 5;

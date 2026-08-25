@@ -11,6 +11,7 @@ router.post('/', authMiddleware, async (req, res) => {
   if (!type) return res.status(400).json({ error: 'Le type est obligatoire' });
 
   const batchId = crypto.randomUUID();
+  const DAILY_BONUS_POINTS = 5;
 
   try {
     const result = await pool.query(
@@ -20,7 +21,36 @@ router.post('/', authMiddleware, async (req, res) => {
        RETURNING *`,
       [type, sens || null, statut || null, req.userId, qty, batchId, description || null]
     );
-    res.status(201).json({ count: result.rows.length, activities: result.rows });
+
+    // Vérifie si l'objectif total du jour vient d'être atteint, et donne
+    // le bonus une seule fois par jour (protégé aussi par la contrainte
+    // UNIQUE en base, ON CONFLICT DO NOTHING évite juste une erreur inutile).
+    let bonusAwarded = false;
+    const quotasResult = await pool.query(
+      'SELECT COALESCE(SUM(daily_target), 9) as total_target FROM type_quotas WHERE commercial_id = $1',
+      [req.userId]
+    );
+    const totalTarget = Number(quotasResult.rows[0].total_target);
+
+    const todayTotalResult = await pool.query(
+      `SELECT COUNT(*) as total FROM activities
+       WHERE commercial_id = $1 AND DATE(date_activite) = CURRENT_DATE`,
+      [req.userId]
+    );
+    const todayTotal = Number(todayTotalResult.rows[0].total);
+
+    if (todayTotal >= totalTarget) {
+      const bonusInsert = await pool.query(
+        `INSERT INTO daily_bonus_points (commercial_id, bonus_date, points)
+         VALUES ($1, CURRENT_DATE, $2)
+         ON CONFLICT (commercial_id, bonus_date) DO NOTHING
+         RETURNING id`,
+        [req.userId, DAILY_BONUS_POINTS]
+      );
+      bonusAwarded = bonusInsert.rows.length > 0;
+    }
+
+    res.status(201).json({ count: result.rows.length, activities: result.rows, bonusAwarded, bonusPoints: DAILY_BONUS_POINTS });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur' });

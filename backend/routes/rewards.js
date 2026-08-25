@@ -17,8 +17,8 @@ router.get('/', async (req, res) => {
 
 router.get('/balance', async (req, res) => {
   try {
-    const earnedResult = await pool.query(
-      `SELECT COALESCE(SUM(best_score), 0) as earned FROM (
+    const quizResult = await pool.query(
+      `SELECT COALESCE(SUM(best_score), 0) as total FROM (
          SELECT DISTINCT ON (course_id) score as best_score
          FROM quiz_attempts
          WHERE commercial_id = $1
@@ -26,11 +26,15 @@ router.get('/balance', async (req, res) => {
        ) t`,
       [req.userId]
     );
+    const bonusResult = await pool.query(
+      'SELECT COALESCE(SUM(points), 0) as total FROM daily_bonus_points WHERE commercial_id = $1',
+      [req.userId]
+    );
     const spentResult = await pool.query(
       'SELECT COALESCE(SUM(cost_at_redemption), 0) as spent FROM reward_redemptions WHERE commercial_id = $1',
       [req.userId]
     );
-    const earned = Number(earnedResult.rows[0].earned);
+    const earned = Number(quizResult.rows[0].total) + Number(bonusResult.rows[0].total);
     const spent = Number(spentResult.rows[0].spent);
     res.json({ earned, spent, balance: earned - spent });
   } catch (err) {
@@ -65,8 +69,8 @@ router.post('/:id/redeem', async (req, res) => {
     const reward = rewardResult.rows[0];
     const totalCost = reward.cost * quantity;
 
-    const earnedResult = await pool.query(
-      `SELECT COALESCE(SUM(best_score), 0) as earned FROM (
+    const quizResult = await pool.query(
+      `SELECT COALESCE(SUM(best_score), 0) as total FROM (
          SELECT DISTINCT ON (course_id) score as best_score
          FROM quiz_attempts
          WHERE commercial_id = $1
@@ -74,11 +78,15 @@ router.post('/:id/redeem', async (req, res) => {
        ) t`,
       [req.userId]
     );
+    const bonusResult = await pool.query(
+      'SELECT COALESCE(SUM(points), 0) as total FROM daily_bonus_points WHERE commercial_id = $1',
+      [req.userId]
+    );
     const spentResult = await pool.query(
       'SELECT COALESCE(SUM(cost_at_redemption), 0) as spent FROM reward_redemptions WHERE commercial_id = $1',
       [req.userId]
     );
-    const balance = Number(earnedResult.rows[0].earned) - Number(spentResult.rows[0].spent);
+    const balance = Number(quizResult.rows[0].total) + Number(bonusResult.rows[0].total) - Number(spentResult.rows[0].spent);
 
     if (balance < totalCost) {
       return res.status(400).json({ error: 'Solde insuffisant' });
