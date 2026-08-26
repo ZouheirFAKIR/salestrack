@@ -248,23 +248,23 @@ function Navbar() {
               <button
                 onClick={handleLogout}
                 disabled={loggingOut}
-                className="hidden md:flex items-center justify-center px-3 py-1.5 rounded-full border border-white/15 text-white/50 hover:text-white hover:border-white/30 transition-all disabled:opacity-60 gap-1.5 shrink-0"
+                className="hidden md:flex items-center justify-center w-9 h-9 rounded-full border border-white/15 hover:border-white/30 transition-all disabled:opacity-60 shrink-0"
+                style={{ color: ACCENT }}
                 aria-label="Déconnexion"
               >
                 {loggingOut ? <Spinner size={14} color="currentColor" /> : (
-                  <img src={yealeadLogo} alt="" className="w-4 h-4 object-contain" style={{ filter: 'brightness(0) invert(0.7)' }} />
+                  <Icon name="logout" size={20} />
                 )}
-                <span className="text-xs">{loggingOut ? '' : 'Déconnexion'}</span>
               </button>
             </>
           ) : (
             <Link
               to="/login"
-              className="hidden md:flex items-center gap-1.5 text-sm px-5 py-2 rounded-full text-white transition-all whitespace-nowrap shrink-0 hover:brightness-110 active:scale-95"
-              style={{ backgroundColor: ACCENT, boxShadow: `0 2px 12px ${ACCENT}50` }}
+              className="hidden md:flex items-center justify-center w-9 h-9 rounded-full transition-all shrink-0 hover:brightness-110 active:scale-95"
+              style={{ backgroundColor: ACCENT, boxShadow: `0 2px 12px ${ACCENT}50`, color: '#fff' }}
+              aria-label="Connexion"
             >
-              <img src={yealeadLogo} alt="" className="w-4 h-4 object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
-              Connexion
+              <Icon name="login" size={20} />
             </Link>
           )}
 
@@ -313,21 +313,23 @@ function Navbar() {
               <button
                 onClick={handleLogout}
                 disabled={loggingOut}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/50 hover:text-white transition-colors text-left"
+                className="flex items-center justify-center py-2.5 rounded-lg transition-colors"
+                style={{ color: ACCENT }}
+                aria-label="Déconnexion"
               >
-                {loggingOut ? <Spinner size={14} color="currentColor" /> : (
-                  <img src={yealeadLogo} alt="" className="w-4 h-4 object-contain" style={{ filter: 'brightness(0) invert(0.5)' }} />
+                {loggingOut ? <Spinner size={16} color="currentColor" /> : (
+                  <Icon name="logout" size={22} />
                 )}
-                Déconnexion
               </button>
             </>
           ) : (
             <Link
               to="/login"
-              className="flex items-center justify-center gap-1.5 text-sm px-5 py-2.5 rounded-lg text-white mt-1"
-              style={{ backgroundColor: ACCENT }}
+              className="flex items-center justify-center w-11 h-11 rounded-lg mt-1"
+              style={{ backgroundColor: ACCENT, color: '#fff' }}
+              aria-label="Connexion"
             >
-              Connexion
+              <Icon name="login" size={22} />
             </Link>
           )}
         </div>
