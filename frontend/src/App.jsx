@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Dashboard from './pages/Dashboard';
@@ -23,6 +23,14 @@ import AmbientBackground from './components/AmbientBackground';
 import { apiFetch } from './utils/api';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
 
 function AppLayout({ children }) {
   const [showModal, setShowModal] = useState(false);
@@ -75,6 +83,7 @@ function AppLayout({ children }) {
 function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
