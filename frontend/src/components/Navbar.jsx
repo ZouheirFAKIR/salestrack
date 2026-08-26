@@ -186,7 +186,7 @@ function Navbar() {
               </button>
 
               {notifOpen && (
-                <div className="absolute right-0 top-11 w-72 max-h-96 overflow-y-auto bg-[#0d0d0d] border border-white/10 rounded-xl shadow-xl z-40 p-2">
+                <div className="fixed sm:absolute left-3 right-3 sm:left-auto sm:right-0 top-14 sm:top-11 w-auto sm:w-72 max-h-96 overflow-y-auto bg-[#0d0d0d] border border-white/10 rounded-xl shadow-xl z-40 p-2">
                   <div className="flex items-center justify-between px-2 py-1.5">
                     <p className="text-[11px] text-white/40 uppercase tracking-wide">Échanges récents</p>
                     <Link to="/admin/notifications" onClick={() => setNotifOpen(false)} className="text-[11px] font-medium" style={{ color: ACCENT }}>
