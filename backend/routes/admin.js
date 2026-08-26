@@ -219,11 +219,41 @@ router.get('/commercials/:id', async (req, res) => {
       [req.params.id]
     );
 
+    const earnedResult = await pool.query(
+      `SELECT COALESCE(SUM(best_score), 0) as total FROM (
+         SELECT DISTINCT ON (course_id) score as best_score
+         FROM quiz_attempts
+         WHERE commercial_id = $1
+         ORDER BY course_id, score DESC, completed_at DESC
+       ) t`,
+      [req.params.id]
+    );
+    const bonusResult = await pool.query(
+      'SELECT COALESCE(SUM(points), 0) as total FROM daily_bonus_points WHERE commercial_id = $1',
+      [req.params.id]
+    );
+    const redemptions = await pool.query(
+      `SELECT rr.id, rr.quantity, rr.cost_at_redemption, rr.redeemed_at, r.title, r.image_url
+       FROM reward_redemptions rr
+       JOIN rewards r ON r.id = rr.reward_id
+       WHERE rr.commercial_id = $1
+       ORDER BY rr.redeemed_at DESC`,
+      [req.params.id]
+    );
+    const spentResult = await pool.query(
+      'SELECT COALESCE(SUM(cost_at_redemption), 0) as total FROM reward_redemptions WHERE commercial_id = $1',
+      [req.params.id]
+    );
+    const earned = Number(earnedResult.rows[0].total) + Number(bonusResult.rows[0].total);
+    const spent = Number(spentResult.rows[0].total);
+
     res.json({
       user: user.rows[0],
       stats: stats.rows,
       daily: daily.rows,
       daily_target: typeQuotaTotal.rows[0].total_target,
+      points_balance: earned - spent,
+      redemptions: redemptions.rows,
     });
   } catch (err) {
     console.error(err);
@@ -380,6 +410,15 @@ router.put('/rewards/:id', async (req, res) => {
 
 router.delete('/rewards/:id', async (req, res) => {
   try {
+    const usedCheck = await pool.query(
+      'SELECT id FROM reward_redemptions WHERE reward_id = $1 LIMIT 1',
+      [req.params.id]
+    );
+    if (usedCheck.rows.length > 0) {
+      return res.status(400).json({
+        error: 'Cette récompense a déjà été échangée par un commercial et ne peut pas être supprimée. Tu peux la modifier ou la retirer autrement.',
+      });
+    }
     await pool.query('DELETE FROM rewards WHERE id = $1', [req.params.id]);
     res.json({ message: 'Récompense supprimée' });
   } catch (err) {
@@ -412,6 +451,64 @@ router.delete('/courses/:courseId/commercials/:commercialId/attempt', async (req
       [req.params.courseId, req.params.commercialId]
     );
     res.json({ message: 'Formation réinitialisée pour ce commercial' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/notifications/redemptions', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT rr.id, rr.quantity, rr.cost_at_redemption, rr.redeemed_at, rr.seen_by_admin,
+              r.title, r.image_url, u.nom as commercial_nom
+       FROM reward_redemptions rr
+       JOIN rewards r ON r.id = rr.reward_id
+       JOIN users u ON u.id = rr.commercial_id
+       WHERE rr.dismissed = FALSE
+       ORDER BY rr.redeemed_at DESC
+       LIMIT 20`
+    );
+    const unseenCount = result.rows.filter((r) => !r.seen_by_admin).length;
+    res.json({ notifications: result.rows, unseenCount });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/notifications/redemptions/all', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT rr.id, rr.quantity, rr.cost_at_redemption, rr.redeemed_at, rr.seen_by_admin,
+              r.title, r.image_url, u.nom as commercial_nom
+       FROM reward_redemptions rr
+       JOIN rewards r ON r.id = rr.reward_id
+       JOIN users u ON u.id = rr.commercial_id
+       WHERE rr.dismissed = FALSE
+       ORDER BY rr.redeemed_at DESC`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.patch('/notifications/redemptions/:id/dismiss', async (req, res) => {
+  try {
+    await pool.query('UPDATE reward_redemptions SET dismissed = TRUE WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Notification masquée' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.post('/notifications/redemptions/mark-seen', async (req, res) => {
+  try {
+    await pool.query('UPDATE reward_redemptions SET seen_by_admin = TRUE WHERE seen_by_admin = FALSE');
+    res.json({ message: 'Notifications marquées comme lues' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur' });

@@ -222,7 +222,8 @@ function ActivityCard({ activity, index, onUpdate, onDelete }) {
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Ajouter une description..."
             rows={3}
-            className="w-full p-3 rounded-xl bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 transition-colors resize-none placeholder:text-white/25"
+            className="w-full p-3 rounded-xl text-sm outline-none focus:border-orange-500/60 transition-colors resize-none"
+            style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
           />
 
           {imageLoading && (
@@ -275,10 +276,11 @@ function ActivityCard({ activity, index, onUpdate, onDelete }) {
       )}
 
       {!editing && !confirmDelete && (
-        <div className="border-t border-white/6 px-2 py-1 flex">
+        <div className="px-2 py-1 flex" style={{ borderTop: '1px solid var(--border)' }}>
           <button
             onClick={() => setEditing(true)}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs text-white/45 hover:text-white hover:bg-white/3 transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs transition-colors hover:bg-white/5"
+            style={{ color: 'var(--text-secondary)' }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z" />

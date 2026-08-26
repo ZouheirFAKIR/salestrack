@@ -54,83 +54,85 @@ function RewardDetailModal({ reward, balance, onClose, onRedeemed }) {
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div
-        className="bg-[#0d0d0d] border border-white/10 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto grid grid-cols-1 md:grid-cols-2"
+        className="bg-[#0d0d0d] border border-white/10 rounded-2xl max-w-6xl w-full max-h-[92vh] overflow-y-auto grid grid-cols-1 md:grid-cols-2"
+        style={{ minHeight: '460px' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="relative bg-black/40 min-h-[240px] md:min-h-full">
+        <div className="relative bg-black/40 min-h-[280px] md:min-h-full">
           {reward.image_url ? (
             <img src={reward.image_url} alt="" className="w-full h-full object-cover absolute inset-0" onError={(e) => { e.target.style.display = 'none'; }} />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-4xl text-white/15 absolute inset-0">🎁</div>
+            <div className="w-full h-full flex items-center justify-center text-6xl text-white/15 absolute inset-0">🎁</div>
           )}
           <button
             onClick={onClose}
-            className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-colors z-10 md:hidden"
+            className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-colors z-10 md:hidden"
           >
             ×
           </button>
         </div>
 
-        <div className="p-5 sm:p-6 flex flex-col relative">
+        <div className="p-8 sm:p-10 flex flex-col relative">
           <button
             onClick={onClose}
-            className="hidden md:flex absolute top-4 right-4 w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-white items-center justify-center transition-colors"
+            className="hidden md:flex absolute top-6 right-6 w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 text-white items-center justify-center transition-colors"
           >
             ×
           </button>
 
-          <p className="text-white text-lg sm:text-xl font-semibold pr-8">{reward.title}</p>
-          {reward.description && <p className="text-white/50 text-sm mt-2 leading-relaxed">{reward.description}</p>}
+          <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: ACCENT }}>Récompense</span>
+          <p className="text-white text-2xl sm:text-3xl font-bold pr-10 mt-1.5 leading-tight">{reward.title}</p>
+          {reward.description && <p className="text-white/50 text-sm sm:text-base mt-3 leading-relaxed">{reward.description}</p>}
 
-          <div className="flex items-center gap-1.5 mt-4">
-            <CoinIcon size={16} />
-            <span className="text-sm font-medium" style={{ color: ACCENT }}>{reward.cost} points l'unité</span>
+          <div className="flex items-center gap-1.5 mt-5">
+            <CoinIcon size={18} />
+            <span className="text-base font-medium" style={{ color: ACCENT }}>{reward.cost} points l'unité</span>
           </div>
 
           <div className="flex-1" />
 
           {!confirming ? (
             <>
-              <div className="flex items-center justify-between mt-5">
+              <div className="flex items-center justify-between mt-8 pt-6 border-t border-white/10">
                 <p className="text-sm text-white/60">Quantité</p>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                   <button
                     onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                    className="w-8 h-8 rounded-lg border border-white/15 text-white flex items-center justify-center hover:bg-white/5 transition-colors"
+                    className="w-10 h-10 rounded-lg border border-white/15 text-white text-lg flex items-center justify-center hover:bg-white/5 transition-colors"
                   >
                     −
                   </button>
-                  <span className="text-white font-medium w-6 text-center">{quantity}</span>
+                  <span className="text-white text-lg font-medium w-8 text-center">{quantity}</span>
                   <button
                     onClick={() => setQuantity((q) => Math.min(20, q + 1))}
-                    className="w-8 h-8 rounded-lg border border-white/15 text-white flex items-center justify-center hover:bg-white/5 transition-colors"
+                    className="w-10 h-10 rounded-lg border border-white/15 text-white text-lg flex items-center justify-center hover:bg-white/5 transition-colors"
                   >
                     +
                   </button>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/10">
+              <div className="flex items-center justify-between mt-5 pt-5 border-t border-white/10">
                 <p className="text-sm text-white/60">Total</p>
-                <span className="flex items-center gap-1.5 text-white font-semibold">
-                  <CoinIcon size={16} />
+                <span className="flex items-center gap-1.5 text-white text-lg font-semibold">
+                  <CoinIcon size={18} />
                   {totalCost}
                 </span>
               </div>
 
-              {error && <p className="text-red-400 text-xs mt-3">{error}</p>}
+              {error && <p className="text-red-400 text-xs mt-4">{error}</p>}
 
               <button
                 onClick={handleCheckoutClick}
-                className="w-full text-white text-sm font-medium py-3 rounded-xl mt-5 transition-all hover:brightness-110"
+                className="w-full text-white text-sm font-medium py-3.5 rounded-xl mt-6 transition-all hover:brightness-110"
                 style={{ backgroundColor: ACCENT }}
               >
                 Échanger
               </button>
             </>
           ) : (
-            <div className="mt-5">
-              <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
+            <div className="mt-8">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-5 text-center">
                 <p className="text-sm text-white/80">
                   Confirmer l'échange de <span className="font-semibold text-white">{quantity} × {reward.title}</span> contre <span className="font-semibold" style={{ color: ACCENT }}>{totalCost} points</span> ?
                 </p>
@@ -140,14 +142,14 @@ function RewardDetailModal({ reward, balance, onClose, onRedeemed }) {
                 <button
                   onClick={() => setConfirming(false)}
                   disabled={redeeming}
-                  className="flex-1 text-white/60 text-sm py-3 rounded-xl border border-white/15 hover:text-white transition-colors disabled:opacity-50"
+                  className="flex-1 text-white/60 text-sm py-3.5 rounded-xl border border-white/15 hover:text-white transition-colors disabled:opacity-50"
                 >
                   Annuler
                 </button>
                 <button
                   onClick={handleConfirm}
                   disabled={redeeming}
-                  className="flex-1 text-white text-sm font-medium py-3 rounded-xl transition-all hover:brightness-110 flex items-center justify-center gap-2 disabled:opacity-60"
+                  className="flex-1 text-white text-sm font-medium py-3.5 rounded-xl transition-all hover:brightness-110 flex items-center justify-center gap-2 disabled:opacity-60"
                   style={{ backgroundColor: ACCENT }}
                 >
                   {redeeming && <Spinner size={13} color="#fff" />}
@@ -175,8 +177,8 @@ function RewardCard({ reward, onSelect }) {
           <div className="w-full h-full flex items-center justify-center text-3xl text-white/15">🎁</div>
         )}
         <span
-          className="absolute top-3 right-3 flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full text-white backdrop-blur-sm"
-          style={{ backgroundColor: `${ACCENT}dd` }}
+          className="absolute top-3 right-3 flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full backdrop-blur-sm"
+          style={{ backgroundColor: `${ACCENT}dd`, color: '#fff' }}
         >
           <CoinIcon size={13} />
           {reward.cost}

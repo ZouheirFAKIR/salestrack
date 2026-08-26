@@ -33,6 +33,7 @@ function NouvelleActivite() {
   const [typeQuotas, setTypeQuotas] = useState({ appel: 5, rdv: 2, devis: 1, commande: 1 });
   const [completedType, setCompletedType] = useState(null);
   const [dailyBonus, setDailyBonus] = useState(null);
+  const [pendingObjective, setPendingObjective] = useState(null);
   const [points, setPoints] = useState(null);
 
   const token = localStorage.getItem('token');
@@ -151,6 +152,17 @@ function NouvelleActivite() {
 
   const getStat = (key) => todayStats.find((s) => s.type === key)?.total || 0;
 
+  useEffect(() => {
+    if (newlyUnlocked.length === 0 && pendingObjective) {
+      if (pendingObjective.kind === 'daily') {
+        setDailyBonus(pendingObjective.points);
+      } else {
+        setCompletedType(pendingObjective);
+      }
+      setPendingObjective(null);
+    }
+  }, [newlyUnlocked, pendingObjective]);
+
   const handleSubmit = async () => {
     if (!token) { navigate('/login'); return; }
     if (!canSubmit()) return;
@@ -178,16 +190,18 @@ function NouvelleActivite() {
         loadStats();
         setTimeout(() => setShowConfetti(false), 1300);
         setTimeout(() => setMessage(''), 2500);
-        checkForNewBadges();
+
+        await checkForNewBadges();
 
         if (data.bonusAwarded) {
           apiFetch(`${API_URL}/api/rewards/balance`)
             .then((r) => r.json())
             .then((d) => setPoints(d.balance))
             .catch(() => {});
-          setTimeout(() => setDailyBonus(data.bonusPoints), 1400);
+          window.dispatchEvent(new Event('points-updated'));
+          setPendingObjective({ kind: 'daily', points: data.bonusPoints });
         } else if (beforeCount < target && afterCount >= target) {
-          setTimeout(() => setCompletedType({ type: justCompletedType, count: afterCount, target }), 1400);
+          setPendingObjective({ kind: 'type', type: justCompletedType, count: afterCount, target });
         }
       }
     } catch (err) {
@@ -221,7 +235,7 @@ function NouvelleActivite() {
           message={`Tu as atteint tous tes objectifs du jour et gagné ${dailyBonus} points bonus 🎉`}
         />
       )}
-      {newlyUnlocked.length > 0 && (
+      {newlyUnlocked.length > 0 && !completedType && !dailyBonus && (
         <BadgeUnlockModal
           badge={newlyUnlocked[currentUnlockIndex]}
           onClose={handleCloseUnlock}
@@ -249,13 +263,13 @@ function NouvelleActivite() {
                 className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex flex-col items-center justify-center shrink-0"
                 style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}
               >
-                <span className="text-white text-sm sm:text-base font-semibold leading-none">{getDateParts().jourNum}</span>
-                <span className="text-white/80 text-[8px] sm:text-[9px] uppercase mt-0.5">{getDateParts().moisAbrev}</span>
+                <span className="text-sm sm:text-base font-semibold leading-none" style={{ color: '#fff' }}>{getDateParts().jourNum}</span>
+                <span className="text-[8px] sm:text-[9px] uppercase mt-0.5" style={{ color: 'rgba(255,255,255,0.8)' }}>{getDateParts().moisAbrev}</span>
               </div>
             </div>
 
             {combo > 0 && (
-              <span className="text-xs text-white px-3 py-1 rounded-full animate-bounce shrink-0 self-start sm:self-auto" style={{ backgroundColor: ACCENT, boxShadow: `0 0 20px ${ACCENT}80` }}>
+              <span className="text-xs px-3 py-1 rounded-full animate-bounce shrink-0 self-start sm:self-auto" style={{ backgroundColor: ACCENT, boxShadow: `0 0 20px ${ACCENT}80`, color: '#fff' }}>
                 Combo x{combo} 🔥
               </span>
             )}
@@ -362,12 +376,12 @@ function NouvelleActivite() {
                 <button
                   onClick={handleSubmit}
                   disabled={!canSubmit() || submitting}
-                  className={`w-full text-white p-2.5 rounded-lg font-medium transition-all active:scale-95 flex items-center justify-center gap-2 ${shake ? 'animate-[shake_0.4s_ease]' : ''}`}
+                  className={`w-full p-2.5 rounded-lg font-medium transition-all active:scale-95 flex items-center justify-center gap-2 ${shake ? 'animate-[shake_0.4s_ease]' : ''}`}
                   style={{
-                    backgroundColor: canSubmit() ? ACCENT : 'rgba(255,255,255,0.1)',
+                    backgroundColor: canSubmit() ? ACCENT : 'var(--border)',
                     boxShadow: canSubmit() ? `0 4px 20px ${ACCENT}40` : 'none',
                     cursor: canSubmit() ? 'pointer' : 'not-allowed',
-                    color: canSubmit() ? '#fff' : 'rgba(255,255,255,0.3)',
+                    color: canSubmit() ? '#fff' : 'var(--text-muted)',
                   }}
                 >
                   {submitting && <Spinner size={15} color="#fff" />}
@@ -383,7 +397,7 @@ function NouvelleActivite() {
         <div className="lg:col-span-1 flex flex-col gap-3">
           <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-semibold" style={{ backgroundColor: ACCENT }}>
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold" style={{ backgroundColor: ACCENT, color: '#fff' }}>
                 {prenom.charAt(0).toUpperCase()}
               </div>
               <div>
@@ -443,7 +457,7 @@ function NouvelleActivite() {
 
           <div className="rounded-2xl p-4 text-center" style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}>
             <p className="text-xl mb-1">🔥</p>
-            <p className="text-white text-xs font-medium">Reste actif chaque jour</p>
+            <p className="text-xs font-medium" style={{ color: '#fff' }}>Reste actif chaque jour</p>
           </div>
         </div>
 

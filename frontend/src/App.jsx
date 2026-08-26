@@ -12,6 +12,7 @@ import Courses from './pages/Courses';
 import CourseDetail from './pages/CourseDetail';
 import AdminCourses from './pages/admin/AdminCourses';
 import AdminRewards from './pages/admin/AdminRewards';
+import AdminNotifications from './pages/admin/AdminNotifications';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminRoute from './components/AdminRoute';
 import Login from './pages/Login';
@@ -88,6 +89,7 @@ function App() {
         <Route path="/admin" element={<AdminRoute><AppLayout><AdminDashboard /></AppLayout></AdminRoute>} />
         <Route path="/admin/courses" element={<AdminRoute><AppLayout><AdminCourses /></AppLayout></AdminRoute>} />
         <Route path="/admin/rewards" element={<AdminRoute><AppLayout><AdminRewards /></AppLayout></AdminRoute>} />
+        <Route path="/admin/notifications" element={<AdminRoute><AppLayout><AdminNotifications /></AppLayout></AdminRoute>} />
       </Routes>
     </BrowserRouter>
   );

@@ -5,7 +5,7 @@ import { Icon } from '../../data/icons';
 import PageLoader from '../../components/PageLoader';
 import Spinner from '../../components/Spinner';
 import LineChart from '../../components/LineChart';
-
+import CoinIcon from '../../components/CoinIcon';
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -130,6 +130,32 @@ function CommercialDetail({ commercial, onClose, onQuotaUpdated }) {
               <LineChart data={detail.daily} />
             </div>
 
+            <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4 mb-5">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-white">Solde de points</p>
+                <span className="flex items-center gap-1.5 text-lg font-semibold" style={{ color: ACCENT }}>
+                  <CoinIcon size={16} />
+                  {detail.points_balance ?? 0}
+                </span>
+              </div>
+
+              {detail.redemptions?.length > 0 && (
+                <div className="flex flex-col gap-1.5 mt-3 pt-3 border-t border-white/10">
+                  <p className="text-xs text-white/40 uppercase tracking-wide mb-1">Récompenses échangées</p>
+                  {detail.redemptions.map((r) => (
+                    <div key={r.id} className="flex items-center justify-between gap-2 bg-black/30 rounded-lg p-2">
+                      <p className="text-xs text-white/70 truncate">
+                        {r.quantity > 1 ? `${r.quantity} × ` : ''}{r.title}
+                      </p>
+                      <span className="text-[11px] text-white/40 shrink-0">
+                        {new Date(r.redeemed_at).toLocaleDateString('fr-FR')} · −{r.cost_at_redemption}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4">
               <p className="text-sm font-medium text-white mb-3">Objectifs quotidiens par type</p>
               <TypeQuotasForm commercialId={commercial.id} onSaved={onQuotaUpdated} />
@@ -251,6 +277,12 @@ function AdminDashboard() {
           <div className="flex items-center gap-2">
             <Link to="/admin/courses" className="text-xs px-3 py-2 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
               Gérer les cours
+            </Link>
+            <Link to="/admin/rewards" className="text-xs px-3 py-2 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
+              Gérer les récompenses
+            </Link>
+            <Link to="/admin/notifications" className="text-xs px-3 py-2 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
+              Notifications
             </Link>
             <button
               onClick={handleDownloadReport}

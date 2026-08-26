@@ -105,6 +105,7 @@ function NewRewardForm({ onCreated }) {
 
 function RewardCard({ reward, onRefresh }) {
   const [editing, setEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [values, setValues] = useState({
     title: reward.title, description: reward.description || '',
     imageUrl: reward.image_url || '', cost: reward.cost,
@@ -141,10 +142,20 @@ function RewardCard({ reward, onRefresh }) {
   };
 
   const handleDelete = async () => {
-    if (!confirm('Supprimer cette récompense ?')) return;
     setDeleting(true);
-    await apiFetch(`${API_URL}/api/admin/rewards/${reward.id}`, { method: 'DELETE' });
-    onRefresh();
+    setError('');
+    try {
+      const res = await apiFetch(`${API_URL}/api/admin/rewards/${reward.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        onRefresh();
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Erreur lors de la suppression');
+      }
+    } catch (err) {
+      setError('Erreur réseau');
+    }
+    setDeleting(false);
   };
 
   if (editing) {
@@ -170,6 +181,37 @@ function RewardCard({ reward, onRefresh }) {
     );
   }
 
+  if (confirmDelete) {
+    return (
+      <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-4 flex items-center gap-3">
+        {reward.image_url && (
+          <img src={reward.image_url} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0 border border-white/10 opacity-50" />
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-white text-sm font-medium">Supprimer « {reward.title} » ?</p>
+          <p className="text-white/40 text-xs mt-0.5">Cette action est définitive.</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => setConfirmDelete(false)}
+            disabled={deleting}
+            className="text-xs px-3 py-1.5 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors disabled:opacity-50"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="text-xs px-3 py-1.5 rounded-lg text-white font-medium bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-60 flex items-center gap-1.5"
+          >
+            {deleting && <Spinner size={12} color="#fff" />}
+            Confirmer
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden flex items-center gap-3 p-4">
       {reward.image_url && (
@@ -185,8 +227,7 @@ function RewardCard({ reward, onRefresh }) {
           Modifier
         </button>
         <button
-          onClick={handleDelete}
-          disabled={deleting}
+          onClick={() => setConfirmDelete(true)}
           className="text-xs px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors"
         >
           Supprimer
