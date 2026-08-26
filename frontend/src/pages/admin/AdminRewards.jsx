@@ -10,7 +10,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 function RewardFields({ values, onChange }) {
   const [imgLoading, setImgLoading] = useState(false);
 
-    const handleImageFile = async (e) => {
+  const handleImageFile = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     setImgLoading(true);
@@ -86,14 +86,14 @@ function NewRewardForm({ onCreated }) {
   };
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-5">
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 sm:p-5 mb-5">
       <p className="text-sm font-semibold text-white mb-3">Nouvelle récompense</p>
       {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
       <RewardFields values={values} onChange={handleChange} />
       <button
         onClick={handleCreate}
         disabled={saving}
-        className="mt-4 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-60 flex items-center gap-2"
+        className="mt-4 w-full sm:w-auto px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-60 flex items-center justify-center gap-2"
         style={{ backgroundColor: ACCENT }}
       >
         {saving && <Spinner size={13} color="#fff" />}
@@ -183,15 +183,17 @@ function RewardCard({ reward, onRefresh }) {
 
   if (confirmDelete) {
     return (
-      <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-4 flex items-center gap-3">
-        {reward.image_url && (
-          <img src={reward.image_url} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0 border border-white/10 opacity-50" />
-        )}
-        <div className="flex-1 min-w-0">
-          <p className="text-white text-sm font-medium">Supprimer « {reward.title} » ?</p>
-          <p className="text-white/40 text-xs mt-0.5">Cette action est définitive.</p>
+      <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          {reward.image_url && (
+            <img src={reward.image_url} alt="" className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg object-cover shrink-0 border border-white/10 opacity-50" />
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="text-white text-sm font-medium truncate">Supprimer « {reward.title} » ?</p>
+            <p className="text-white/40 text-xs mt-0.5">{error || 'Cette action est définitive.'}</p>
+          </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 shrink-0">
           <button
             onClick={() => setConfirmDelete(false)}
             disabled={deleting}
@@ -202,7 +204,7 @@ function RewardCard({ reward, onRefresh }) {
           <button
             onClick={handleDelete}
             disabled={deleting}
-            className="text-xs px-3 py-1.5 rounded-lg text-white font-medium bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-60 flex items-center gap-1.5"
+            className="text-xs px-3 py-1.5 rounded-lg text-white font-medium bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5"
           >
             {deleting && <Spinner size={12} color="#fff" />}
             Confirmer
@@ -213,16 +215,18 @@ function RewardCard({ reward, onRefresh }) {
   }
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden flex items-center gap-3 p-4">
-      {reward.image_url && (
-        <img src={reward.image_url} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0 border border-white/10" onError={(e) => { e.target.style.display = 'none'; }} />
-      )}
-      <div className="flex-1 min-w-0">
-        <p className="text-white font-medium">{reward.title}</p>
-        <p className="text-white/40 text-xs mt-0.5">{reward.description}</p>
-        <p className="text-xs mt-1 font-medium" style={{ color: ACCENT }}>{reward.cost} points</p>
+    <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden flex flex-col sm:flex-row sm:items-center gap-3 p-3 sm:p-4">
+      <div className="flex items-center gap-3 min-w-0">
+        {reward.image_url && (
+          <img src={reward.image_url} alt="" className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg object-cover shrink-0 border border-white/10" onError={(e) => { e.target.style.display = 'none'; }} />
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-white font-medium truncate">{reward.title}</p>
+          <p className="text-white/40 text-xs mt-0.5 truncate">{reward.description}</p>
+          <p className="text-xs mt-1 font-medium" style={{ color: ACCENT }}>{reward.cost} points</p>
+        </div>
       </div>
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 shrink-0">
         <button onClick={() => setEditing(true)} className="text-xs px-3 py-1.5 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
           Modifier
         </button>

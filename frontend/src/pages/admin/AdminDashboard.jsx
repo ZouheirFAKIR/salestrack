@@ -69,8 +69,7 @@ function TypeQuotasForm({ commercialId, onSaved }) {
         onClick={handleSaveAll}
         disabled={saving}
         className="w-full text-sm font-medium py-2.5 rounded-lg disabled:opacity-60 flex items-center justify-center gap-2"
-        style={{ color: '#fff' }}
-        
+        style={{ color: '#fff', backgroundColor: ACCENT }}
       >
         {saving && <Spinner size={13} color="#fff" />}
         {saving ? 'Enregistrement...' : saved ? '✓ Objectifs enregistrés' : 'Enregistrer les objectifs'}
@@ -193,10 +192,10 @@ function OdooStatsCard() {
 
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
         <p className="text-xs text-white/50 uppercase tracking-wide">Données Odoo — CRM &amp; Ventes</p>
         {!loading && !error && (
-          <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+          <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full shrink-0">
             En direct
           </span>
         )}
@@ -216,17 +215,17 @@ function OdooStatsCard() {
       )}
 
       {!loading && !error && stats && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 xs:grid-cols-3 sm:grid-cols-3 gap-3">
           <div className="text-center">
-            <p className="text-2xl font-semibold text-white">{stats.nbDevis}</p>
+            <p className="text-xl sm:text-2xl font-semibold text-white">{stats.nbDevis}</p>
             <p className="text-[11px] text-white/40 mt-0.5">Devis</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-semibold text-white">{stats.nbCommandes}</p>
+            <p className="text-xl sm:text-2xl font-semibold text-white">{stats.nbCommandes}</p>
             <p className="text-[11px] text-white/40 mt-0.5">Commandes</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-semibold" style={{ color: ACCENT }}>{formatMAD(stats.chiffreAffaires)}</p>
+            <p className="text-xl sm:text-2xl font-semibold break-words" style={{ color: ACCENT }}>{formatMAD(stats.chiffreAffaires)}</p>
             <p className="text-[11px] text-white/40 mt-0.5">Chiffre d'affaires</p>
           </div>
         </div>
@@ -239,6 +238,7 @@ function AdminDashboard() {
   const [commercials, setCommercials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
 
   const loadCommercials = () => {
     apiFetch(`${API_URL}/api/admin/commercials`)
@@ -261,6 +261,7 @@ function AdminDashboard() {
         a.download = 'rapport_quotas.csv';
         a.click();
         window.URL.revokeObjectURL(url);
+        setAdminMenuOpen(false);
       });
   };
 
@@ -269,12 +270,14 @@ function AdminDashboard() {
   return (
     <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
       <div className="max-w-4xl mx-auto flex flex-col gap-5">
-        <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center justify-between gap-3">
           <div>
             <h1 className="text-lg font-semibold text-white">Administration — Commerciaux</h1>
             <p className="text-white/40 text-xs">Activité, objectifs et rapports</p>
           </div>
-          <div className="flex items-center gap-2">
+
+          {/* Liens visibles normalement à partir de sm */}
+          <div className="hidden sm:flex items-center gap-2 flex-wrap">
             <Link to="/admin/courses" className="text-xs px-3 py-2 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
               Gérer les cours
             </Link>
@@ -288,13 +291,61 @@ function AdminDashboard() {
               onClick={handleDownloadReport}
               className="text-xs px-3 py-2 rounded-lg font-medium flex items-center gap-1.5"
               style={{ backgroundColor: ACCENT, color: '#fff' }}
-              
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
               </svg>
               Télécharger le rapport
             </button>
+          </div>
+
+          {/* Hamburger visible uniquement sur mobile */}
+          <div className="relative sm:hidden shrink-0">
+            <button
+              onClick={() => setAdminMenuOpen((v) => !v)}
+              className="w-9 h-9 rounded-full border border-white/15 flex items-center justify-center text-white/70 hover:text-white transition-colors"
+              aria-label="Menu admin"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {adminMenuOpen ? <path d="M18 6 6 18M6 6l12 12" /> : <path d="M3 12h18M3 6h18M3 18h18" />}
+              </svg>
+            </button>
+
+            {adminMenuOpen && (
+              <div className="absolute right-0 top-11 w-56 bg-[#0d0d0d] border border-white/10 rounded-xl shadow-xl z-40 p-2 flex flex-col gap-1">
+                <Link
+                  to="/admin/courses"
+                  onClick={() => setAdminMenuOpen(false)}
+                  className="text-xs px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+                >
+                  Gérer les cours
+                </Link>
+                <Link
+                  to="/admin/rewards"
+                  onClick={() => setAdminMenuOpen(false)}
+                  className="text-xs px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+                >
+                  Gérer les récompenses
+                </Link>
+                <Link
+                  to="/admin/notifications"
+                  onClick={() => setAdminMenuOpen(false)}
+                  className="text-xs px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+                >
+                  Notifications
+                </Link>
+                <button
+                  onClick={handleDownloadReport}
+                  className="text-xs px-3 py-2.5 rounded-lg font-medium flex items-center gap-1.5"
+                  style={{ backgroundColor: ACCENT, color: '#fff' }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  Télécharger le rapport
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -310,18 +361,18 @@ function AdminDashboard() {
               <button
                 key={c.id}
                 onClick={() => setSelected(c)}
-                className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:border-orange-400/50 transition-all text-left flex items-center gap-4"
+                className="bg-white/5 border border-white/10 rounded-2xl p-3 sm:p-4 hover:border-orange-400/50 transition-all text-left flex items-center gap-3 sm:gap-4"
               >
-                <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold shrink-0" style={{ backgroundColor: ACCENT, color: '#fff' }}>
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm font-semibold shrink-0" style={{ backgroundColor: ACCENT, color: '#fff' }}>
                   {c.nom?.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-medium">{c.nom}</p>
-                  <p className="text-white/40 text-xs">{c.total_activities} activités au total</p>
+                  <p className="text-white font-medium text-sm sm:text-base truncate">{c.nom}</p>
+                  <p className="text-white/40 text-[11px] sm:text-xs truncate">{c.total_activities} activités au total</p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-sm font-semibold" style={{ color: ACCENT }}>{c.today_activities}/{c.daily_target}</p>
-                  <div className="w-20 bg-white/10 rounded-full h-1.5 mt-1">
+                  <p className="text-xs sm:text-sm font-semibold" style={{ color: ACCENT }}>{c.today_activities}/{c.daily_target}</p>
+                  <div className="w-14 sm:w-20 bg-white/10 rounded-full h-1.5 mt-1">
                     <div className="h-1.5 rounded-full" style={{ width: `${percent}%`, backgroundColor: ACCENT }} />
                   </div>
                 </div>

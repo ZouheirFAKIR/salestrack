@@ -76,10 +76,10 @@ function Navbar() {
     const primaryLinks = [
     { path: '/nouvelle-activite', label: 'Nouvelle activité', iconName: 'add' },
     { path: '/', label: 'Dashboard', iconName: 'dashboard' },
-    { path: '/feed', label: 'Feed', iconName: 'feed' },
   ];
 
   const secondaryLinks = [
+    { path: '/feed', label: 'Feed', iconName: 'feed' },
     { path: '/courses', label: 'Formation', iconName: 'formation' },
     { path: '/badges', label: 'Badges', iconName: 'badges' },
     { path: '/rewards', label: 'Récompenses', iconName: 'gift' },
