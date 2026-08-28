@@ -198,10 +198,12 @@ function Navbar() {
                   ) : (
                     notifications.map((n) => (
                       <div key={n.id} className={`flex items-center gap-2 p-2 rounded-lg group ${!n.seen_by_admin ? 'bg-orange-500/5' : ''}`}>
-                        {n.image_url ? (
-                          <img src={n.image_url} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+                        {n.commercial_photo_url ? (
+                          <img src={n.commercial_photo_url} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
                         ) : (
-                          <div className="w-8 h-8 rounded-lg bg-black/40 flex items-center justify-center text-sm shrink-0">🎁</div>
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0" style={{ backgroundColor: ACCENT }}>
+                            {n.commercial_nom?.charAt(0).toUpperCase()}
+                          </div>
                         )}
                         <div className="min-w-0 flex-1">
                           <p className="text-xs text-white/80 truncate">

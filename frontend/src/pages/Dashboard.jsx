@@ -3,6 +3,9 @@ import LineChart from '../components/LineChart';
 import PageLoader from '../components/PageLoader';
 import { apiFetch } from '../utils/api';
 import { Icon } from '../data/icons';
+import goldTrophy from '../assets/trophy.png';
+import silverTrophy from '../assets/2sd_Trophie.png';
+import bronzeTrophy from '../assets/Bronze_Trophie.png';
 
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -22,17 +25,93 @@ function AnimatedNumber({ value }) {
   return <>{display}</>;
 }
 
+function ChartCard({ title, data, target, total, labelKey, formatLabel }) {
+  return (
+    <div className="rounded-xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+      <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>{title}</p>
+      <p className="text-xl sm:text-2xl font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+        {total} activités
+      </p>
+      <LineChart data={data} target={target} labelKey={labelKey} formatLabel={formatLabel} />
+    </div>
+  );
+}
+
+const RANK_STYLES = {
+  1: { icon: goldTrophy },
+  2: { icon: silverTrophy },
+  3: { icon: bronzeTrophy },
+};
+
+function Leaderboard({ entries, currentUserId }) {
+  if (!entries || entries.length === 0) return null;
+
+  return (
+    <div className="rounded-xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+      <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>Classement — 7 derniers jours</p>
+      <div className="flex flex-col gap-2">
+        {entries.map((e, i) => {
+          const rank = i + 1;
+          const isMe = e.id === currentUserId;
+          const rankStyle = RANK_STYLES[rank];
+          return (
+            <div
+              key={e.id}
+              className="flex items-center gap-3 rounded-lg p-2.5 transition-colors"
+              style={{
+                backgroundColor: isMe ? `${ACCENT}14` : 'var(--surface-strong)',
+                border: isMe ? `1px solid ${ACCENT}55` : '1px solid transparent',
+              }}
+            >
+              {rankStyle ? (
+                <img
+                  src={rankStyle.icon}
+                  alt={`Rang ${rank}`}
+                  className="w-7 h-7 object-contain shrink-0"
+                />
+              ) : (
+                <div
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                  style={{ backgroundColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                >
+                  {rank}
+                </div>
+              )}
+              {e.photo_url ? (
+                <img src={e.photo_url} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+              ) : (
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0" style={{ backgroundColor: ACCENT }}>
+                  {e.nom?.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <p className="flex-1 min-w-0 text-sm font-medium truncate" style={{ color: isMe ? ACCENT : 'var(--text-primary)' }}>
+                {e.nom}{isMe && ' (toi)'}
+              </p>
+              <p className="text-sm font-semibold shrink-0" style={{ color: 'var(--text-primary)' }}>
+                {e.total} <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>act.</span>
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function Dashboard() {
   const [stats, setStats] = useState([]);
   const [daily, setDaily] = useState([]);
+  const [weekly, setWeekly] = useState([]);
+  const [monthly, setMonthly] = useState([]);
+  const [yearly, setYearly] = useState([]);
   const [typeQuotas, setTypeQuotas] = useState(null);
+  const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   const prenom = user?.nom?.split(' ')[0];
 
-  
   const labels = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
   const allTypes = ['appel', 'rdv', 'devis', 'commande'];
 
@@ -41,11 +120,19 @@ function Dashboard() {
     Promise.all([
       apiFetch(`${API_URL}/api/activities/stats/today`).then(r => r.json()),
       apiFetch(`${API_URL}/api/activities/daily`).then(r => r.json()),
+      apiFetch(`${API_URL}/api/activities/weekly`).then(r => r.json()),
+      apiFetch(`${API_URL}/api/activities/monthly`).then(r => r.json()),
+      apiFetch(`${API_URL}/api/activities/yearly`).then(r => r.json()),
       apiFetch(`${API_URL}/api/activities/my-type-quotas`).then(r => r.json()),
-    ]).then(([statsData, dailyData, quotasData]) => {
+      apiFetch(`${API_URL}/api/activities/leaderboard`).then(r => r.json()),
+    ]).then(([statsData, dailyData, weeklyData, monthlyData, yearlyData, quotasData, leaderboardData]) => {
       setStats(statsData);
       setDaily(dailyData);
+      setWeekly(weeklyData);
+      setMonthly(monthlyData);
+      setYearly(yearlyData);
       setTypeQuotas(quotasData);
+      setLeaderboard(leaderboardData);
       setLoading(false);
     });
   }, [token]);
@@ -67,6 +154,13 @@ function Dashboard() {
     );
   }
 
+  const dailyTarget = typeQuotas ? Object.values(typeQuotas.quotas).reduce((sum, v) => sum + Number(v), 0) : 0;
+  const weeklyTarget = dailyTarget * 7;
+  const monthlyTarget = dailyTarget * 30;
+  const yearlyTarget = dailyTarget * 365;
+
+  const sumTotal = (arr) => arr.reduce((sum, d) => sum + Number(d.total), 0);
+
   return (
     <div className="p-4 sm:p-6 pb-12" style={{ backgroundColor: 'var(--bg)' }}>
       <div className="max-w-5xl mx-auto flex flex-col gap-5">
@@ -75,15 +169,23 @@ function Dashboard() {
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Voici ton activité récente</p>
         </div>
 
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
         <div className="rounded-xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>Objectifs du jour</p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {allTypes.map((type, i) => {
               const s = getStat(type);
               const current = Number(s.total);
               const target = typeQuotas?.quotas[type] || 5;
               const percent = Math.min(Math.round((current / target) * 100), 100);
               const circumference = 2 * Math.PI * 26;
+
+              const ringColor =
+                percent >= 100 ? '#22c55e' :
+                percent >= 75 ? '#86efac' :
+                percent >= 25 ? ACCENT :
+                '#ef4444';
+              const displayPercent = Math.max(percent, 4);
 
               return (
                 <div
@@ -95,13 +197,13 @@ function Dashboard() {
                     <svg viewBox="0 0 64 64" className="w-16 h-16 -rotate-90">
                       <circle cx="32" cy="32" r="26" stroke="var(--border)" strokeWidth="5" fill="none" />
                       <circle
-                        cx="32" cy="32" r="26" stroke={ACCENT} strokeWidth="5" fill="none" strokeLinecap="round"
+                        cx="32" cy="32" r="26" stroke={ringColor} strokeWidth="5" fill="none" strokeLinecap="round"
                         strokeDasharray={circumference}
-                        strokeDashoffset={circumference - (percent / 100) * circumference}
-                        style={{ transition: 'stroke-dashoffset 0.8s ease' }}
+                        strokeDashoffset={circumference - (displayPercent / 100) * circumference}
+                        style={{ transition: 'stroke-dashoffset 0.8s ease, stroke 0.4s ease' }}
                       />
                     </svg>
-                                        <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="absolute inset-0 flex items-center justify-center">
                       <Icon name={type} size={18} style={{ color: 'var(--text-primary)' }} />
                     </div>
                   </div>
@@ -113,13 +215,13 @@ function Dashboard() {
           </div>
         </div>
 
-        <div className="rounded-xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>Activités par jour (7 derniers jours)</p>
-          <p className="text-xl sm:text-2xl font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
-            {daily.reduce((sum, d) => sum + Number(d.total), 0)} activités
-          </p>
-          <LineChart data={daily} />
+        <Leaderboard entries={leaderboard} currentUserId={user?.id} />
         </div>
+
+        <ChartCard title="Activités par jour (7 derniers jours)" data={daily} target={dailyTarget} total={sumTotal(daily)} labelKey="jour" formatLabel={(d) => new Date(d).toLocaleDateString('fr-FR', { weekday: 'short' })} />
+        <ChartCard title="Activités par semaine (12 dernières semaines)" data={weekly} target={weeklyTarget} total={sumTotal(weekly)} labelKey="periode" formatLabel={(d) => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} />
+        <ChartCard title="Activités par mois (12 derniers mois)" data={monthly} target={monthlyTarget} total={sumTotal(monthly)} labelKey="periode" formatLabel={(d) => new Date(d).toLocaleDateString('fr-FR', { month: 'short' })} />
+        <ChartCard title="Activités par année (5 dernières années)" data={yearly} target={yearlyTarget} total={sumTotal(yearly)} labelKey="periode" formatLabel={(d) => new Date(d).toLocaleDateString('fr-FR', { year: 'numeric' })} />
       </div>
 
       <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>

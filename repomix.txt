@@ -533,89 +533,6 @@ export function useTheme() {
 }
 </file>
 
-<file path="frontend/src/pages/admin/AdminNotifications.jsx">
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { apiFetch } from '../../utils/api';
-import PageLoader from '../../components/PageLoader';
-
-const ACCENT = '#f86635';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-function AdminNotifications() {
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = () => {
-    apiFetch(`${API_URL}/api/admin/notifications/redemptions/all`)
-      .then((r) => r.json())
-      .then((data) => {
-        setNotifications(data);
-        setLoading(false);
-      });
-  };
-
-  useEffect(() => { load(); }, []);
-
-  const handleDismiss = (id) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-    apiFetch(`${API_URL}/api/admin/notifications/redemptions/${id}/dismiss`, { method: 'PATCH' }).catch(() => {});
-  };
-
-  if (loading) return <PageLoader />;
-
-  return (
-    <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
-      <div className="max-w-3xl mx-auto flex flex-col gap-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-semibold text-white">Notifications</h1>
-            <p className="text-white/40 text-xs">Historique des échanges de récompenses</p>
-          </div>
-          <Link to="/admin" className="text-xs px-3 py-2 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
-            Retour au dashboard
-          </Link>
-        </div>
-
-        {notifications.length === 0 ? (
-          <p className="text-white/30 text-sm text-center mt-10">Aucune notification pour l'instant</p>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {notifications.map((n) => (
-              <div key={n.id} className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl p-3 group">
-                {n.image_url ? (
-                  <img src={n.image_url} alt="" className="w-11 h-11 rounded-lg object-cover shrink-0" />
-                ) : (
-                  <div className="w-11 h-11 rounded-lg bg-black/40 flex items-center justify-center text-lg shrink-0">🎁</div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-white/80">
-                    <span className="font-medium text-white">{n.commercial_nom}</span> a échangé {n.quantity > 1 ? `${n.quantity} × ` : ''}{n.title}
-                  </p>
-                  <p className="text-xs text-white/40 mt-0.5">
-                    {new Date(n.redeemed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    {' · '}−{n.cost_at_redemption} points
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleDismiss(n.id)}
-                  className="text-white/30 hover:text-white/70 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity px-2 text-lg"
-                  aria-label="Masquer"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-export default AdminNotifications;
-</file>
-
 <file path="frontend/src/utils/imageCompress.js">
 export function compressImage(file, maxWidth = 800, quality = 0.7) {
   return new Promise((resolve, reject) => {
@@ -1244,14 +1161,14 @@ export default EmptyState;
 <file path="frontend/src/components/LineChart.jsx">
 const ACCENT = '#f86635';
 
-function LineChart({ data }) {
+function LineChart({ data, target, labelKey = 'jour', formatLabel }) {
   if (!data || data.length === 0) return null;
 
   const width = 600;
   const height = 160;
   const padding = 30;
   const values = data.map((d) => Number(d.total));
-  const rawMax = Math.max(...values, 1);
+  const rawMax = Math.max(...values, target || 0, 1);
   const max = Math.ceil(rawMax / 5) * 5 || 5;
 
   const points = data.map((d, i) => {
@@ -1262,8 +1179,11 @@ function LineChart({ data }) {
 
   const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
   const areaPath = `${linePath} L ${points[points.length - 1].x} ${height - padding} L ${points[0].x} ${height - padding} Z`;
-  const jourFr = (dateStr) => new Date(dateStr).toLocaleDateString('fr-FR', { weekday: 'short' });
+  const defaultFormat = (dateStr) => new Date(dateStr).toLocaleDateString('fr-FR', { weekday: 'short' });
+  const getLabel = formatLabel || defaultFormat;
   const yTicks = [0, Math.round(max / 2), max];
+
+  const targetY = target != null ? height - padding - (Math.min(target, max) / max) * (height - padding * 2) : null;
 
   return (
     <div className="w-full" style={{ height: '200px' }}>
@@ -1285,6 +1205,18 @@ function LineChart({ data }) {
           );
         })}
 
+        {targetY != null && (
+          <g>
+            <line
+              x1={padding} y1={targetY} x2={width - padding} y2={targetY}
+              stroke="#86efac" strokeWidth="1.5" strokeDasharray="5 4"
+            />
+            <text x={width - padding} y={targetY - 6} textAnchor="end" fontSize="10" fill="#86efac">
+              Objectif : {target}
+            </text>
+          </g>
+        )}
+
         <path d={areaPath} fill="url(#areaGradient)" />
         <path
           d={linePath} fill="none" stroke={ACCENT} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
@@ -1296,7 +1228,7 @@ function LineChart({ data }) {
             <circle cx={p.x} cy={p.y} r="10" fill="transparent" className="cursor-pointer" />
             <circle cx={p.x} cy={p.y} r="4" fill={ACCENT} stroke="var(--bg)" strokeWidth="2" style={{ animation: `popIn 0.3s ease ${0.6 + i * 0.05}s both` }} />
             <text x={p.x} y={p.y - 14} textAnchor="middle" fontSize="11" fill="var(--text-primary)" className="opacity-0 group-hover:opacity-100 transition-opacity">{p.total}</text>
-            <text x={p.x} y={height + 22} textAnchor="middle" fontSize="11" fill="var(--text-secondary)">{jourFr(data[i].jour)}</text>
+            <text x={p.x} y={height + 22} textAnchor="middle" fontSize="10" fill="var(--text-secondary)">{getLabel(data[i][labelKey])}</text>
           </g>
         ))}
       </svg>
@@ -1478,282 +1410,89 @@ export function Icon({ name, size = 18, className = '', style = {} }) {
 }
 </file>
 
-<file path="frontend/src/pages/admin/AdminRewards.jsx">
+<file path="frontend/src/pages/admin/AdminNotifications.jsx">
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { apiFetch } from '../../utils/api';
-import { compressImage } from '../../utils/imageCompress';
 import PageLoader from '../../components/PageLoader';
-import Spinner from '../../components/Spinner';
 
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-function RewardFields({ values, onChange }) {
-  const [imgLoading, setImgLoading] = useState(false);
-
-    const handleImageFile = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setImgLoading(true);
-    try {
-      const compressed = await compressImage(file, 1000, 0.7);
-      onChange('imageUrl', compressed);
-    } catch (err) {
-      alert('Erreur lors du traitement de l\'image');
-    }
-    setImgLoading(false);
-  };
-
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <input
-        value={values.title} onChange={(e) => onChange('title', e.target.value)}
-        placeholder="Nom de la récompense"
-        className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 sm:col-span-2"
-      />
-      <input
-        value={values.description} onChange={(e) => onChange('description', e.target.value)}
-        placeholder="Description"
-        className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 sm:col-span-2"
-      />
-      <label className="p-2.5 rounded-lg bg-black border border-white/10 text-white/50 text-sm cursor-pointer hover:text-white transition-colors sm:col-span-2 flex items-center justify-center gap-2">
-        {imgLoading ? 'Chargement...' : values.imageUrl ? "Changer l'image" : 'Choisir une image'}
-        <input type="file" accept="image/*" onChange={handleImageFile} className="hidden" />
-      </label>
-      {values.imageUrl && (
-        <div className="sm:col-span-2 rounded-lg overflow-hidden border border-white/10 h-28">
-          <img src={values.imageUrl} alt="Aperçu" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
-        </div>
-      )}
-      <input
-        value={values.cost} onChange={(e) => onChange('cost', e.target.value)}
-        placeholder="Coût en points" type="number"
-        className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 sm:col-span-2"
-      />
-    </div>
-  );
-}
-
-function NewRewardForm({ onCreated }) {
-  const [values, setValues] = useState({ title: '', description: '', imageUrl: '', cost: '' });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleChange = (field, value) => setValues((prev) => ({ ...prev, [field]: value }));
-
-  const handleCreate = async () => {
-    if (!values.title.trim() || !values.cost) { setError('Nom et coût obligatoires'); return; }
-    setError('');
-    setSaving(true);
-    try {
-      const res = await apiFetch(`${API_URL}/api/admin/rewards`, {
-        method: 'POST',
-        body: JSON.stringify({
-          title: values.title, description: values.description,
-          cost: Number(values.cost), image_url: values.imageUrl || null,
-        }),
-      });
-      if (res.ok) {
-        setValues({ title: '', description: '', imageUrl: '', cost: '' });
-        onCreated();
-      } else {
-        const data = await res.json();
-        setError(data.error || 'Erreur');
-      }
-    } catch (err) {
-      setError('Erreur réseau');
-    }
-    setSaving(false);
-  };
-
-  return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-5">
-      <p className="text-sm font-semibold text-white mb-3">Nouvelle récompense</p>
-      {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
-      <RewardFields values={values} onChange={handleChange} />
-      <button
-        onClick={handleCreate}
-        disabled={saving}
-        className="mt-4 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-60 flex items-center gap-2"
-        style={{ backgroundColor: ACCENT }}
-      >
-        {saving && <Spinner size={13} color="#fff" />}
-        Créer la récompense
-      </button>
-    </div>
-  );
-}
-
-function RewardCard({ reward, onRefresh }) {
-  const [editing, setEditing] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [values, setValues] = useState({
-    title: reward.title, description: reward.description || '',
-    imageUrl: reward.image_url || '', cost: reward.cost,
-  });
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleChange = (field, value) => setValues((prev) => ({ ...prev, [field]: value }));
-
-  const handleSave = async () => {
-    if (!values.title.trim() || !values.cost) { setError('Nom et coût obligatoires'); return; }
-    setError('');
-    setSaving(true);
-    try {
-      const res = await apiFetch(`${API_URL}/api/admin/rewards/${reward.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          title: values.title, description: values.description,
-          cost: Number(values.cost), image_url: values.imageUrl || null,
-        }),
-      });
-      if (res.ok) {
-        setEditing(false);
-        onRefresh();
-      } else {
-        const data = await res.json();
-        setError(data.error || 'Erreur');
-      }
-    } catch (err) {
-      setError('Erreur réseau');
-    }
-    setSaving(false);
-  };
-
-  const handleDelete = async () => {
-    setDeleting(true);
-    setError('');
-    try {
-      const res = await apiFetch(`${API_URL}/api/admin/rewards/${reward.id}`, { method: 'DELETE' });
-      if (res.ok) {
-        onRefresh();
-      } else {
-        const data = await res.json();
-        setError(data.error || 'Erreur lors de la suppression');
-      }
-    } catch (err) {
-      setError('Erreur réseau');
-    }
-    setDeleting(false);
-  };
-
-  if (editing) {
-    return (
-      <div className="bg-black/40 border border-white/10 rounded-xl p-4">
-        {error && <p className="text-red-400 text-xs mb-2">{error}</p>}
-        <RewardFields values={values} onChange={handleChange} />
-        <div className="flex items-center gap-2 mt-3">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 rounded-lg text-white text-xs font-medium disabled:opacity-60 flex items-center gap-2"
-            style={{ backgroundColor: ACCENT }}
-          >
-            {saving && <Spinner size={12} color="#fff" />}
-            Enregistrer
-          </button>
-          <button onClick={() => setEditing(false)} className="px-4 py-2 rounded-lg text-white/60 text-xs border border-white/10 hover:text-white transition-colors">
-            Annuler
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (confirmDelete) {
-    return (
-      <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-4 flex items-center gap-3">
-        {reward.image_url && (
-          <img src={reward.image_url} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0 border border-white/10 opacity-50" />
-        )}
-        <div className="flex-1 min-w-0">
-          <p className="text-white text-sm font-medium">Supprimer « {reward.title} » ?</p>
-          <p className="text-white/40 text-xs mt-0.5">Cette action est définitive.</p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={() => setConfirmDelete(false)}
-            disabled={deleting}
-            className="text-xs px-3 py-1.5 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors disabled:opacity-50"
-          >
-            Annuler
-          </button>
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            className="text-xs px-3 py-1.5 rounded-lg text-white font-medium bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-60 flex items-center gap-1.5"
-          >
-            {deleting && <Spinner size={12} color="#fff" />}
-            Confirmer
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden flex items-center gap-3 p-4">
-      {reward.image_url && (
-        <img src={reward.image_url} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0 border border-white/10" onError={(e) => { e.target.style.display = 'none'; }} />
-      )}
-      <div className="flex-1 min-w-0">
-        <p className="text-white font-medium">{reward.title}</p>
-        <p className="text-white/40 text-xs mt-0.5">{reward.description}</p>
-        <p className="text-xs mt-1 font-medium" style={{ color: ACCENT }}>{reward.cost} points</p>
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        <button onClick={() => setEditing(true)} className="text-xs px-3 py-1.5 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
-          Modifier
-        </button>
-        <button
-          onClick={() => setConfirmDelete(true)}
-          className="text-xs px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors"
-        >
-          Supprimer
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function AdminRewards() {
-  const [rewards, setRewards] = useState([]);
+function AdminNotifications() {
+  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const loadRewards = () => {
-    apiFetch(`${API_URL}/api/admin/rewards`)
+  const load = () => {
+    apiFetch(`${API_URL}/api/admin/notifications/redemptions/all`)
       .then((r) => r.json())
-      .then((data) => { setRewards(data); setLoading(false); });
+      .then((data) => {
+        setNotifications(data);
+        setLoading(false);
+      });
   };
 
-  useEffect(() => { loadRewards(); }, []);
+  useEffect(() => { load(); }, []);
+
+  const handleDismiss = (id) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    apiFetch(`${API_URL}/api/admin/notifications/redemptions/${id}/dismiss`, { method: 'PATCH' }).catch(() => {});
+  };
 
   if (loading) return <PageLoader />;
 
   return (
     <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
       <div className="max-w-3xl mx-auto flex flex-col gap-5">
-        <div>
-          <h1 className="text-lg font-semibold text-white">Administration — Récompenses</h1>
-          <p className="text-white/40 text-xs">Gère le catalogue de récompenses échangeables contre des points</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 className="text-lg font-semibold text-white">Notifications</h1>
+            <p className="text-white/40 text-xs">Historique des échanges de récompenses</p>
+          </div>
+          <Link to="/admin" className="text-xs px-3 py-2 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors text-center sm:w-auto w-fit">
+            Retour au dashboard
+          </Link>
         </div>
 
-        <NewRewardForm onCreated={loadRewards} />
-
-        <div className="flex flex-col gap-3">
-          {rewards.length === 0 && <p className="text-white/30 text-sm text-center">Aucune récompense pour l'instant</p>}
-          {rewards.map((r) => (
-            <RewardCard key={r.id} reward={r} onRefresh={loadRewards} />
-          ))}
-        </div>
+        {notifications.length === 0 ? (
+          <p className="text-white/30 text-sm text-center mt-10">Aucune notification pour l'instant</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {notifications.map((n) => (
+              <div key={n.id} className="flex items-center gap-2 sm:gap-3 bg-white/5 border border-white/10 rounded-xl p-2.5 sm:p-3">
+                {n.commercial_photo_url ? (
+                  <img src={n.commercial_photo_url} alt="" className="w-9 h-9 sm:w-11 sm:h-11 rounded-full object-cover shrink-0" />
+                ) : (
+                  <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0" style={{ backgroundColor: ACCENT }}>
+                    {n.commercial_nom?.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-white/80">
+                    <span className="font-medium text-white">{n.commercial_nom}</span> a échangé {n.quantity > 1 ? `${n.quantity} × ` : ''}{n.title}
+                  </p>
+                  <p className="text-[10px] sm:text-xs text-white/40 mt-0.5">
+                    {new Date(n.redeemed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    {' · '}−{n.cost_at_redemption} pts
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleDismiss(n.id)}
+                  className="text-white/40 hover:text-white/80 shrink-0 px-2 text-lg"
+                  aria-label="Masquer"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-export default AdminRewards;
+export default AdminNotifications;
 </file>
 
 <file path="frontend/src/index.css">
@@ -2218,6 +1957,288 @@ function WeeklyTargetHistory() {
 }
 
 export default WeeklyTargetHistory;
+</file>
+
+<file path="frontend/src/pages/admin/AdminRewards.jsx">
+import { useEffect, useState } from 'react';
+import { apiFetch } from '../../utils/api';
+import { compressImage } from '../../utils/imageCompress';
+import PageLoader from '../../components/PageLoader';
+import Spinner from '../../components/Spinner';
+
+const ACCENT = '#f86635';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+function RewardFields({ values, onChange }) {
+  const [imgLoading, setImgLoading] = useState(false);
+
+  const handleImageFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImgLoading(true);
+    try {
+      const compressed = await compressImage(file, 1000, 0.7);
+      onChange('imageUrl', compressed);
+    } catch (err) {
+      alert('Erreur lors du traitement de l\'image');
+    }
+    setImgLoading(false);
+  };
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <input
+        value={values.title} onChange={(e) => onChange('title', e.target.value)}
+        placeholder="Nom de la récompense"
+        className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 sm:col-span-2"
+      />
+      <input
+        value={values.description} onChange={(e) => onChange('description', e.target.value)}
+        placeholder="Description"
+        className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 sm:col-span-2"
+      />
+      <label className="p-2.5 rounded-lg bg-black border border-white/10 text-white/50 text-sm cursor-pointer hover:text-white transition-colors sm:col-span-2 flex items-center justify-center gap-2">
+        {imgLoading ? 'Chargement...' : values.imageUrl ? "Changer l'image" : 'Choisir une image'}
+        <input type="file" accept="image/*" onChange={handleImageFile} className="hidden" />
+      </label>
+      {values.imageUrl && (
+        <div className="sm:col-span-2 rounded-lg overflow-hidden border border-white/10 h-28">
+          <img src={values.imageUrl} alt="Aperçu" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
+        </div>
+      )}
+      <input
+        value={values.cost} onChange={(e) => onChange('cost', e.target.value)}
+        placeholder="Coût en points" type="number"
+        className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 sm:col-span-2"
+      />
+    </div>
+  );
+}
+
+function NewRewardForm({ onCreated }) {
+  const [values, setValues] = useState({ title: '', description: '', imageUrl: '', cost: '' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleChange = (field, value) => setValues((prev) => ({ ...prev, [field]: value }));
+
+  const handleCreate = async () => {
+    if (!values.title.trim() || !values.cost) { setError('Nom et coût obligatoires'); return; }
+    setError('');
+    setSaving(true);
+    try {
+      const res = await apiFetch(`${API_URL}/api/admin/rewards`, {
+        method: 'POST',
+        body: JSON.stringify({
+          title: values.title, description: values.description,
+          cost: Number(values.cost), image_url: values.imageUrl || null,
+        }),
+      });
+      if (res.ok) {
+        setValues({ title: '', description: '', imageUrl: '', cost: '' });
+        onCreated();
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Erreur');
+      }
+    } catch (err) {
+      setError('Erreur réseau');
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 sm:p-5 mb-5">
+      <p className="text-sm font-semibold text-white mb-3">Nouvelle récompense</p>
+      {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
+      <RewardFields values={values} onChange={handleChange} />
+      <button
+        onClick={handleCreate}
+        disabled={saving}
+        className="mt-4 w-full sm:w-auto px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-60 flex items-center justify-center gap-2"
+        style={{ backgroundColor: ACCENT }}
+      >
+        {saving && <Spinner size={13} color="#fff" />}
+        Créer la récompense
+      </button>
+    </div>
+  );
+}
+
+function RewardCard({ reward, onRefresh }) {
+  const [editing, setEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [values, setValues] = useState({
+    title: reward.title, description: reward.description || '',
+    imageUrl: reward.image_url || '', cost: reward.cost,
+  });
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleChange = (field, value) => setValues((prev) => ({ ...prev, [field]: value }));
+
+  const handleSave = async () => {
+    if (!values.title.trim() || !values.cost) { setError('Nom et coût obligatoires'); return; }
+    setError('');
+    setSaving(true);
+    try {
+      const res = await apiFetch(`${API_URL}/api/admin/rewards/${reward.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          title: values.title, description: values.description,
+          cost: Number(values.cost), image_url: values.imageUrl || null,
+        }),
+      });
+      if (res.ok) {
+        setEditing(false);
+        onRefresh();
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Erreur');
+      }
+    } catch (err) {
+      setError('Erreur réseau');
+    }
+    setSaving(false);
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    setError('');
+    try {
+      const res = await apiFetch(`${API_URL}/api/admin/rewards/${reward.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        onRefresh();
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Erreur lors de la suppression');
+      }
+    } catch (err) {
+      setError('Erreur réseau');
+    }
+    setDeleting(false);
+  };
+
+  if (editing) {
+    return (
+      <div className="bg-black/40 border border-white/10 rounded-xl p-4">
+        {error && <p className="text-red-400 text-xs mb-2">{error}</p>}
+        <RewardFields values={values} onChange={handleChange} />
+        <div className="flex items-center gap-2 mt-3">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-4 py-2 rounded-lg text-white text-xs font-medium disabled:opacity-60 flex items-center gap-2"
+            style={{ backgroundColor: ACCENT }}
+          >
+            {saving && <Spinner size={12} color="#fff" />}
+            Enregistrer
+          </button>
+          <button onClick={() => setEditing(false)} className="px-4 py-2 rounded-lg text-white/60 text-xs border border-white/10 hover:text-white transition-colors">
+            Annuler
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (confirmDelete) {
+    return (
+      <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          {reward.image_url && (
+            <img src={reward.image_url} alt="" className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg object-cover shrink-0 border border-white/10 opacity-50" />
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="text-white text-sm font-medium truncate">Supprimer « {reward.title} » ?</p>
+            <p className="text-white/40 text-xs mt-0.5">{error || 'Cette action est définitive.'}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 shrink-0">
+          <button
+            onClick={() => setConfirmDelete(false)}
+            disabled={deleting}
+            className="text-xs px-3 py-1.5 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors disabled:opacity-50"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="text-xs px-3 py-1.5 rounded-lg text-white font-medium bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5"
+          >
+            {deleting && <Spinner size={12} color="#fff" />}
+            Confirmer
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden flex flex-col sm:flex-row sm:items-center gap-3 p-3 sm:p-4">
+      <div className="flex items-center gap-3 min-w-0">
+        {reward.image_url && (
+          <img src={reward.image_url} alt="" className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg object-cover shrink-0 border border-white/10" onError={(e) => { e.target.style.display = 'none'; }} />
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-white font-medium truncate">{reward.title}</p>
+          <p className="text-white/40 text-xs mt-0.5 truncate">{reward.description}</p>
+          <p className="text-xs mt-1 font-medium" style={{ color: ACCENT }}>{reward.cost} points</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 shrink-0">
+        <button onClick={() => setEditing(true)} className="text-xs px-3 py-1.5 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
+          Modifier
+        </button>
+        <button
+          onClick={() => setConfirmDelete(true)}
+          className="text-xs px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors"
+        >
+          Supprimer
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AdminRewards() {
+  const [rewards, setRewards] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadRewards = () => {
+    apiFetch(`${API_URL}/api/admin/rewards`)
+      .then((r) => r.json())
+      .then((data) => { setRewards(data); setLoading(false); });
+  };
+
+  useEffect(() => { loadRewards(); }, []);
+
+  if (loading) return <PageLoader />;
+
+  return (
+    <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
+      <div className="max-w-3xl mx-auto flex flex-col gap-5">
+        <div>
+          <h1 className="text-lg font-semibold text-white">Administration — Récompenses</h1>
+          <p className="text-white/40 text-xs">Gère le catalogue de récompenses échangeables contre des points</p>
+        </div>
+
+        <NewRewardForm onCreated={loadRewards} />
+
+        <div className="flex flex-col gap-3">
+          {rewards.length === 0 && <p className="text-white/30 text-sm text-center">Aucune récompense pour l'instant</p>}
+          {rewards.map((r) => (
+            <RewardCard key={r.id} reward={r} onRefresh={loadRewards} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default AdminRewards;
 </file>
 
 <file path="frontend/src/utils/api.js">
@@ -4132,8 +4153,7 @@ function TypeQuotasForm({ commercialId, onSaved }) {
         onClick={handleSaveAll}
         disabled={saving}
         className="w-full text-sm font-medium py-2.5 rounded-lg disabled:opacity-60 flex items-center justify-center gap-2"
-        style={{ color: '#fff' }}
-        
+        style={{ color: '#fff', backgroundColor: ACCENT }}
       >
         {saving && <Spinner size={13} color="#fff" />}
         {saving ? 'Enregistrement...' : saved ? '✓ Objectifs enregistrés' : 'Enregistrer les objectifs'}
@@ -4256,10 +4276,10 @@ function OdooStatsCard() {
 
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
         <p className="text-xs text-white/50 uppercase tracking-wide">Données Odoo — CRM &amp; Ventes</p>
         {!loading && !error && (
-          <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+          <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full shrink-0">
             En direct
           </span>
         )}
@@ -4279,17 +4299,17 @@ function OdooStatsCard() {
       )}
 
       {!loading && !error && stats && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 xs:grid-cols-3 sm:grid-cols-3 gap-3">
           <div className="text-center">
-            <p className="text-2xl font-semibold text-white">{stats.nbDevis}</p>
+            <p className="text-xl sm:text-2xl font-semibold text-white">{stats.nbDevis}</p>
             <p className="text-[11px] text-white/40 mt-0.5">Devis</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-semibold text-white">{stats.nbCommandes}</p>
+            <p className="text-xl sm:text-2xl font-semibold text-white">{stats.nbCommandes}</p>
             <p className="text-[11px] text-white/40 mt-0.5">Commandes</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-semibold" style={{ color: ACCENT }}>{formatMAD(stats.chiffreAffaires)}</p>
+            <p className="text-xl sm:text-2xl font-semibold break-words" style={{ color: ACCENT }}>{formatMAD(stats.chiffreAffaires)}</p>
             <p className="text-[11px] text-white/40 mt-0.5">Chiffre d'affaires</p>
           </div>
         </div>
@@ -4302,6 +4322,7 @@ function AdminDashboard() {
   const [commercials, setCommercials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
 
   const loadCommercials = () => {
     apiFetch(`${API_URL}/api/admin/commercials`)
@@ -4324,6 +4345,7 @@ function AdminDashboard() {
         a.download = 'rapport_quotas.csv';
         a.click();
         window.URL.revokeObjectURL(url);
+        setAdminMenuOpen(false);
       });
   };
 
@@ -4332,12 +4354,14 @@ function AdminDashboard() {
   return (
     <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
       <div className="max-w-4xl mx-auto flex flex-col gap-5">
-        <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center justify-between gap-3">
           <div>
             <h1 className="text-lg font-semibold text-white">Administration — Commerciaux</h1>
             <p className="text-white/40 text-xs">Activité, objectifs et rapports</p>
           </div>
-          <div className="flex items-center gap-2">
+
+          {/* Liens visibles normalement à partir de sm */}
+          <div className="hidden sm:flex items-center gap-2 flex-wrap">
             <Link to="/admin/courses" className="text-xs px-3 py-2 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
               Gérer les cours
             </Link>
@@ -4351,13 +4375,61 @@ function AdminDashboard() {
               onClick={handleDownloadReport}
               className="text-xs px-3 py-2 rounded-lg font-medium flex items-center gap-1.5"
               style={{ backgroundColor: ACCENT, color: '#fff' }}
-              
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
               </svg>
               Télécharger le rapport
             </button>
+          </div>
+
+          {/* Hamburger visible uniquement sur mobile */}
+          <div className="relative sm:hidden shrink-0">
+            <button
+              onClick={() => setAdminMenuOpen((v) => !v)}
+              className="w-9 h-9 rounded-full border border-white/15 flex items-center justify-center text-white/70 hover:text-white transition-colors"
+              aria-label="Menu admin"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {adminMenuOpen ? <path d="M18 6 6 18M6 6l12 12" /> : <path d="M3 12h18M3 6h18M3 18h18" />}
+              </svg>
+            </button>
+
+            {adminMenuOpen && (
+              <div className="absolute right-0 top-11 w-56 bg-[#0d0d0d] border border-white/10 rounded-xl shadow-xl z-40 p-2 flex flex-col gap-1">
+                <Link
+                  to="/admin/courses"
+                  onClick={() => setAdminMenuOpen(false)}
+                  className="text-xs px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+                >
+                  Gérer les cours
+                </Link>
+                <Link
+                  to="/admin/rewards"
+                  onClick={() => setAdminMenuOpen(false)}
+                  className="text-xs px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+                >
+                  Gérer les récompenses
+                </Link>
+                <Link
+                  to="/admin/notifications"
+                  onClick={() => setAdminMenuOpen(false)}
+                  className="text-xs px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+                >
+                  Notifications
+                </Link>
+                <button
+                  onClick={handleDownloadReport}
+                  className="text-xs px-3 py-2.5 rounded-lg font-medium flex items-center gap-1.5"
+                  style={{ backgroundColor: ACCENT, color: '#fff' }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  Télécharger le rapport
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -4373,18 +4445,18 @@ function AdminDashboard() {
               <button
                 key={c.id}
                 onClick={() => setSelected(c)}
-                className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:border-orange-400/50 transition-all text-left flex items-center gap-4"
+                className="bg-white/5 border border-white/10 rounded-2xl p-3 sm:p-4 hover:border-orange-400/50 transition-all text-left flex items-center gap-3 sm:gap-4"
               >
-                <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold shrink-0" style={{ backgroundColor: ACCENT, color: '#fff' }}>
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm font-semibold shrink-0" style={{ backgroundColor: ACCENT, color: '#fff' }}>
                   {c.nom?.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-medium">{c.nom}</p>
-                  <p className="text-white/40 text-xs">{c.total_activities} activités au total</p>
+                  <p className="text-white font-medium text-sm sm:text-base truncate">{c.nom}</p>
+                  <p className="text-white/40 text-[11px] sm:text-xs truncate">{c.total_activities} activités au total</p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-sm font-semibold" style={{ color: ACCENT }}>{c.today_activities}/{c.daily_target}</p>
-                  <div className="w-20 bg-white/10 rounded-full h-1.5 mt-1">
+                  <p className="text-xs sm:text-sm font-semibold" style={{ color: ACCENT }}>{c.today_activities}/{c.daily_target}</p>
+                  <div className="w-14 sm:w-20 bg-white/10 rounded-full h-1.5 mt-1">
                     <div className="h-1.5 rounded-full" style={{ width: `${percent}%`, backgroundColor: ACCENT }} />
                   </div>
                 </div>
@@ -4872,7 +4944,7 @@ router.get('/notifications/redemptions', async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT rr.id, rr.quantity, rr.cost_at_redemption, rr.redeemed_at, rr.seen_by_admin,
-              r.title, r.image_url, u.nom as commercial_nom
+              r.title, r.image_url, u.nom as commercial_nom, u.photo_url as commercial_photo_url
        FROM reward_redemptions rr
        JOIN rewards r ON r.id = rr.reward_id
        JOIN users u ON u.id = rr.commercial_id
@@ -4892,7 +4964,7 @@ router.get('/notifications/redemptions/all', async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT rr.id, rr.quantity, rr.cost_at_redemption, rr.redeemed_at, rr.seen_by_admin,
-              r.title, r.image_url, u.nom as commercial_nom
+              r.title, r.image_url, u.nom as commercial_nom, u.photo_url as commercial_photo_url
        FROM reward_redemptions rr
        JOIN rewards r ON r.id = rr.reward_id
        JOIN users u ON u.id = rr.commercial_id
@@ -5375,15 +5447,45 @@ router.post('/', authMiddleware, async (req, res) => {
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT 
-        batch_id, type, sens, statut, description, image_url,
-        MIN(date_activite) as date_activite,
-        COUNT(*) as nombre
-       FROM activities 
-       WHERE commercial_id = $1
-       GROUP BY batch_id, type, sens, statut, description, image_url
-       ORDER BY MIN(date_activite) DESC`,
-      [req.userId]
+      `SELECT batch_id, type, sens, statut, description, image_url, date_activite, nombre, kind, reward_title, cost_at_redemption, commercial_id, commercial_nom, commercial_photo_url
+       FROM (
+         SELECT
+           a.batch_id::text as batch_id, a.type, a.sens, a.statut, a.description, a.image_url,
+           MIN(a.date_activite) as date_activite,
+           COUNT(*) as nombre,
+           'activity' as kind,
+           NULL::text as reward_title,
+           NULL::int as cost_at_redemption,
+           a.commercial_id,
+           u.nom as commercial_nom,
+           u.photo_url as commercial_photo_url
+         FROM activities a
+         JOIN users u ON u.id = a.commercial_id
+         GROUP BY a.batch_id, a.type, a.sens, a.statut, a.description, a.image_url, a.commercial_id, u.nom, u.photo_url
+
+         UNION ALL
+
+         SELECT
+           'reward-' || rr.id as batch_id,
+           'reward' as type,
+           NULL as sens,
+           NULL as statut,
+           NULL as description,
+           r.image_url,
+           rr.redeemed_at as date_activite,
+           rr.quantity as nombre,
+           'redemption' as kind,
+           r.title as reward_title,
+           rr.cost_at_redemption,
+           rr.commercial_id,
+           u.nom as commercial_nom,
+           u.photo_url as commercial_photo_url
+         FROM reward_redemptions rr
+         JOIN rewards r ON r.id = rr.reward_id
+         JOIN users u ON u.id = rr.commercial_id
+       ) combined
+       ORDER BY date_activite DESC
+       LIMIT 100`
     );
     res.json(result.rows);
   } catch (err) {
@@ -5398,6 +5500,25 @@ router.get('/stats', authMiddleware, async (req, res) => {
       `SELECT type, COUNT(*) as total
        FROM activities WHERE commercial_id = $1 GROUP BY type`,
       [req.userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/leaderboard', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT u.id, u.nom, u.photo_url, COALESCE(COUNT(a.id), 0) as total
+       FROM users u
+       LEFT JOIN activities a ON a.commercial_id = u.id
+         AND a.date_activite >= CURRENT_DATE - INTERVAL '6 days'
+       WHERE u.role != 'admin' OR u.role IS NULL
+       GROUP BY u.id, u.nom, u.photo_url
+       ORDER BY total DESC
+       LIMIT 20`
     );
     res.json(result.rows);
   } catch (err) {
@@ -5443,6 +5564,54 @@ router.get('/daily', authMiddleware, async (req, res) => {
        FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') d
        LEFT JOIN activities a ON DATE(a.date_activite) = d AND a.commercial_id = $1
        GROUP BY d ORDER BY d ASC`,
+      [req.userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/weekly', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT TO_CHAR(w, 'YYYY-MM-DD') as periode, COALESCE(COUNT(a.id), 0) as total
+       FROM generate_series(CURRENT_DATE - INTERVAL '11 weeks', CURRENT_DATE, INTERVAL '1 week') w
+       LEFT JOIN activities a ON DATE_TRUNC('week', a.date_activite) = DATE_TRUNC('week', w) AND a.commercial_id = $1
+       GROUP BY w ORDER BY w ASC`,
+      [req.userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/monthly', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT TO_CHAR(m, 'YYYY-MM-DD') as periode, COALESCE(COUNT(a.id), 0) as total
+       FROM generate_series(CURRENT_DATE - INTERVAL '11 months', CURRENT_DATE, INTERVAL '1 month') m
+       LEFT JOIN activities a ON DATE_TRUNC('month', a.date_activite) = DATE_TRUNC('month', m) AND a.commercial_id = $1
+       GROUP BY m ORDER BY m ASC`,
+      [req.userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/yearly', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT TO_CHAR(y, 'YYYY-MM-DD') as periode, COALESCE(COUNT(a.id), 0) as total
+       FROM generate_series(CURRENT_DATE - INTERVAL '4 years', CURRENT_DATE, INTERVAL '1 year') y
+       LEFT JOIN activities a ON DATE_TRUNC('year', a.date_activite) = DATE_TRUNC('year', y) AND a.commercial_id = $1
+       GROUP BY y ORDER BY y ASC`,
       [req.userId]
     );
     res.json(result.rows);
@@ -5651,17 +5820,87 @@ function AnimatedNumber({ value }) {
   return <>{display}</>;
 }
 
+function ChartCard({ title, data, target, total, labelKey, formatLabel }) {
+  return (
+    <div className="rounded-xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+      <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>{title}</p>
+      <p className="text-xl sm:text-2xl font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+        {total} activités
+      </p>
+      <LineChart data={data} target={target} labelKey={labelKey} formatLabel={formatLabel} />
+    </div>
+  );
+}
+
+const RANK_STYLES = {
+  1: { bg: 'linear-gradient(135deg, #ffd700, #b8860b)', label: '🥇' },
+  2: { bg: 'linear-gradient(135deg, #e0e0e0, #9e9e9e)', label: '🥈' },
+  3: { bg: 'linear-gradient(135deg, #cd7f32, #8b5a2b)', label: '🥉' },
+};
+
+function Leaderboard({ entries, currentUserId }) {
+  if (!entries || entries.length === 0) return null;
+
+  return (
+    <div className="rounded-xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+      <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>Classement — 7 derniers jours</p>
+      <div className="flex flex-col gap-2">
+        {entries.map((e, i) => {
+          const rank = i + 1;
+          const isMe = e.id === currentUserId;
+          const rankStyle = RANK_STYLES[rank];
+          return (
+            <div
+              key={e.id}
+              className="flex items-center gap-3 rounded-lg p-2.5 transition-colors"
+              style={{
+                backgroundColor: isMe ? `${ACCENT}14` : 'var(--surface-strong)',
+                border: isMe ? `1px solid ${ACCENT}55` : '1px solid transparent',
+              }}
+            >
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                style={rankStyle
+                  ? { background: rankStyle.bg, color: '#000' }
+                  : { backgroundColor: 'var(--border)', color: 'var(--text-secondary)' }}
+              >
+                {rankStyle ? rankStyle.label : rank}
+              </div>
+              {e.photo_url ? (
+                <img src={e.photo_url} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+              ) : (
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0" style={{ backgroundColor: ACCENT }}>
+                  {e.nom?.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <p className="flex-1 min-w-0 text-sm font-medium truncate" style={{ color: isMe ? ACCENT : 'var(--text-primary)' }}>
+                {e.nom}{isMe && ' (toi)'}
+              </p>
+              <p className="text-sm font-semibold shrink-0" style={{ color: 'var(--text-primary)' }}>
+                {e.total} <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>act.</span>
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function Dashboard() {
   const [stats, setStats] = useState([]);
   const [daily, setDaily] = useState([]);
+  const [weekly, setWeekly] = useState([]);
+  const [monthly, setMonthly] = useState([]);
+  const [yearly, setYearly] = useState([]);
   const [typeQuotas, setTypeQuotas] = useState(null);
+  const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   const prenom = user?.nom?.split(' ')[0];
 
-  
   const labels = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
   const allTypes = ['appel', 'rdv', 'devis', 'commande'];
 
@@ -5670,11 +5909,19 @@ function Dashboard() {
     Promise.all([
       apiFetch(`${API_URL}/api/activities/stats/today`).then(r => r.json()),
       apiFetch(`${API_URL}/api/activities/daily`).then(r => r.json()),
+      apiFetch(`${API_URL}/api/activities/weekly`).then(r => r.json()),
+      apiFetch(`${API_URL}/api/activities/monthly`).then(r => r.json()),
+      apiFetch(`${API_URL}/api/activities/yearly`).then(r => r.json()),
       apiFetch(`${API_URL}/api/activities/my-type-quotas`).then(r => r.json()),
-    ]).then(([statsData, dailyData, quotasData]) => {
+      apiFetch(`${API_URL}/api/activities/leaderboard`).then(r => r.json()),
+    ]).then(([statsData, dailyData, weeklyData, monthlyData, yearlyData, quotasData, leaderboardData]) => {
       setStats(statsData);
       setDaily(dailyData);
+      setWeekly(weeklyData);
+      setMonthly(monthlyData);
+      setYearly(yearlyData);
       setTypeQuotas(quotasData);
+      setLeaderboard(leaderboardData);
       setLoading(false);
     });
   }, [token]);
@@ -5696,6 +5943,13 @@ function Dashboard() {
     );
   }
 
+  const dailyTarget = typeQuotas ? Object.values(typeQuotas.quotas).reduce((sum, v) => sum + Number(v), 0) : 0;
+  const weeklyTarget = dailyTarget * 7;
+  const monthlyTarget = dailyTarget * 30;
+  const yearlyTarget = dailyTarget * 365;
+
+  const sumTotal = (arr) => arr.reduce((sum, d) => sum + Number(d.total), 0);
+
   return (
     <div className="p-4 sm:p-6 pb-12" style={{ backgroundColor: 'var(--bg)' }}>
       <div className="max-w-5xl mx-auto flex flex-col gap-5">
@@ -5704,15 +5958,23 @@ function Dashboard() {
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Voici ton activité récente</p>
         </div>
 
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
         <div className="rounded-xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>Objectifs du jour</p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {allTypes.map((type, i) => {
               const s = getStat(type);
               const current = Number(s.total);
               const target = typeQuotas?.quotas[type] || 5;
               const percent = Math.min(Math.round((current / target) * 100), 100);
               const circumference = 2 * Math.PI * 26;
+
+              const ringColor =
+                percent >= 100 ? '#22c55e' :
+                percent >= 75 ? '#86efac' :
+                percent >= 25 ? ACCENT :
+                '#ef4444';
+              const displayPercent = Math.max(percent, 4);
 
               return (
                 <div
@@ -5724,13 +5986,13 @@ function Dashboard() {
                     <svg viewBox="0 0 64 64" className="w-16 h-16 -rotate-90">
                       <circle cx="32" cy="32" r="26" stroke="var(--border)" strokeWidth="5" fill="none" />
                       <circle
-                        cx="32" cy="32" r="26" stroke={ACCENT} strokeWidth="5" fill="none" strokeLinecap="round"
+                        cx="32" cy="32" r="26" stroke={ringColor} strokeWidth="5" fill="none" strokeLinecap="round"
                         strokeDasharray={circumference}
-                        strokeDashoffset={circumference - (percent / 100) * circumference}
-                        style={{ transition: 'stroke-dashoffset 0.8s ease' }}
+                        strokeDashoffset={circumference - (displayPercent / 100) * circumference}
+                        style={{ transition: 'stroke-dashoffset 0.8s ease, stroke 0.4s ease' }}
                       />
                     </svg>
-                                        <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="absolute inset-0 flex items-center justify-center">
                       <Icon name={type} size={18} style={{ color: 'var(--text-primary)' }} />
                     </div>
                   </div>
@@ -5742,13 +6004,13 @@ function Dashboard() {
           </div>
         </div>
 
-        <div className="rounded-xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>Activités par jour (7 derniers jours)</p>
-          <p className="text-xl sm:text-2xl font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
-            {daily.reduce((sum, d) => sum + Number(d.total), 0)} activités
-          </p>
-          <LineChart data={daily} />
+        <Leaderboard entries={leaderboard} currentUserId={user?.id} />
         </div>
+
+        <ChartCard title="Activités par jour (7 derniers jours)" data={daily} target={dailyTarget} total={sumTotal(daily)} labelKey="jour" formatLabel={(d) => new Date(d).toLocaleDateString('fr-FR', { weekday: 'short' })} />
+        <ChartCard title="Activités par semaine (12 dernières semaines)" data={weekly} target={weeklyTarget} total={sumTotal(weekly)} labelKey="periode" formatLabel={(d) => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} />
+        <ChartCard title="Activités par mois (12 derniers mois)" data={monthly} target={monthlyTarget} total={sumTotal(monthly)} labelKey="periode" formatLabel={(d) => new Date(d).toLocaleDateString('fr-FR', { month: 'short' })} />
+        <ChartCard title="Activités par année (5 dernières années)" data={yearly} target={yearlyTarget} total={sumTotal(yearly)} labelKey="periode" formatLabel={(d) => new Date(d).toLocaleDateString('fr-FR', { year: 'numeric' })} />
       </div>
 
       <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>
@@ -6335,8 +6597,10 @@ import Spinner from '../components/Spinner';
 import PageLoader from '../components/PageLoader';
 import { Icon } from '../data/icons';
 import EmptyState from '../components/EmptyState';
+import CoinIcon from '../components/CoinIcon';
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const PAGE_SIZE = 10;
 
 function ImageLightbox({ src, onClose }) {
   return (
@@ -6371,7 +6635,68 @@ const getTitleText = (activity) => {
   return labels[activity.type];
 };
 
-function ActivityCard({ activity, index, onUpdate, onDelete }) {
+function Avatar({ nom, photoUrl, size = 40 }) {
+  const initiales = nom?.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || '?';
+  if (photoUrl) {
+    return <img src={photoUrl} alt="" className="rounded-full object-cover shrink-0" style={{ width: size, height: size }} />;
+  }
+  return (
+    <div
+      className="rounded-full flex items-center justify-center text-white font-semibold shrink-0"
+      style={{ width: size, height: size, fontSize: size * 0.35, background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}
+    >
+      {initiales}
+    </div>
+  );
+}
+
+function RedemptionCard({ item, index }) {
+  const n = Number(item.nombre);
+
+  return (
+    <div
+      className="bg-[#0d0d0d] border border-white/8 rounded-2xl overflow-hidden transition-all hover:border-white/[0.14] p-4"
+      style={{ animation: `slideIn 0.35s ease ${index * 0.04}s both` }}
+    >
+      <div className="flex items-center gap-3 mb-3">
+        <Avatar nom={item.commercial_nom} photoUrl={item.commercial_photo_url} size={40} />
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-white text-sm">{item.commercial_nom}</p>
+          <p className="text-xs text-white/35">{new Date(item.date_activite).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+        </div>
+        <div className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center shrink-0">
+          <Icon name="gift" size={15} style={{ color: 'var(--text-primary)' }} />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3">
+        {item.image_url ? (
+          <img
+            src={item.image_url}
+            alt=""
+            className="w-14 h-14 rounded-xl object-cover shrink-0 border border-white/10"
+          />
+        ) : (
+          <div className="w-14 h-14 rounded-xl bg-black/40 flex items-center justify-center text-xl shrink-0 border border-white/10">🎁</div>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            {n > 1 ? `${n} × ` : ''}{item.reward_title}
+          </p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+            Récompense échangée contre ses points
+          </p>
+          <span className="inline-flex items-center gap-1 text-xs font-medium mt-1.5" style={{ color: ACCENT }}>
+            <CoinIcon size={12} />
+            −{item.cost_at_redemption} points
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ActivityCard({ activity, index, currentUserId, onUpdate, onDelete }) {
   const [editing, setEditing] = useState(false);
   const [description, setDescription] = useState(activity.description || '');
   const [imageUrl, setImageUrl] = useState(activity.image_url || '');
@@ -6383,8 +6708,7 @@ function ActivityCard({ activity, index, onUpdate, onDelete }) {
   const [deleting, setDeleting] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
 
-  const user = JSON.parse(localStorage.getItem('user') || 'null');
-  const initiales = user?.nom?.split(' ').map(n => n[0]).join('').toUpperCase() || 'ZF';
+  const isOwn = activity.commercial_id === currentUserId;
   const statutLabels = { repond: 'Répond', ne_repond_pas: 'Ne répond pas', present: 'Présent', absent: 'Absent' };
 
   const isLongText = (activity.description || '').length > 140;
@@ -6450,30 +6774,27 @@ function ActivityCard({ activity, index, onUpdate, onDelete }) {
       {lightbox && <ImageLightbox src={activity.image_url} onClose={() => setLightbox(false)} />}
 
       <div className="p-4 flex items-center gap-3">
-        <div
-          className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0"
-          style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}
-        >
-          {initiales}
-        </div>
+        <Avatar nom={activity.commercial_nom} photoUrl={activity.commercial_photo_url} size={40} />
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-white text-sm">{user?.nom || 'Toi'}</p>
+          <p className="font-medium text-white text-sm">{activity.commercial_nom}{isOwn && <span className="text-white/30 font-normal"> (toi)</span>}</p>
           <p className="text-xs text-white/35">{new Date(activity.date_activite).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
         </div>
         <div className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center shrink-0">
-                    <Icon name={activity.type} size={15} style={{ color: 'var(--text-primary)' }} />
+          <Icon name={activity.type} size={15} style={{ color: 'var(--text-primary)' }} />
         </div>
-        <button
-          onClick={() => setConfirmDelete(true)}
-          className="w-9 h-9 rounded-full flex items-center justify-center text-white/30 hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0"
-          aria-label="Supprimer"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-            <path d="M10 11v6" /><path d="M14 11v6" />
-          </svg>
-        </button>
+        {isOwn && (
+          <button
+            onClick={() => setConfirmDelete(true)}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-white/30 hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0"
+            aria-label="Supprimer"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              <path d="M10 11v6" /><path d="M14 11v6" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {confirmDelete && (
@@ -6605,7 +6926,7 @@ function ActivityCard({ activity, index, onUpdate, onDelete }) {
         </div>
       )}
 
-      {!editing && !confirmDelete && (
+      {!editing && !confirmDelete && isOwn && (
         <div className="px-2 py-1 flex" style={{ borderTop: '1px solid var(--border)' }}>
           <button
             onClick={() => setEditing(true)}
@@ -6625,6 +6946,65 @@ function ActivityCard({ activity, index, onUpdate, onDelete }) {
   );
 }
 
+function Pager({ currentPage, totalPages, onChange }) {
+  if (totalPages <= 1) return null;
+
+  const pages = [];
+  const window = 1;
+  for (let p = 1; p <= totalPages; p++) {
+    if (p === 1 || p === totalPages || (p >= currentPage - window && p <= currentPage + window)) {
+      pages.push(p);
+    } else if (pages[pages.length - 1] !== '...') {
+      pages.push('...');
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-center gap-1.5 mt-6">
+      <button
+        onClick={() => onChange(Math.max(1, currentPage - 1))}
+        disabled={currentPage === 1}
+        className="w-9 h-9 rounded-lg flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:enabled:bg-white/5"
+        style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+        aria-label="Page précédente"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+      </button>
+
+      {pages.map((p, i) =>
+        p === '...' ? (
+          <span key={`dots-${i}`} className="w-9 h-9 flex items-center justify-center text-xs" style={{ color: 'var(--text-muted)' }}>⋯</span>
+        ) : (
+          <button
+            key={p}
+            onClick={() => onChange(p)}
+            className="w-9 h-9 rounded-lg text-sm font-medium transition-all"
+            style={p === currentPage
+              ? { backgroundColor: ACCENT, color: '#fff', boxShadow: `0 0 14px ${ACCENT}55`, transform: 'scale(1.05)' }
+              : { border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+          >
+            {p}
+          </button>
+        )
+      )}
+
+      <button
+        onClick={() => onChange(Math.min(totalPages, currentPage + 1))}
+        disabled={currentPage === totalPages}
+        className="w-9 h-9 rounded-lg flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:enabled:bg-white/5"
+        style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+        aria-label="Page suivante"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
 const TYPE_FILTERS = [
   { key: 'all', label: 'Tout' },
   { key: 'appel', label: 'Appels' },
@@ -6637,7 +7017,9 @@ function Feed() {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
   const token = localStorage.getItem('token');
+  const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
 
   const loadActivities = () => {
     if (!token) { setLoading(false); return; }
@@ -6651,6 +7033,17 @@ function Feed() {
 
   useEffect(() => { loadActivities(); }, [token]);
 
+  useEffect(() => { setCurrentPage(1); }, [filter]);
+
+  const scrollToFeedTop = () => {
+    document.getElementById('feed-list-top')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const handlePageChange = (p) => {
+    setCurrentPage(p);
+    scrollToFeedTop();
+  };
+
   const handleUpdate = (batchId, updates) => {
     setActivities((prev) =>
       prev.map((a) => (a.batch_id === batchId ? { ...a, ...updates } : a))
@@ -6661,16 +7054,14 @@ function Feed() {
     setActivities((prev) => prev.filter((a) => a.batch_id !== batchId));
   };
 
-
-
   if (loading) return <PageLoader />;
 
   if (!token) {
     return (
       <div className="bg-black min-h-screen flex flex-col items-center justify-center p-6 text-center">
         <span className="text-4xl mb-4">🔒</span>
-        <h1 className="text-xl font-semibold text-white mb-2">Connecte-toi pour voir ton feed</h1>
-        <p className="text-white/40 text-sm mb-6">Ton historique d'activités apparaîtra ici</p>
+        <h1 className="text-xl font-semibold text-white mb-2">Connecte-toi pour voir le feed</h1>
+        <p className="text-white/40 text-sm mb-6">L'activité de l'équipe apparaîtra ici</p>
         <a href="/login" className="text-white px-5 py-2.5 rounded-lg font-medium" style={{ backgroundColor: ACCENT }}>
           Se connecter
         </a>
@@ -6678,13 +7069,18 @@ function Feed() {
     );
   }
 
-  const filteredActivities = filter === 'all' ? activities : activities.filter((a) => a.type === filter);
+  const filteredActivities = filter === 'all'
+    ? activities
+    : activities.filter((a) => a.kind === 'redemption' || a.type === filter);
 
-  // Stats de la semaine, calculées côté client à partir de ce qui est déjà chargé
+  const totalPages = Math.max(1, Math.ceil(filteredActivities.length / PAGE_SIZE));
+  const visibleActivities = filteredActivities.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
   const now = new Date();
   const weekAgo = new Date(now);
   weekAgo.setDate(now.getDate() - 7);
-  const weekActivities = activities.filter((a) => new Date(a.date_activite) >= weekAgo);
+  const myActivities = activities.filter((a) => a.kind !== 'redemption' && a.commercial_id === currentUser?.id);
+  const weekActivities = myActivities.filter((a) => new Date(a.date_activite) >= weekAgo);
   const weekCounts = { appel: 0, rdv: 0, devis: 0, commande: 0 };
   weekActivities.forEach((a) => {
     weekCounts[a.type] = (weekCounts[a.type] || 0) + Number(a.nombre || 1);
@@ -6697,7 +7093,7 @@ function Feed() {
     <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
       <div className="max-w-5xl mx-auto">
         <h1 className="text-xl font-semibold text-white mb-1">Feed</h1>
-        <p className="text-white/40 text-sm mb-5">Toutes tes activités, façon flux social</p>
+        <p className="text-white/40 text-sm mb-5">L'activité de toute l'équipe, en direct</p>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6 items-start">
 
@@ -6723,23 +7119,28 @@ function Feed() {
             {filteredActivities.length === 0 && (
               <EmptyState
                 icon="📭"
-                title={filter === 'all' ? "Ton feed est vide" : "Aucune activité de ce type"}
-                subtitle={filter === 'all' ? "Enregistre ta première activité et elle apparaîtra ici, comme un post." : "Change de filtre ou enregistre une nouvelle activité de ce type."}
+                title={filter === 'all' ? "Le feed est vide" : "Aucune activité de ce type"}
+                subtitle={filter === 'all' ? "Enregistre une activité et elle apparaîtra ici, visible par toute l'équipe." : "Change de filtre ou enregistre une nouvelle activité de ce type."}
                 actionLabel={filter === 'all' ? "Enregistrer une activité" : undefined}
                 actionHref={filter === 'all' ? "/nouvelle-activite" : undefined}
               />
             )}
 
-            <div className="flex flex-col gap-4">
-              {filteredActivities.map((a, i) => (
-                <ActivityCard key={a.batch_id} activity={a} index={i} onUpdate={handleUpdate} onDelete={handleDelete} />
+            <div id="feed-list-top" />
+            <div key={currentPage} className="flex flex-col gap-4 animate-[fadeIn_0.3s_ease]">
+              {visibleActivities.map((a, i) => (
+                a.kind === 'redemption'
+                  ? <RedemptionCard key={a.batch_id} item={a} index={i} />
+                  : <ActivityCard key={a.batch_id} activity={a} index={i} currentUserId={currentUser?.id} onUpdate={handleUpdate} onDelete={handleDelete} />
               ))}
             </div>
+
+            <Pager currentPage={currentPage} totalPages={totalPages} onChange={handlePageChange} />
           </div>
 
           <aside className="hidden lg:flex flex-col gap-4 sticky top-6">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-              <p className="text-white/40 text-[11px] uppercase tracking-wide mb-1">Cette semaine</p>
+              <p className="text-white/40 text-[11px] uppercase tracking-wide mb-1">Mon activité — cette semaine</p>
               <p className="text-2xl font-semibold text-white mb-3">{weekTotal} <span className="text-sm text-white/40 font-normal">activités</span></p>
               <div className="flex flex-col gap-2.5">
                 {Object.keys(typeLabels).map((type) => (
@@ -6753,8 +7154,8 @@ function Feed() {
             </div>
 
             <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-              <p className="text-white/40 text-[11px] uppercase tracking-wide mb-1">Total</p>
-              <p className="text-2xl font-semibold text-white">{activities.length} <span className="text-sm text-white/40 font-normal">activités</span></p>
+              <p className="text-white/40 text-[11px] uppercase tracking-wide mb-1">Mon total</p>
+              <p className="text-2xl font-semibold text-white">{myActivities.length} <span className="text-sm text-white/40 font-normal">activités</span></p>
               <p className="text-[11px] text-white/30 mt-1">depuis le début</p>
             </div>
 
@@ -6855,10 +7256,10 @@ function Navbar() {
     const primaryLinks = [
     { path: '/nouvelle-activite', label: 'Nouvelle activité', iconName: 'add' },
     { path: '/', label: 'Dashboard', iconName: 'dashboard' },
-    { path: '/feed', label: 'Feed', iconName: 'feed' },
   ];
 
   const secondaryLinks = [
+    { path: '/feed', label: 'Feed', iconName: 'feed' },
     { path: '/courses', label: 'Formation', iconName: 'formation' },
     { path: '/badges', label: 'Badges', iconName: 'badges' },
     { path: '/rewards', label: 'Récompenses', iconName: 'gift' },
@@ -6977,10 +7378,12 @@ function Navbar() {
                   ) : (
                     notifications.map((n) => (
                       <div key={n.id} className={`flex items-center gap-2 p-2 rounded-lg group ${!n.seen_by_admin ? 'bg-orange-500/5' : ''}`}>
-                        {n.image_url ? (
-                          <img src={n.image_url} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+                        {n.commercial_photo_url ? (
+                          <img src={n.commercial_photo_url} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
                         ) : (
-                          <div className="w-8 h-8 rounded-lg bg-black/40 flex items-center justify-center text-sm shrink-0">🎁</div>
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0" style={{ backgroundColor: ACCENT }}>
+                            {n.commercial_nom?.charAt(0).toUpperCase()}
+                          </div>
                         )}
                         <div className="min-w-0 flex-1">
                           <p className="text-xs text-white/80 truncate">
@@ -7535,36 +7938,14 @@ function NouvelleActivite() {
             <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>activités enregistrées aujourd'hui</p>
           </div>
 
-          <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div className="flex items-center justify-between">
-              <p className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Objectifs du jour</p>
-              <span className="flex items-center gap-1 text-[11px] font-medium" style={{ color: ACCENT }}>
-                <CoinIcon size={12} />
-                +5 en les complétant
-              </span>
-            </div>
-            {activityTypes.map((t) => {
-              const current = getStat(t.key);
-              const target = typeQuotas[t.key] || 5;
-              const percent = Math.min(Math.round((current / target) * 100), 100);
-              return (
-                <div key={t.key}>
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <Icon name={t.key} size={14} style={{ color: 'var(--text-secondary)' }} />
-                      <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{labels[t.key]}</span>
-                    </div>
-                    <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{current}/{target}</span>
-                  </div>
-                  <div className="w-full rounded-full h-1.5" style={{ backgroundColor: 'var(--border)' }}>
-                    <div
-                      className="h-1.5 rounded-full transition-all duration-500"
-                      style={{ width: `${percent}%`, backgroundColor: ACCENT }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+          <div className="rounded-2xl p-4 flex items-center justify-between gap-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              Suis le détail de tes objectifs sur le Dashboard
+            </p>
+            <span className="flex items-center gap-1 text-[11px] font-medium shrink-0" style={{ color: ACCENT }}>
+              <CoinIcon size={12} />
+              +5 en les complétant
+            </span>
           </div>
 
           {points !== null && (

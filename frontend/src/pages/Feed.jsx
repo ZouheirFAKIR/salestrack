@@ -5,8 +5,10 @@ import Spinner from '../components/Spinner';
 import PageLoader from '../components/PageLoader';
 import { Icon } from '../data/icons';
 import EmptyState from '../components/EmptyState';
+import CoinIcon from '../components/CoinIcon';
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const PAGE_SIZE = 15;
 
 function ImageLightbox({ src, onClose }) {
   return (
@@ -41,7 +43,298 @@ const getTitleText = (activity) => {
   return labels[activity.type];
 };
 
-function ActivityCard({ activity, index, onUpdate, onDelete }) {
+function Avatar({ nom, photoUrl, size = 40 }) {
+  const initiales = nom?.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || '?';
+  if (photoUrl) {
+    return <img src={photoUrl} alt="" className="rounded-full object-cover shrink-0" style={{ width: size, height: size }} />;
+  }
+  return (
+    <div
+      className="rounded-full flex items-center justify-center text-white font-semibold shrink-0"
+      style={{ width: size, height: size, fontSize: size * 0.35, background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}
+    >
+      {initiales}
+    </div>
+  );
+}
+
+function LikeButton({ postId, initialLiked, initialCount }) {
+  const [liked, setLiked] = useState(!!initialLiked);
+  const [count, setCount] = useState(Number(initialCount) || 0);
+  const [busy, setBusy] = useState(false);
+
+  const toggleLike = async () => {
+    if (busy) return;
+    setBusy(true);
+    const prevLiked = liked;
+    const prevCount = count;
+    setLiked(!liked);
+    setCount(liked ? Math.max(0, count - 1) : count + 1);
+    try {
+      const res = await apiFetch(`${API_URL}/api/activities/${postId}/like`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        setLiked(data.liked);
+        setCount(data.likes_count);
+      } else {
+        setLiked(prevLiked);
+        setCount(prevCount);
+      }
+    } catch (err) {
+      setLiked(prevLiked);
+      setCount(prevCount);
+    }
+    setBusy(false);
+  };
+
+  return (
+    <button
+      onClick={toggleLike}
+      className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-colors hover:bg-white/5"
+      style={{ color: liked ? '#f43f5e' : 'var(--text-secondary)' }}
+    >
+      <svg width="17" height="17" viewBox="0 0 24 24" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+      </svg>
+      <span className="text-xs font-medium">{count > 0 ? count : ''}</span>
+    </button>
+  );
+}
+
+function CommentIcon(props) {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+    </svg>
+  );
+}
+
+function CommentsSection({ postId, initialCount, currentUserId }) {
+  const [open, setOpen] = useState(false);
+  const [comments, setComments] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [count, setCount] = useState(Number(initialCount) || 0);
+  const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [imageUrl, setImageUrl] = useState('');
+  const [imageLoading, setImageLoading] = useState(false);
+
+  const load = async () => {
+    if (loaded) return;
+    setLoading(true);
+    try {
+      const res = await apiFetch(`${API_URL}/api/activities/${postId}/comments`);
+      if (res.ok) {
+        const data = await res.json();
+        setComments(data);
+        setLoaded(true);
+      }
+    } catch (err) {}
+    setLoading(false);
+  };
+
+  const toggleOpen = () => {
+    const next = !open;
+    setOpen(next);
+    if (next) load();
+  };
+
+  const handleImageChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImageLoading(true);
+    try {
+      const compressed = await compressImage(file, 800, 0.7);
+      setImageUrl(compressed);
+    } catch (err) {}
+    setImageLoading(false);
+  };
+
+  const handleSend = async () => {
+    if ((!text.trim() && !imageUrl) || sending) return;
+    setSending(true);
+    try {
+      const res = await apiFetch(`${API_URL}/api/activities/${postId}/comments`, {
+        method: 'POST',
+        body: JSON.stringify({ content: text.trim(), image_url: imageUrl || null }),
+      });
+      if (res.ok) {
+        const newComment = await res.json();
+        setComments((prev) => [...prev, newComment]);
+        setCount((c) => c + 1);
+        setText('');
+        setImageUrl('');
+      }
+    } catch (err) {}
+    setSending(false);
+  };
+
+  const handleDelete = async (commentId) => {
+    setComments((prev) => prev.filter((c) => c.id !== commentId));
+    setCount((c) => Math.max(0, c - 1));
+    try {
+      await apiFetch(`${API_URL}/api/activities/comments/${commentId}`, { method: 'DELETE' });
+    } catch (err) {}
+  };
+
+  return (
+    <div>
+      <button
+        onClick={toggleOpen}
+        className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-colors hover:bg-white/5"
+        style={{ color: 'var(--text-secondary)' }}
+      >
+        <CommentIcon />
+        <span className="text-xs font-medium">{count > 0 ? count : ''}</span>
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 pt-1 animate-[fadeIn_0.2s_ease]">
+          {loading && (
+            <div className="py-3 flex justify-center">
+              <Spinner size={16} color="#888" />
+            </div>
+          )}
+
+          {!loading && comments.length === 0 && (
+            <p className="text-xs py-2" style={{ color: 'var(--text-muted)' }}>
+              Aucun commentaire. Sois le premier à réagir !
+            </p>
+          )}
+
+          <div className="flex flex-col gap-2.5 mb-3">
+            {comments.map((c) => (
+              <div key={c.id} className="flex items-start gap-2">
+                <Avatar nom={c.commercial_nom} photoUrl={c.commercial_photo_url} size={28} />
+                <div className="flex-1 min-w-0 rounded-xl px-3 py-2" style={{ backgroundColor: 'var(--surface-strong)' }}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{c.commercial_nom}</p>
+                    {c.commercial_id === currentUserId && (
+                      <button
+                        onClick={() => handleDelete(c.id)}
+                        className="text-[10px] font-medium transition-opacity hover:opacity-70"
+                        style={{ color: ACCENT }}
+                      >
+                        Supprimer
+                      </button>
+                    )}
+                  </div>
+                  {c.content && (
+                    <p className="text-xs mt-0.5 whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>{c.content}</p>
+                  )}
+                  {c.image_url && (
+                    <img src={c.image_url} alt="" className="mt-2 rounded-lg max-h-48 object-cover border border-white/10" />
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {imageLoading && (
+            <div className="mb-2 h-20 rounded-lg bg-black border border-white/10 flex items-center justify-center">
+              <Spinner size={16} color={ACCENT} />
+            </div>
+          )}
+
+          {!imageLoading && imageUrl && (
+            <div className="relative mb-2 inline-block">
+              <img src={imageUrl} alt="" className="h-20 rounded-lg border border-white/10 object-cover" />
+              <button
+                onClick={() => setImageUrl('')}
+                className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-black text-white flex items-center justify-center text-xs border border-white/20"
+              >
+                ×
+              </button>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            <label className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 cursor-pointer transition-colors hover:bg-white/5" style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+              </svg>
+              <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+            </label>
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
+              placeholder="Écrire un commentaire..."
+              className="flex-1 text-xs px-3 py-2.5 rounded-full outline-none transition-colors focus:border-orange-500/60"
+              style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+            />
+            <button
+              onClick={handleSend}
+              disabled={(!text.trim() && !imageUrl) || sending}
+              className="w-9 h-9 rounded-full flex items-center justify-center text-white disabled:opacity-40 transition-all hover:brightness-110 shrink-0"
+              style={{ backgroundColor: ACCENT }}
+            >
+              {sending ? <Spinner size={13} color="#fff" /> : (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RedemptionCard({ item, index, currentUserId }) {
+  const n = Number(item.nombre);
+
+  return (
+    <div
+      className="bg-[#0d0d0d] border border-white/8 rounded-2xl overflow-hidden transition-all hover:border-white/[0.14] p-4"
+      style={{ animation: `slideIn 0.35s ease ${index * 0.04}s both` }}
+    >
+      <div className="flex items-center gap-3 mb-3">
+        <Avatar nom={item.commercial_nom} photoUrl={item.commercial_photo_url} size={40} />
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-white text-sm">{item.commercial_nom}</p>
+          <p className="text-xs text-white/35">{new Date(item.date_activite).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+        </div>
+        <div className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center shrink-0">
+          <Icon name="gift" size={15} style={{ color: 'var(--text-primary)' }} />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3">
+        {item.image_url ? (
+          <img
+            src={item.image_url}
+            alt=""
+            className="w-14 h-14 rounded-xl object-cover shrink-0 border border-white/10"
+          />
+        ) : (
+          <div className="w-14 h-14 rounded-xl bg-black/40 flex items-center justify-center text-xl shrink-0 border border-white/10">🎁</div>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            {n > 1 ? `${n} × ` : ''}{item.reward_title}
+          </p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+            Récompense échangée contre ses points
+          </p>
+          <span className="inline-flex items-center gap-1 text-xs font-medium mt-1.5" style={{ color: ACCENT }}>
+            <CoinIcon size={12} />
+            −{item.cost_at_redemption} points
+          </span>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-1 mt-3 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
+        <LikeButton postId={item.batch_id} initialLiked={item.liked_by_me} initialCount={item.likes_count} />
+        <CommentsSection postId={item.batch_id} initialCount={item.comments_count} currentUserId={currentUserId} />
+      </div>
+    </div>
+  );
+}
+
+function ActivityCard({ activity, index, currentUserId, onUpdate, onDelete }) {
   const [editing, setEditing] = useState(false);
   const [description, setDescription] = useState(activity.description || '');
   const [imageUrl, setImageUrl] = useState(activity.image_url || '');
@@ -53,8 +346,7 @@ function ActivityCard({ activity, index, onUpdate, onDelete }) {
   const [deleting, setDeleting] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
 
-  const user = JSON.parse(localStorage.getItem('user') || 'null');
-  const initiales = user?.nom?.split(' ').map(n => n[0]).join('').toUpperCase() || 'ZF';
+  const isOwn = activity.commercial_id === currentUserId;
   const statutLabels = { repond: 'Répond', ne_repond_pas: 'Ne répond pas', present: 'Présent', absent: 'Absent' };
 
   const isLongText = (activity.description || '').length > 140;
@@ -120,30 +412,27 @@ function ActivityCard({ activity, index, onUpdate, onDelete }) {
       {lightbox && <ImageLightbox src={activity.image_url} onClose={() => setLightbox(false)} />}
 
       <div className="p-4 flex items-center gap-3">
-        <div
-          className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0"
-          style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}
-        >
-          {initiales}
-        </div>
+        <Avatar nom={activity.commercial_nom} photoUrl={activity.commercial_photo_url} size={40} />
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-white text-sm">{user?.nom || 'Toi'}</p>
+          <p className="font-medium text-white text-sm">{activity.commercial_nom}{isOwn && <span className="text-white/30 font-normal"> (toi)</span>}</p>
           <p className="text-xs text-white/35">{new Date(activity.date_activite).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
         </div>
         <div className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center shrink-0">
-                    <Icon name={activity.type} size={15} style={{ color: 'var(--text-primary)' }} />
+          <Icon name={activity.type} size={15} style={{ color: 'var(--text-primary)' }} />
         </div>
-        <button
-          onClick={() => setConfirmDelete(true)}
-          className="w-9 h-9 rounded-full flex items-center justify-center text-white/30 hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0"
-          aria-label="Supprimer"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-            <path d="M10 11v6" /><path d="M14 11v6" />
-          </svg>
-        </button>
+        {isOwn && (
+          <button
+            onClick={() => setConfirmDelete(true)}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-white/30 hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0"
+            aria-label="Supprimer"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              <path d="M10 11v6" /><path d="M14 11v6" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {confirmDelete && (
@@ -275,7 +564,14 @@ function ActivityCard({ activity, index, onUpdate, onDelete }) {
         </div>
       )}
 
-      {!editing && !confirmDelete && (
+      {!editing && (
+        <div className="flex items-center gap-1 px-2" style={{ borderTop: '1px solid var(--border)' }}>
+          <LikeButton postId={activity.batch_id} initialLiked={activity.liked_by_me} initialCount={activity.likes_count} />
+          <CommentsSection postId={activity.batch_id} initialCount={activity.comments_count} currentUserId={currentUserId} />
+        </div>
+      )}
+
+      {!editing && !confirmDelete && isOwn && (
         <div className="px-2 py-1 flex" style={{ borderTop: '1px solid var(--border)' }}>
           <button
             onClick={() => setEditing(true)}
@@ -295,31 +591,132 @@ function ActivityCard({ activity, index, onUpdate, onDelete }) {
   );
 }
 
+function Pager({ currentPage, totalPages, onChange }) {
+  if (totalPages <= 1) return null;
+
+  const pages = [];
+  const window = 1;
+  for (let p = 1; p <= totalPages; p++) {
+    if (p === 1 || p === totalPages || (p >= currentPage - window && p <= currentPage + window)) {
+      pages.push(p);
+    } else if (pages[pages.length - 1] !== '...') {
+      pages.push('...');
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-center gap-1.5 mt-6">
+      <button
+        onClick={() => onChange(Math.max(1, currentPage - 1))}
+        disabled={currentPage === 1}
+        className="w-9 h-9 rounded-lg flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:enabled:bg-white/5"
+        style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+        aria-label="Page précédente"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+      </button>
+
+      {pages.map((p, i) =>
+        p === '...' ? (
+          <span key={`dots-${i}`} className="w-9 h-9 flex items-center justify-center text-xs" style={{ color: 'var(--text-muted)' }}>⋯</span>
+        ) : (
+          <button
+            key={p}
+            onClick={() => onChange(p)}
+            className="w-9 h-9 rounded-lg text-sm font-medium transition-all"
+            style={p === currentPage
+              ? { backgroundColor: ACCENT, color: '#fff', boxShadow: `0 0 14px ${ACCENT}55`, transform: 'scale(1.05)' }
+              : { border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+          >
+            {p}
+          </button>
+        )
+      )}
+
+      <button
+        onClick={() => onChange(Math.min(totalPages, currentPage + 1))}
+        disabled={currentPage === totalPages}
+        className="w-9 h-9 rounded-lg flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:enabled:bg-white/5"
+        style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+        aria-label="Page suivante"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
 const TYPE_FILTERS = [
   { key: 'all', label: 'Tout' },
-  { key: 'appel', label: 'Appels' },
-  { key: 'rdv', label: 'Rendez-vous' },
-  { key: 'devis', label: 'Devis' },
-  { key: 'commande', label: 'Commandes' },
+  { key: 'appel', label: 'Appels', icon: 'appel' },
+  { key: 'rdv', label: 'RDV', icon: 'rdv' },
+  { key: 'devis', label: 'Devis', icon: 'devis' },
+  { key: 'commande', label: 'Commandes', icon: 'commande' },
+  { key: 'reward', label: 'Récompenses', icon: 'gift' },
 ];
 
 function Feed() {
   const [activities, setActivities] = useState([]);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [pageLoading, setPageLoading] = useState(false);
   const [filter, setFilter] = useState('all');
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [feedStats, setFeedStats] = useState({ weekCounts: { appel: 0, rdv: 0, devis: 0, commande: 0 }, weekTotal: 0, myTotal: 0 });
   const token = localStorage.getItem('token');
+  const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
 
-  const loadActivities = () => {
+  // Débounce la recherche pour ne pas taper une requête à chaque lettre
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchInput.trim()), 400);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => { setCurrentPage(1); }, [filter, search]);
+
+  useEffect(() => {
     if (!token) { setLoading(false); return; }
-    apiFetch(`${API_URL}/api/activities`)
-      .then(r => r.json())
+    const params = new URLSearchParams({
+      page: String(currentPage),
+      limit: String(PAGE_SIZE),
+      type: filter,
+      search,
+    });
+    if (currentPage === 1 && filter === 'all' && !search) setLoading(true);
+    else setPageLoading(true);
+
+    apiFetch(`${API_URL}/api/activities?${params.toString()}`)
+      .then((r) => r.json())
       .then((data) => {
-        setActivities(data);
+        setActivities(data.activities || []);
+        setTotalPages(data.totalPages || 1);
         setLoading(false);
+        setPageLoading(false);
       });
+  }, [token, currentPage, filter, search]);
+
+  useEffect(() => {
+    if (!token) return;
+    apiFetch(`${API_URL}/api/activities/my-feed-stats`)
+      .then((r) => r.json())
+      .then(setFeedStats)
+      .catch(() => {});
+  }, [token]);
+
+  const scrollToFeedTop = () => {
+    document.getElementById('feed-list-top')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  useEffect(() => { loadActivities(); }, [token]);
+  const handlePageChange = (p) => {
+    setCurrentPage(p);
+    scrollToFeedTop();
+  };
 
   const handleUpdate = (batchId, updates) => {
     setActivities((prev) =>
@@ -331,16 +728,14 @@ function Feed() {
     setActivities((prev) => prev.filter((a) => a.batch_id !== batchId));
   };
 
-
-
   if (loading) return <PageLoader />;
 
   if (!token) {
     return (
       <div className="bg-black min-h-screen flex flex-col items-center justify-center p-6 text-center">
         <span className="text-4xl mb-4">🔒</span>
-        <h1 className="text-xl font-semibold text-white mb-2">Connecte-toi pour voir ton feed</h1>
-        <p className="text-white/40 text-sm mb-6">Ton historique d'activités apparaîtra ici</p>
+        <h1 className="text-xl font-semibold text-white mb-2">Connecte-toi pour voir le feed</h1>
+        <p className="text-white/40 text-sm mb-6">L'activité de l'équipe apparaîtra ici</p>
         <a href="/login" className="text-white px-5 py-2.5 rounded-lg font-medium" style={{ backgroundColor: ACCENT }}>
           Se connecter
         </a>
@@ -348,83 +743,98 @@ function Feed() {
     );
   }
 
-  const filteredActivities = filter === 'all' ? activities : activities.filter((a) => a.type === filter);
-
-  // Stats de la semaine, calculées côté client à partir de ce qui est déjà chargé
-  const now = new Date();
-  const weekAgo = new Date(now);
-  weekAgo.setDate(now.getDate() - 7);
-  const weekActivities = activities.filter((a) => new Date(a.date_activite) >= weekAgo);
-  const weekCounts = { appel: 0, rdv: 0, devis: 0, commande: 0 };
-  weekActivities.forEach((a) => {
-    weekCounts[a.type] = (weekCounts[a.type] || 0) + Number(a.nombre || 1);
-  });
-  const weekTotal = Object.values(weekCounts).reduce((sum, n) => sum + n, 0);
-
   const typeLabels = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
 
   return (
     <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
       <div className="max-w-5xl mx-auto">
         <h1 className="text-xl font-semibold text-white mb-1">Feed</h1>
-        <p className="text-white/40 text-sm mb-5">Toutes tes activités, façon flux social</p>
+        <p className="text-white/40 text-sm mb-5">L'activité de toute l'équipe, en direct</p>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6 items-start">
 
           <div>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-4">
+            <div className="relative mb-4">
+              <svg className="absolute left-3.5 top-1/2 -translate-y-1/2" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-muted)' }}>
+                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Rechercher une activité, une personne, une récompense..."
+                className="w-full text-sm pl-10 pr-4 py-3 rounded-2xl outline-none transition-colors focus:border-orange-500/60"
+                style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+              />
+            </div>
+
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 mb-4" style={{ scrollbarWidth: 'none' }}>
               {TYPE_FILTERS.map((f) => {
                 const active = filter === f.key;
                 return (
                   <button
                     key={f.key}
                     onClick={() => setFilter(f.key)}
-                    className="px-2 py-1.5 rounded-full text-xs font-medium text-center transition-all"
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium whitespace-nowrap shrink-0 transition-all"
                     style={active
-                      ? { backgroundColor: ACCENT, color: '#fff' }
+                      ? { backgroundColor: ACCENT, color: '#fff', boxShadow: `0 2px 12px ${ACCENT}55` }
                       : { backgroundColor: 'var(--surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
                   >
+                    {f.icon && <Icon name={f.icon} size={13} />}
                     {f.label}
                   </button>
                 );
               })}
             </div>
 
-            {filteredActivities.length === 0 && (
+            <div id="feed-list-top" />
+
+            {pageLoading && (
+              <div className="py-10 flex justify-center">
+                <Spinner size={22} color={ACCENT} />
+              </div>
+            )}
+
+            {!pageLoading && activities.length === 0 && (
               <EmptyState
                 icon="📭"
-                title={filter === 'all' ? "Ton feed est vide" : "Aucune activité de ce type"}
-                subtitle={filter === 'all' ? "Enregistre ta première activité et elle apparaîtra ici, comme un post." : "Change de filtre ou enregistre une nouvelle activité de ce type."}
-                actionLabel={filter === 'all' ? "Enregistrer une activité" : undefined}
-                actionHref={filter === 'all' ? "/nouvelle-activite" : undefined}
+                title={search ? "Aucun résultat" : (filter === 'all' ? "Le feed est vide" : "Aucune activité de ce type")}
+                subtitle={search ? "Essaie un autre mot-clé." : (filter === 'all' ? "Enregistre une activité et elle apparaîtra ici, visible par toute l'équipe." : "Change de filtre ou enregistre une nouvelle activité de ce type.")}
+                actionLabel={filter === 'all' && !search ? "Enregistrer une activité" : undefined}
+                actionHref={filter === 'all' && !search ? "/nouvelle-activite" : undefined}
               />
             )}
 
-            <div className="flex flex-col gap-4">
-              {filteredActivities.map((a, i) => (
-                <ActivityCard key={a.batch_id} activity={a} index={i} onUpdate={handleUpdate} onDelete={handleDelete} />
-              ))}
-            </div>
+            {!pageLoading && activities.length > 0 && (
+              <div key={currentPage} className="flex flex-col gap-4 animate-[fadeIn_0.3s_ease]">
+                {activities.map((a, i) => (
+                  a.kind === 'redemption'
+                    ? <RedemptionCard key={a.batch_id} item={a} index={i} currentUserId={currentUser?.id} />
+                    : <ActivityCard key={a.batch_id} activity={a} index={i} currentUserId={currentUser?.id} onUpdate={handleUpdate} onDelete={handleDelete} />
+                ))}
+              </div>
+            )}
+
+            <Pager currentPage={currentPage} totalPages={totalPages} onChange={handlePageChange} />
           </div>
 
           <aside className="hidden lg:flex flex-col gap-4 sticky top-6">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-              <p className="text-white/40 text-[11px] uppercase tracking-wide mb-1">Cette semaine</p>
-              <p className="text-2xl font-semibold text-white mb-3">{weekTotal} <span className="text-sm text-white/40 font-normal">activités</span></p>
+              <p className="text-white/40 text-[11px] uppercase tracking-wide mb-1">Mon activité — cette semaine</p>
+              <p className="text-2xl font-semibold text-white mb-3">{feedStats.weekTotal} <span className="text-sm text-white/40 font-normal">activités</span></p>
               <div className="flex flex-col gap-2.5">
                 {Object.keys(typeLabels).map((type) => (
                   <div key={type} className="flex items-center gap-2.5">
                     <Icon name={type} size={15} style={{ color: 'var(--text-secondary)' }} className="shrink-0" />
                     <span className="text-xs text-white/60 flex-1">{typeLabels[type]}</span>
-                    <span className="text-xs font-semibold text-white">{weekCounts[type]}</span>
+                    <span className="text-xs font-semibold text-white">{feedStats.weekCounts[type] || 0}</span>
                   </div>
                 ))}
               </div>
             </div>
 
             <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-              <p className="text-white/40 text-[11px] uppercase tracking-wide mb-1">Total</p>
-              <p className="text-2xl font-semibold text-white">{activities.length} <span className="text-sm text-white/40 font-normal">activités</span></p>
+              <p className="text-white/40 text-[11px] uppercase tracking-wide mb-1">Mon total</p>
+              <p className="text-2xl font-semibold text-white">{feedStats.myTotal} <span className="text-sm text-white/40 font-normal">activités</span></p>
               <p className="text-[11px] text-white/30 mt-1">depuis le début</p>
             </div>
 

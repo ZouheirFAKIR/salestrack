@@ -411,36 +411,14 @@ function NouvelleActivite() {
             <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>activités enregistrées aujourd'hui</p>
           </div>
 
-          <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div className="flex items-center justify-between">
-              <p className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>Objectifs du jour</p>
-              <span className="flex items-center gap-1 text-[11px] font-medium" style={{ color: ACCENT }}>
-                <CoinIcon size={12} />
-                +5 en les complétant
-              </span>
-            </div>
-            {activityTypes.map((t) => {
-              const current = getStat(t.key);
-              const target = typeQuotas[t.key] || 5;
-              const percent = Math.min(Math.round((current / target) * 100), 100);
-              return (
-                <div key={t.key}>
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <Icon name={t.key} size={14} style={{ color: 'var(--text-secondary)' }} />
-                      <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{labels[t.key]}</span>
-                    </div>
-                    <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{current}/{target}</span>
-                  </div>
-                  <div className="w-full rounded-full h-1.5" style={{ backgroundColor: 'var(--border)' }}>
-                    <div
-                      className="h-1.5 rounded-full transition-all duration-500"
-                      style={{ width: `${percent}%`, backgroundColor: ACCENT }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+          <div className="rounded-2xl p-4 flex items-center justify-between gap-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              Suis le détail de tes objectifs sur le Dashboard
+            </p>
+            <span className="flex items-center gap-1 text-[11px] font-medium shrink-0" style={{ color: ACCENT }}>
+              <CoinIcon size={12} />
+              +5 en les complétant
+            </span>
           </div>
 
           {points !== null && (

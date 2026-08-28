@@ -461,7 +461,7 @@ router.get('/notifications/redemptions', async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT rr.id, rr.quantity, rr.cost_at_redemption, rr.redeemed_at, rr.seen_by_admin,
-              r.title, r.image_url, u.nom as commercial_nom
+              r.title, r.image_url, u.nom as commercial_nom, u.photo_url as commercial_photo_url
        FROM reward_redemptions rr
        JOIN rewards r ON r.id = rr.reward_id
        JOIN users u ON u.id = rr.commercial_id
@@ -481,7 +481,7 @@ router.get('/notifications/redemptions/all', async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT rr.id, rr.quantity, rr.cost_at_redemption, rr.redeemed_at, rr.seen_by_admin,
-              r.title, r.image_url, u.nom as commercial_nom
+              r.title, r.image_url, u.nom as commercial_nom, u.photo_url as commercial_photo_url
        FROM reward_redemptions rr
        JOIN rewards r ON r.id = rr.reward_id
        JOIN users u ON u.id = rr.commercial_id

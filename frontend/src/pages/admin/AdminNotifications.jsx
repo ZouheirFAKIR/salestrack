@@ -47,10 +47,12 @@ function AdminNotifications() {
           <div className="flex flex-col gap-2">
             {notifications.map((n) => (
               <div key={n.id} className="flex items-center gap-2 sm:gap-3 bg-white/5 border border-white/10 rounded-xl p-2.5 sm:p-3">
-                {n.image_url ? (
-                  <img src={n.image_url} alt="" className="w-9 h-9 sm:w-11 sm:h-11 rounded-lg object-cover shrink-0" />
+                {n.commercial_photo_url ? (
+                  <img src={n.commercial_photo_url} alt="" className="w-9 h-9 sm:w-11 sm:h-11 rounded-full object-cover shrink-0" />
                 ) : (
-                  <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-lg bg-black/40 flex items-center justify-center text-base sm:text-lg shrink-0">🎁</div>
+                  <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0" style={{ backgroundColor: ACCENT }}>
+                    {n.commercial_nom?.charAt(0).toUpperCase()}
+                  </div>
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="text-xs sm:text-sm text-white/80">
