@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Badge from '../components/Badge';
 import { icons as categoryIcons } from '../data/icons';
 import PageLoader from '../components/PageLoader';
@@ -8,82 +8,80 @@ import { badgeDefinitions, categoryLabels } from '../data/badgeDefinitions';
 
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const CATEGORIES = ['total', 'streak', 'target', 'appel', 'rdv', 'devis', 'commande'];
 
-function ProgressRing({ percent, size = 100 }) {
-  const r = (size - 12) / 2;
-  const circumference = 2 * Math.PI * r;
+function StatRow({ icon, iconBg, value, label, sub }) {
   return (
-    <div className="relative flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="8" />
-        <circle
-          cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#fff" strokeWidth="8"
-          strokeDasharray={`${(percent / 100) * circumference} ${circumference}`}
-          strokeLinecap="round"
-          style={{ transition: 'stroke-dasharray 0.8s ease' }}
-        />
-      </svg>
-      <span className="absolute text-lg font-bold text-white">{percent}%</span>
+    <div className="flex items-center gap-3">
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: iconBg }}>
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-lg font-bold leading-none" style={{ color: 'var(--text-primary)' }}>{value}</p>
+        <p className="text-xs mt-1 truncate" style={{ color: 'var(--text-secondary)' }}>{label}{sub ? ` · ${sub}` : ''}</p>
+      </div>
     </div>
   );
 }
 
-function NextUpCard({ badge, value }) {
+function TrophyRow({ items, onSelect }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="flex items-start gap-4 overflow-x-auto pb-2 -mx-1 px-1" style={{ scrollbarWidth: 'thin' }}>
+      {items.map(({ badge, unlocked }) => (
+        <button
+          key={badge.id}
+          onClick={() => onSelect(badge)}
+          className="shrink-0 transition-transform hover:scale-105"
+          style={{ width: 92 }}
+        >
+          <Badge category={badge.category} unlocked={unlocked} value={badge.threshold} label={null} size={84} />
+          <p className="text-[11px] font-medium text-center mt-2 leading-tight" style={{ color: 'var(--text-primary)' }}>{badge.label}</p>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function BadgeInfoModal({ badge, value, onClose }) {
+  const unlocked = value >= badge.threshold;
   const percent = Math.min(Math.round((value / badge.threshold) * 100), 100);
-  const remaining = badge.threshold - value;
-  return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-4 hover:border-orange-400/40 transition-colors">
-      <Badge category={badge.category} unlocked={false} label={null} size={46} />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-white truncate">{badge.label}</p>
-        <p className="text-[11px] text-white/40 mb-1.5">{categoryLabels[badge.category]} · encore {remaining}</p>
-        <div className="w-full bg-white/10 rounded-full h-1.5">
-          <div className="h-1.5 rounded-full transition-all duration-500" style={{ width: `${percent}%`, backgroundColor: ACCENT }} />
-        </div>
-      </div>
-      <span className="text-xs font-semibold text-white/50 shrink-0">{value}/{badge.threshold}</span>
-    </div>
-  );
-}
-
-function CategoryExplorer({ cat, badges, value }) {
-  const sorted = [...badges].sort((a, b) => a.threshold - b.threshold);
-  const nextBadge = sorted.find((b) => value < b.threshold);
-  const currentBadge = [...sorted].reverse().find((b) => value >= b.threshold);
-  const focusBadge = nextBadge || sorted[sorted.length - 1];
-  const prevThreshold = currentBadge ? currentBadge.threshold : 0;
-  const progressPercent = nextBadge
-    ? Math.min(Math.round(((value - prevThreshold) / (nextBadge.threshold - prevThreshold)) * 100), 100)
-    : 100;
-  const unlockedInCat = sorted.filter((b) => value >= b.threshold).length;
+  const remaining = Math.max(badge.threshold - value, 0);
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 animate-[fadeIn_0.3s_ease]">
-      <div className="flex items-center gap-4 mb-5 pb-5 border-b border-white/[0.06]">
-        <Badge category={cat} unlocked={!!currentBadge} label={null} size={64} />
-        <div className="flex-1">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-white font-medium">{focusBadge.label}</p>
-            <span className="text-xs text-white/40">{unlockedInCat}/{sorted.length}</span>
-          </div>
-          {nextBadge ? (
-            <>
-              <div className="w-full bg-white/10 rounded-full h-1.5 mt-2.5">
-                <div className="h-1.5 rounded-full transition-all duration-500" style={{ width: `${progressPercent}%`, backgroundColor: ACCENT }} />
-              </div>
-              <p className="text-[11px] text-white/40 mt-1.5">{value} / {nextBadge.threshold}</p>
-            </>
-          ) : (
-            <p className="text-[11px] mt-1.5" style={{ color: ACCENT }}>Tous les paliers débloqués 🎉</p>
-          )}
-        </div>
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div
+        className="rounded-2xl p-6 max-w-xs w-full text-center animate-[fadeIn_0.2s_ease]"
+        style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Badge category={badge.category} unlocked={unlocked} value={badge.threshold} label={null} size={100} />
+        <p className="text-base font-semibold mt-4" style={{ color: 'var(--text-primary)' }}>{badge.label}</p>
+        <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>{categoryLabels[badge.category]}</p>
+
+        {unlocked ? (
+          <p className="text-sm font-medium mt-4" style={{ color: ACCENT }}>Débloqué 🎉</p>
+        ) : (
+          <>
+            <div className="w-full rounded-full h-2 mt-4" style={{ backgroundColor: 'var(--surface-strong)' }}>
+              <div className="h-2 rounded-full transition-all duration-500" style={{ width: `${percent}%`, backgroundColor: ACCENT }} />
+            </div>
+            <p className="text-xs mt-2" style={{ color: 'var(--text-secondary)' }}>
+              {value} / {badge.threshold} — encore {remaining} pour débloquer
+            </p>
+          </>
+        )}
+
+        <button
+          onClick={onClose}
+          className="text-sm px-5 py-2 rounded-lg font-medium mt-5 transition-all hover:brightness-110"
+          style={{ backgroundColor: ACCENT, color: '#fff' }}
+        >
+          Fermer
+        </button>
       </div>
 
-      <div className="grid grid-cols-4 sm:grid-cols-8 gap-4">
-        {sorted.map((b) => (
-          <Badge key={b.id} category={b.category} unlocked={value >= b.threshold} label={b.threshold} size={52} />
-        ))}
-      </div>
+      <style>{`@keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }`}</style>
     </div>
   );
 }
@@ -94,7 +92,9 @@ function Badges() {
   const [seenBadges, setSeenBadges] = useState([]);
   const [newlyUnlocked, setNewlyUnlocked] = useState([]);
   const [currentUnlockIndex, setCurrentUnlockIndex] = useState(0);
-  const [activeTab, setActiveTab] = useState('total');
+  const [activeCat, setActiveCat] = useState(null);
+  const [infoBadge, setInfoBadge] = useState(null);
+  const gridSectionRef = useRef(null);
 
   useEffect(() => {
     Promise.all([
@@ -155,13 +155,22 @@ function Badges() {
   const unlockedCount = badgeDefinitions.filter(isUnlocked).length;
   const totalCount = badgeDefinitions.length;
   const overallPercent = Math.round((unlockedCount / totalCount) * 100);
-  const categories = ['total', 'streak', 'target', 'appel', 'rdv', 'devis', 'commande'];
 
-  const nextUpBadges = badgeDefinitions
+  const unlockedSorted = badgeDefinitions
+    .filter(isUnlocked)
+    .map((b) => ({ badge: b, unlocked: true }))
+    .sort((a, b) => b.badge.threshold - a.badge.threshold);
+
+  const nextUp = badgeDefinitions
     .filter((b) => !isUnlocked(b))
-    .map((b) => ({ badge: b, value: getValue(b.category), remaining: b.threshold - getValue(b.category) }))
-    .sort((a, b) => a.remaining - b.remaining)
-    .slice(0, 3);
+    .map((b) => ({ badge: b, unlocked: false, remaining: b.threshold - getValue(b.category) }))
+    .sort((a, b) => a.remaining - b.remaining);
+
+  const featured = unlockedSorted.length > 0 ? unlockedSorted.slice(0, 6) : nextUp.slice(0, 6);
+
+  const displayedCat = activeCat || 'total';
+  const catBadges = [...badgeDefinitions.filter((b) => b.category === displayedCat)].sort((a, b) => a.threshold - b.threshold);
+  const catValue = getValue(displayedCat);
 
   return (
     <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
@@ -174,69 +183,117 @@ function Badges() {
         />
       )}
 
-      <div className="max-w-4xl mx-auto flex flex-col gap-6">
+      <div className="max-w-6xl mx-auto flex flex-col gap-6">
 
         <div>
-          <h1 className="text-lg sm:text-xl font-semibold text-white">Badges</h1>
-          <p className="text-white/40 text-sm mt-1">Ta collection de badges, débloqués au fil de tes activités</p>
+          <h1 className="text-lg sm:text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>Badges</h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Ta collection de trophées, débloqués au fil de tes activités</p>
         </div>
 
-        <div className="rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row items-center gap-6" style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}>
-          <ProgressRing percent={overallPercent} size={100} />
-          <div className="text-center sm:text-left flex-1">
-                        <p className="text-xs uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.8)' }}>Collection de badges</p>
-            <p className="text-3xl sm:text-4xl font-bold mt-1" style={{ color: '#fff' }}>{unlockedCount}<span className="text-lg font-normal" style={{ color: 'rgba(255,255,255,0.7)' }}> / {totalCount} débloqués</span></p>
-            <p className="text-xs mt-2" style={{ color: 'rgba(255,255,255,0.7)' }}>{stats.streak > 0 ? `Série en cours : ${stats.streak} jour${stats.streak > 1 ? 's' : ''}` : 'Enregistre une activité pour démarrer ta série'}</p>
-          </div>
-        </div>
-
-        {nextUpBadges.length > 0 && (
+        <div className="rounded-2xl p-5 sm:p-6 grid grid-cols-1 lg:grid-cols-2 gap-6" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div>
-            <p className="text-white/40 text-xs uppercase tracking-wide mb-3">Prochains à débloquer</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {nextUpBadges.map(({ badge, value }) => (
-                <NextUpCard key={badge.id} badge={badge} value={value} />
-              ))}
+            <p className="text-sm font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Ta progression</p>
+            <div className="grid grid-cols-2 gap-4">
+              <StatRow
+                icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
+                iconBg={ACCENT}
+                value={`${unlockedCount}/${totalCount}`}
+                label="Trophées"
+                sub={`${overallPercent}%`}
+              />
+              <StatRow
+                icon={<svg width="16" height="16" viewBox={categoryIcons.streak?.viewBox} style={{ color: '#fff' }}>{categoryIcons.streak?.content}</svg>}
+                iconBg="#e0562f"
+                value={stats.streak}
+                label="Série actuelle"
+              />
+              <StatRow
+                icon={<svg width="16" height="16" viewBox={categoryIcons.target?.viewBox} style={{ color: '#fff' }}>{categoryIcons.target?.content}</svg>}
+                iconBg="#c1481c"
+                value={stats.targetDays}
+                label="Objectifs atteints"
+              />
+              <StatRow
+                icon={<svg width="16" height="16" viewBox={categoryIcons.total?.viewBox} style={{ color: '#fff' }}>{categoryIcons.total?.content}</svg>}
+                iconBg="#9c3a16"
+                value={stats.total}
+                label="Activités totales"
+              />
             </div>
           </div>
-        )}
+
+          <div className="lg:border-l lg:pl-6" style={{ borderColor: 'var(--border)' }}>
+            <p className="text-sm font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+              {unlockedSorted.length > 0 ? 'Tes derniers trophées' : 'Prochains à débloquer'}
+            </p>
+            <TrophyRow items={featured} onSelect={(badge) => setInfoBadge(badge)} />
+          </div>
+        </div>
 
         <div>
-          <p className="text-white/40 text-xs uppercase tracking-wide mb-3">Catégories</p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-            {categories.map((cat) => {
-              const active = activeTab === cat;
-              const catBadges = badgeDefinitions.filter((b) => b.category === cat);
-              const catUnlocked = catBadges.filter(isUnlocked).length;
+          <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Toutes les catégories</p>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-4">
+            {CATEGORIES.map((cat) => {
+              const active = displayedCat === cat;
+              const catCount = badgeDefinitions.filter((b) => b.category === cat).length;
+              const catUnlocked = badgeDefinitions.filter((b) => b.category === cat && isUnlocked(b)).length;
+              const percent = Math.round((catUnlocked / catCount) * 100);
               return (
                 <button
                   key={cat}
-                  onClick={() => setActiveTab(cat)}
-                  className="flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all"
+                  onClick={() => {
+                    setActiveCat(cat);
+                    setTimeout(() => gridSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+                  }}
+                  className="flex flex-col items-start gap-2 p-3.5 rounded-2xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-95"
                   style={active
-                    ? { backgroundColor: `${ACCENT}17`, borderColor: `${ACCENT}80` }
-                    : { backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+                    ? { backgroundColor: `${ACCENT}17`, border: `1.5px solid ${ACCENT}`, boxShadow: `0 2px 14px ${ACCENT}33` }
+                    : { backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
                 >
-                  <svg width="22" height="22" viewBox={categoryIcons[cat]?.viewBox || '0 0 24 24'} style={{ color: active ? ACCENT : 'var(--text-secondary)' }}>
-                    {categoryIcons[cat]?.content}
-                  </svg>
-                  <p className="text-xs font-medium text-center" style={{ color: active ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{categoryLabels[cat]}</p>
-                  <p className="text-[10px]" style={{ color: active ? ACCENT : 'var(--text-muted)' }}>{catUnlocked}/{catBadges.length}</p>
+                  <div className="flex items-center justify-between w-full">
+                    <div
+                      className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors"
+                      style={{ backgroundColor: active ? ACCENT : 'var(--surface-strong)' }}
+                    >
+                      <svg width="16" height="16" viewBox={categoryIcons[cat]?.viewBox || '0 0 24 24'} style={{ color: active ? '#fff' : 'var(--text-secondary)' }}>
+                        {categoryIcons[cat]?.content}
+                      </svg>
+                    </div>
+                    <span className="text-xs font-semibold" style={{ color: active ? ACCENT : 'var(--text-muted)' }}>{catUnlocked}/{catCount}</span>
+                  </div>
+                  <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{categoryLabels[cat]}</p>
+                  <div className="w-full rounded-full h-1.5" style={{ backgroundColor: 'var(--surface-strong)' }}>
+                    <div
+                      className="h-1.5 rounded-full transition-all duration-700 ease-out"
+                      style={{ width: `${percent}%`, backgroundColor: active ? ACCENT : 'var(--text-muted)' }}
+                    />
+                  </div>
                 </button>
               );
             })}
           </div>
 
-          <CategoryExplorer
-            cat={activeTab}
-            badges={badgeDefinitions.filter((b) => b.category === activeTab)}
-            value={getValue(activeTab)}
-          />
+          <div ref={gridSectionRef} className="rounded-2xl p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-4">
+              {catBadges.map((b) => (
+                <button key={b.id} onClick={() => setInfoBadge(b)} className="transition-transform hover:scale-105">
+                  <Badge category={b.category} unlocked={catValue >= b.threshold} value={b.threshold} label={null} size={56} />
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
       </div>
 
-      <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+      {infoBadge && (
+        <BadgeInfoModal
+          badge={infoBadge}
+          value={getValue(infoBadge.category)}
+          onClose={() => setInfoBadge(null)}
+        />
+      )}
     </div>
   );
 }

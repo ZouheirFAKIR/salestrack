@@ -86,7 +86,7 @@ function BadgeUnlockModal({ badge, onClose, onNext, remaining }) {
               position: 'relative',
             }}
           >
-            <Badge category={badge.category} unlocked={true} label={null} size={120} />
+            <Badge category={badge.category} unlocked={true} value={badge.threshold} tier={badge.tier} label={null} size={120} />
           </div>
         </div>
 

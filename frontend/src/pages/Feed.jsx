@@ -6,6 +6,7 @@ import PageLoader from '../components/PageLoader';
 import { Icon } from '../data/icons';
 import EmptyState from '../components/EmptyState';
 import CoinIcon from '../components/CoinIcon';
+import goldTrophy from '../assets/trophy.png';
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const PAGE_SIZE = 15;
@@ -117,8 +118,6 @@ function CommentsSection({ postId, initialCount, currentUserId }) {
   const [count, setCount] = useState(Number(initialCount) || 0);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
-  const [imageUrl, setImageUrl] = useState('');
-  const [imageLoading, setImageLoading] = useState(false);
 
   const load = async () => {
     if (loaded) return;
@@ -140,31 +139,19 @@ function CommentsSection({ postId, initialCount, currentUserId }) {
     if (next) load();
   };
 
-  const handleImageChange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setImageLoading(true);
-    try {
-      const compressed = await compressImage(file, 800, 0.7);
-      setImageUrl(compressed);
-    } catch (err) {}
-    setImageLoading(false);
-  };
-
   const handleSend = async () => {
-    if ((!text.trim() && !imageUrl) || sending) return;
+    if (!text.trim() || sending) return;
     setSending(true);
     try {
       const res = await apiFetch(`${API_URL}/api/activities/${postId}/comments`, {
         method: 'POST',
-        body: JSON.stringify({ content: text.trim(), image_url: imageUrl || null }),
+        body: JSON.stringify({ content: text.trim() }),
       });
       if (res.ok) {
         const newComment = await res.json();
         setComments((prev) => [...prev, newComment]);
         setCount((c) => c + 1);
         setText('');
-        setImageUrl('');
       }
     } catch (err) {}
     setSending(false);
@@ -220,42 +207,13 @@ function CommentsSection({ postId, initialCount, currentUserId }) {
                       </button>
                     )}
                   </div>
-                  {c.content && (
-                    <p className="text-xs mt-0.5 whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>{c.content}</p>
-                  )}
-                  {c.image_url && (
-                    <img src={c.image_url} alt="" className="mt-2 rounded-lg max-h-48 object-cover border border-white/10" />
-                  )}
+                  <p className="text-xs mt-0.5 whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>{c.content}</p>
                 </div>
               </div>
             ))}
           </div>
 
-          {imageLoading && (
-            <div className="mb-2 h-20 rounded-lg bg-black border border-white/10 flex items-center justify-center">
-              <Spinner size={16} color={ACCENT} />
-            </div>
-          )}
-
-          {!imageLoading && imageUrl && (
-            <div className="relative mb-2 inline-block">
-              <img src={imageUrl} alt="" className="h-20 rounded-lg border border-white/10 object-cover" />
-              <button
-                onClick={() => setImageUrl('')}
-                className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-black text-white flex items-center justify-center text-xs border border-white/20"
-              >
-                ×
-              </button>
-            </div>
-          )}
-
           <div className="flex items-center gap-2">
-            <label className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 cursor-pointer transition-colors hover:bg-white/5" style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-              </svg>
-              <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-            </label>
             <input
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -266,7 +224,7 @@ function CommentsSection({ postId, initialCount, currentUserId }) {
             />
             <button
               onClick={handleSend}
-              disabled={(!text.trim() && !imageUrl) || sending}
+              disabled={!text.trim() || sending}
               className="w-9 h-9 rounded-full flex items-center justify-center text-white disabled:opacity-40 transition-all hover:brightness-110 shrink-0"
               style={{ backgroundColor: ACCENT }}
             >
@@ -329,6 +287,34 @@ function RedemptionCard({ item, index, currentUserId }) {
       <div className="flex items-center gap-1 mt-3 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
         <LikeButton postId={item.batch_id} initialLiked={item.liked_by_me} initialCount={item.likes_count} />
         <CommentsSection postId={item.batch_id} initialCount={item.comments_count} currentUserId={currentUserId} />
+      </div>
+    </div>
+  );
+}
+
+function AnnouncementCard({ item, index }) {
+  return (
+    <div
+      className="rounded-2xl overflow-hidden p-4 flex items-center gap-4"
+      style={{
+        backgroundColor: 'var(--surface-strong)',
+        border: '1px solid #d4af3755',
+        boxShadow: '0 0 20px #d4af3722',
+        animation: `slideIn 0.35s ease ${index * 0.04}s both`,
+      }}
+    >
+      <img src={goldTrophy} alt="" className="w-14 h-14 object-contain shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: '#b8860b' }}>
+          Champion du jour
+        </p>
+        <div className="flex items-center gap-2 mb-1">
+          <Avatar nom={item.commercial_nom} photoUrl={item.commercial_photo_url} size={24} />
+          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.commercial_nom}</p>
+        </div>
+        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+          {item.nombre} activité{Number(item.nombre) > 1 ? 's' : ''} enregistrée{Number(item.nombre) > 1 ? 's' : ''} aujourd'hui 🏆
+        </p>
       </div>
     </div>
   );
@@ -657,6 +643,7 @@ const TYPE_FILTERS = [
   { key: 'devis', label: 'Devis', icon: 'devis' },
   { key: 'commande', label: 'Commandes', icon: 'commande' },
   { key: 'reward', label: 'Récompenses', icon: 'gift' },
+  { key: 'champion', label: 'Champions', icon: 'badges' },
 ];
 
 function Feed() {
@@ -672,7 +659,6 @@ function Feed() {
   const token = localStorage.getItem('token');
   const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
 
-  // Débounce la recherche pour ne pas taper une requête à chaque lettre
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput.trim()), 400);
     return () => clearTimeout(timer);
@@ -809,6 +795,8 @@ function Feed() {
                 {activities.map((a, i) => (
                   a.kind === 'redemption'
                     ? <RedemptionCard key={a.batch_id} item={a} index={i} currentUserId={currentUser?.id} />
+                    : a.kind === 'announcement'
+                    ? <AnnouncementCard key={a.batch_id} item={a} index={i} />
                     : <ActivityCard key={a.batch_id} activity={a} index={i} currentUserId={currentUser?.id} onUpdate={handleUpdate} onDelete={handleDelete} />
                 ))}
               </div>

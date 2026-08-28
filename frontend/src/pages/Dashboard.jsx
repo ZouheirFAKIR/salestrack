@@ -48,7 +48,7 @@ function Leaderboard({ entries, currentUserId }) {
 
   return (
     <div className="rounded-xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-      <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>Classement — 7 derniers jours</p>
+      <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>Classement du jour</p>
       <div className="flex flex-col gap-2">
         {entries.map((e, i) => {
           const rank = i + 1;

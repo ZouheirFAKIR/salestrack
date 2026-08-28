@@ -68,6 +68,8 @@ router.get('/', authMiddleware, async (req, res) => {
   if (type !== 'all') {
     if (type === 'reward') {
       conditions.push(`combined.kind = 'redemption'`);
+    } else if (type === 'champion') {
+      conditions.push(`combined.kind = 'announcement'`);
     } else {
       conditions.push(`combined.type = $${paramIndex}`);
       params.push(type);
@@ -138,6 +140,26 @@ router.get('/', authMiddleware, async (req, res) => {
          FROM reward_redemptions rr
          JOIN rewards r ON r.id = rr.reward_id
          JOIN users u ON u.id = rr.commercial_id
+
+         UNION ALL
+
+         SELECT
+           'winner-' || dw.id as batch_id,
+           'champion' as type,
+           NULL as sens,
+           NULL as statut,
+           NULL as description,
+           NULL::text as image_url,
+           dw.created_at as date_activite,
+           dw.activity_count as nombre,
+           'announcement' as kind,
+           NULL::text as reward_title,
+           NULL::int as cost_at_redemption,
+           dw.commercial_id,
+           u.nom as commercial_nom,
+           u.photo_url as commercial_photo_url
+         FROM daily_winners dw
+         JOIN users u ON u.id = dw.commercial_id
        ) combined
        LEFT JOIN (SELECT post_id, COUNT(*) as likes_count FROM post_likes GROUP BY post_id) pl ON pl.post_id = combined.batch_id
        LEFT JOIN (SELECT post_id, COUNT(*) as comments_count FROM post_comments GROUP BY post_id) pc ON pc.post_id = combined.batch_id
@@ -294,7 +316,7 @@ router.get('/leaderboard', authMiddleware, async (req, res) => {
       `SELECT u.id, u.nom, u.photo_url, COALESCE(COUNT(a.id), 0) as total
        FROM users u
        LEFT JOIN activities a ON a.commercial_id = u.id
-         AND a.date_activite >= CURRENT_DATE - INTERVAL '6 days'
+         AND DATE(a.date_activite) = CURRENT_DATE
        WHERE u.role != 'admin' OR u.role IS NULL
        GROUP BY u.id, u.nom, u.photo_url
        ORDER BY total DESC
