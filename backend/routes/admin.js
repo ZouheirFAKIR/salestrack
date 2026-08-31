@@ -174,20 +174,29 @@ router.put('/questions/:id', async (req, res) => {
 router.get('/commercials', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT 
+      SELECT
         u.id, u.nom, u.email, u.role, u.photo_url,
-        COALESCE(tq.total_target, 9) as daily_target,
-        COUNT(a.id) as total_activities,
-        COUNT(a.id) FILTER (WHERE DATE(a.date_activite) = CURRENT_DATE) as today_activities
+        COUNT(a.id) FILTER (WHERE DATE(a.date_activite) = CURRENT_DATE AND a.type = 'appel') as today_appel,
+        COUNT(a.id) FILTER (WHERE DATE(a.date_activite) = CURRENT_DATE AND a.type = 'rdv') as today_rdv,
+        COUNT(a.id) FILTER (WHERE DATE(a.date_activite) = CURRENT_DATE AND a.type = 'devis') as today_devis,
+        COUNT(a.id) FILTER (WHERE DATE(a.date_activite) = CURRENT_DATE AND a.type = 'commande') as today_commande,
+        COALESCE(MAX(tq.appel), 80) as target_appel,
+        COALESCE(MAX(tq.rdv), 2) as target_rdv,
+        COALESCE(MAX(tq.devis), 3) as target_devis,
+        COALESCE(MAX(tq.commande), 1) as target_commande
       FROM users u
+      LEFT JOIN activities a ON a.commercial_id = u.id
       LEFT JOIN (
-        SELECT commercial_id, SUM(daily_target) as total_target
+        SELECT commercial_id,
+          MAX(daily_target) FILTER (WHERE type = 'appel') as appel,
+          MAX(daily_target) FILTER (WHERE type = 'rdv') as rdv,
+          MAX(daily_target) FILTER (WHERE type = 'devis') as devis,
+          MAX(daily_target) FILTER (WHERE type = 'commande') as commande
         FROM type_quotas
         GROUP BY commercial_id
       ) tq ON tq.commercial_id = u.id
-      LEFT JOIN activities a ON a.commercial_id = u.id
       WHERE u.role != 'admin' OR u.role IS NULL
-      GROUP BY u.id, tq.total_target
+      GROUP BY u.id, tq.appel, tq.rdv, tq.devis, tq.commande
       ORDER BY u.nom ASC
     `);
     res.json(result.rows);
@@ -322,7 +331,7 @@ router.get('/commercials/:id/type-quotas', async (req, res) => {
       'SELECT type, daily_target FROM type_quotas WHERE commercial_id = $1',
       [req.params.id]
     );
-    const quotas = { appel: 5, rdv: 2, devis: 1, commande: 1 };
+    const quotas = { appel: 80, rdv: 2, devis: 3, commande: 1 };
     result.rows.forEach((r) => { quotas[r.type] = r.daily_target; });
     res.json(quotas);
   } catch (err) {
@@ -352,8 +361,16 @@ router.put('/commercials/:id/type-quotas', async (req, res) => {
   }
 });
 
+const odooStatsCache = new Map();
+const ODOO_STATS_CACHE_TTL = 3 * 60 * 1000;
+
 router.get('/odoo-stats', async (req, res) => {
   const date = req.query.date || new Date().toISOString().slice(0, 10);
+
+  const cached = odooStatsCache.get(date);
+  if (cached && Date.now() - cached.time < ODOO_STATS_CACHE_TTL) {
+    return res.json(cached.data);
+  }
 
   try {
     const orders = await odoo.execute(
@@ -363,15 +380,17 @@ router.get('/odoo-stats', async (req, res) => {
         ['date_order', '>=', `${date} 00:00:00`],
         ['date_order', '<=', `${date} 23:59:59`],
       ]],
-      { fields: ['state', 'amount_total'] }
+      { fields: ['state', 'amount_untaxed'] }
     );
 
     const devis = orders.filter((o) => ['draft', 'sent'].includes(o.state)).length;
     const commandesList = orders.filter((o) => ['sale', 'done'].includes(o.state));
     const commandes = commandesList.length;
-    const chiffreAffaires = commandesList.reduce((sum, o) => sum + o.amount_total, 0);
+    const chiffreAffaires = commandesList.reduce((sum, o) => sum + o.amount_untaxed, 0);
 
-    res.json({ devis, commandes, chiffreAffaires: Math.round(chiffreAffaires) });
+    const result = { devis, commandes, chiffreAffaires: Math.round(chiffreAffaires) };
+    odooStatsCache.set(date, { data: result, time: Date.now() });
+    res.json(result);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Impossible de récupérer les stats Odoo', details: err.message });

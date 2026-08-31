@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
 import LineChart from '../components/LineChart';
+import MultiLineChart from '../components/MultiLineChart';
+import ActivityMultiChart from '../components/ActivityMultiChart';
+import OdooRangeCard from '../components/OdooRangeCard';
+import OdooActivitiesCard from '../components/OdooActivitiesCard';
 import PageLoader from '../components/PageLoader';
 import { apiFetch } from '../utils/api';
 import { Icon } from '../data/icons';
@@ -9,6 +13,11 @@ import bronzeTrophy from '../assets/Bronze_Trophie.png';
 
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+function parseLocalDate(dateStr) {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
 
 function AnimatedNumber({ value }) {
   const [display, setDisplay] = useState(0);
@@ -33,6 +42,20 @@ function ChartCard({ title, data, target, total, labelKey, formatLabel }) {
         {total} activités
       </p>
       <LineChart data={data} target={target} labelKey={labelKey} formatLabel={formatLabel} />
+    </div>
+  );
+}
+
+function MultiChartCard({ title, data, keys = ['appel', 'rdv', 'devis', 'commande'], labelKey, formatLabel }) {
+  const grandTotal = data.reduce((sum, d) => sum + keys.reduce((s, k) => s + Number(d[k] || 0), 0), 0);
+
+  return (
+    <div className="rounded-xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+      <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>{title}</p>
+      <p className="text-xl sm:text-2xl font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+        {grandTotal} activités
+      </p>
+      <ActivityMultiChart data={data} keys={keys} labelKey={labelKey} formatLabel={formatLabel} />
     </div>
   );
 }
@@ -101,6 +124,8 @@ function Leaderboard({ entries, currentUserId }) {
 function Dashboard() {
   const [stats, setStats] = useState([]);
   const [daily, setDaily] = useState([]);
+  const [odooDaily, setOdooDaily] = useState([]);
+  const [odooLinked, setOdooLinked] = useState(true);
   const [weekly, setWeekly] = useState([]);
   const [monthly, setMonthly] = useState([]);
   const [yearly, setYearly] = useState([]);
@@ -135,6 +160,19 @@ function Dashboard() {
       setLeaderboard(leaderboardData);
       setLoading(false);
     });
+
+    if (user?.id) {
+      apiFetch(`${API_URL}/api/odoo/daily/${user.id}?days=30`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.linked) {
+            setOdooDaily(data.daily);
+          } else {
+            setOdooLinked(false);
+          }
+        })
+        .catch(() => setOdooLinked(false));
+    }
   }, [token]);
 
   const getStat = (type) => stats.find((s) => s.type === type) || { total: 0 };
@@ -218,10 +256,10 @@ function Dashboard() {
         <Leaderboard entries={leaderboard} currentUserId={user?.id} />
         </div>
 
-        <ChartCard title="Activités par jour (7 derniers jours)" data={daily} target={dailyTarget} total={sumTotal(daily)} labelKey="jour" formatLabel={(d) => new Date(d).toLocaleDateString('fr-FR', { weekday: 'short' })} />
-        <ChartCard title="Activités par semaine (12 dernières semaines)" data={weekly} target={weeklyTarget} total={sumTotal(weekly)} labelKey="periode" formatLabel={(d) => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} />
-        <ChartCard title="Activités par mois (12 derniers mois)" data={monthly} target={monthlyTarget} total={sumTotal(monthly)} labelKey="periode" formatLabel={(d) => new Date(d).toLocaleDateString('fr-FR', { month: 'short' })} />
-        <ChartCard title="Activités par année (5 dernières années)" data={yearly} target={yearlyTarget} total={sumTotal(yearly)} labelKey="periode" formatLabel={(d) => new Date(d).toLocaleDateString('fr-FR', { year: 'numeric' })} />
+        <MultiChartCard title="Appels & Rendez-vous par jour (7 derniers jours)" data={daily} keys={['appel', 'rdv']} labelKey="jour" formatLabel={(d) => parseLocalDate(d).toLocaleDateString('fr-FR', { weekday: 'short' })} />
+
+        <OdooRangeCard commercialId={user?.id} />
+        <OdooActivitiesCard commercialId={user?.id} />
       </div>
 
       <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>

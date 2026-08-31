@@ -129,6 +129,22 @@ function CommercialDetail({ commercial, onClose, onQuotaUpdated }) {
               <LineChart data={detail.daily} />
             </div>
 
+            <div className="mb-5">
+              <OdooActivitiesCard commercialId={commercial.id} />
+            </div>
+
+            <div className="mb-5">
+              <OdooRangeCard commercialId={commercial.id} />
+            </div>
+
+            <div className="mb-5">
+              <OdooActivitiesCard commercialId={commercial.id} />
+            </div>
+
+            <div className="mb-5">
+              <OdooRangeCard commercialId={commercial.id} />
+            </div>
+
             <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4 mb-5">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-white">Solde de points</p>
@@ -365,30 +381,28 @@ function AdminDashboard() {
           {commercials.length === 0 && (
             <p className="text-white/30 text-sm text-center mt-10">Aucun commercial pour l'instant</p>
           )}
-          {commercials.map((c) => {
-            const percent = Math.min(Math.round((c.today_activities / c.daily_target) * 100), 100);
-            return (
-              <button
-                key={c.id}
-                onClick={() => setSelected(c)}
-                className="bg-white/5 border border-white/10 rounded-2xl p-3 sm:p-4 hover:border-orange-400/50 transition-all text-left flex items-center gap-3 sm:gap-4"
-              >
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm font-semibold shrink-0" style={{ backgroundColor: ACCENT, color: '#fff' }}>
-                  {c.nom?.charAt(0).toUpperCase()}
+          {commercials.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setSelected(c)}
+              className="bg-white/5 border border-white/10 rounded-2xl p-3 sm:p-4 hover:border-orange-400/50 transition-all text-left flex items-center gap-3 sm:gap-4"
+            >
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm font-semibold shrink-0" style={{ backgroundColor: ACCENT, color: '#fff' }}>
+                {c.nom?.charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-medium text-sm sm:text-base truncate">{c.nom}</p>
+                <div className="flex items-center gap-3 mt-1 flex-wrap">
+                  {['appel', 'rdv', 'devis', 'commande'].map((type) => (
+                    <span key={type} className="flex items-center gap-1 text-[11px] text-white/50">
+                      <Icon name={type} size={11} style={{ color: 'var(--text-muted)' }} />
+                      {c[`today_${type}`]}/{c[`target_${type}`]}
+                    </span>
+                  ))}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-medium text-sm sm:text-base truncate">{c.nom}</p>
-                  <p className="text-white/40 text-[11px] sm:text-xs truncate">{c.total_activities} activités au total</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-xs sm:text-sm font-semibold" style={{ color: ACCENT }}>{c.today_activities}/{c.daily_target}</p>
-                  <div className="w-14 sm:w-20 bg-white/10 rounded-full h-1.5 mt-1">
-                    <div className="h-1.5 rounded-full" style={{ width: `${percent}%`, backgroundColor: ACCENT }} />
-                  </div>
-                </div>
-              </button>
-            );
-          })}
+              </div>
+            </button>
+          ))}
         </div>
       </div>
 

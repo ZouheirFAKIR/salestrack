@@ -362,7 +362,12 @@ router.get('/today', authMiddleware, async (req, res) => {
 router.get('/daily', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT TO_CHAR(d, 'YYYY-MM-DD') as jour, COALESCE(COUNT(a.id), 0) as total
+      `SELECT
+         TO_CHAR(d, 'YYYY-MM-DD') as jour,
+         COALESCE(COUNT(a.id) FILTER (WHERE a.type = 'appel'), 0) as appel,
+         COALESCE(COUNT(a.id) FILTER (WHERE a.type = 'rdv'), 0) as rdv,
+         COALESCE(COUNT(a.id) FILTER (WHERE a.type = 'devis'), 0) as devis,
+         COALESCE(COUNT(a.id) FILTER (WHERE a.type = 'commande'), 0) as commande
        FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') d
        LEFT JOIN activities a ON DATE(a.date_activite) = d AND a.commercial_id = $1
        GROUP BY d ORDER BY d ASC`,
@@ -378,7 +383,12 @@ router.get('/daily', authMiddleware, async (req, res) => {
 router.get('/weekly', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT TO_CHAR(w, 'YYYY-MM-DD') as periode, COALESCE(COUNT(a.id), 0) as total
+      `SELECT
+         TO_CHAR(w, 'YYYY-MM-DD') as periode,
+         COALESCE(COUNT(a.id) FILTER (WHERE a.type = 'appel'), 0) as appel,
+         COALESCE(COUNT(a.id) FILTER (WHERE a.type = 'rdv'), 0) as rdv,
+         COALESCE(COUNT(a.id) FILTER (WHERE a.type = 'devis'), 0) as devis,
+         COALESCE(COUNT(a.id) FILTER (WHERE a.type = 'commande'), 0) as commande
        FROM generate_series(CURRENT_DATE - INTERVAL '11 weeks', CURRENT_DATE, INTERVAL '1 week') w
        LEFT JOIN activities a ON DATE_TRUNC('week', a.date_activite) = DATE_TRUNC('week', w) AND a.commercial_id = $1
        GROUP BY w ORDER BY w ASC`,
@@ -394,7 +404,12 @@ router.get('/weekly', authMiddleware, async (req, res) => {
 router.get('/monthly', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT TO_CHAR(m, 'YYYY-MM-DD') as periode, COALESCE(COUNT(a.id), 0) as total
+      `SELECT
+         TO_CHAR(m, 'YYYY-MM-DD') as periode,
+         COALESCE(COUNT(a.id) FILTER (WHERE a.type = 'appel'), 0) as appel,
+         COALESCE(COUNT(a.id) FILTER (WHERE a.type = 'rdv'), 0) as rdv,
+         COALESCE(COUNT(a.id) FILTER (WHERE a.type = 'devis'), 0) as devis,
+         COALESCE(COUNT(a.id) FILTER (WHERE a.type = 'commande'), 0) as commande
        FROM generate_series(CURRENT_DATE - INTERVAL '11 months', CURRENT_DATE, INTERVAL '1 month') m
        LEFT JOIN activities a ON DATE_TRUNC('month', a.date_activite) = DATE_TRUNC('month', m) AND a.commercial_id = $1
        GROUP BY m ORDER BY m ASC`,
@@ -410,7 +425,12 @@ router.get('/monthly', authMiddleware, async (req, res) => {
 router.get('/yearly', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT TO_CHAR(y, 'YYYY-MM-DD') as periode, COALESCE(COUNT(a.id), 0) as total
+      `SELECT
+         TO_CHAR(y, 'YYYY-MM-DD') as periode,
+         COALESCE(COUNT(a.id) FILTER (WHERE a.type = 'appel'), 0) as appel,
+         COALESCE(COUNT(a.id) FILTER (WHERE a.type = 'rdv'), 0) as rdv,
+         COALESCE(COUNT(a.id) FILTER (WHERE a.type = 'devis'), 0) as devis,
+         COALESCE(COUNT(a.id) FILTER (WHERE a.type = 'commande'), 0) as commande
        FROM generate_series(CURRENT_DATE - INTERVAL '4 years', CURRENT_DATE, INTERVAL '1 year') y
        LEFT JOIN activities a ON DATE_TRUNC('year', a.date_activite) = DATE_TRUNC('year', y) AND a.commercial_id = $1
        GROUP BY y ORDER BY y ASC`,
@@ -575,7 +595,7 @@ router.get('/my-type-quotas', authMiddleware, async (req, res) => {
       'SELECT type, daily_target FROM type_quotas WHERE commercial_id = $1',
       [req.userId]
     );
-    const quotas = { appel: 5, rdv: 2, devis: 1, commande: 1 };
+    const quotas = { appel: 80, rdv: 2, devis: 3, commande: 1 };
     quotasResult.rows.forEach((r) => { quotas[r.type] = r.daily_target; });
 
     const todayResult = await pool.query(
