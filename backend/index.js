@@ -7,6 +7,7 @@ const coursesRoutes = require('./routes/courses');
 const adminRoutes = require('./routes/admin');
 const rewardsRoutes = require('./routes/rewards');
 const cronRoutes = require('./routes/cron');
+const odooRoutes = require('./routes/odoo');
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.use('/api/courses', coursesRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/rewards', rewardsRoutes);
 app.use('/api/cron', cronRoutes);
+app.use('/api/odoo', odooRoutes);
 
 app.get('/', (req, res) => {
   res.send('API Commercial Tracker fonctionne');

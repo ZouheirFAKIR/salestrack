@@ -35,7 +35,7 @@ function TrophyRow({ items, onSelect }) {
           className="shrink-0 transition-transform hover:scale-105"
           style={{ width: 92 }}
         >
-          <Badge category={badge.category} unlocked={unlocked} value={badge.threshold} label={null} size={84} />
+          <Badge category={badge.category} unlocked={unlocked} value={badge.threshold} label={null} size={60} />
           <p className="text-[11px] font-medium text-center mt-2 leading-tight" style={{ color: 'var(--text-primary)' }}>{badge.label}</p>
         </button>
       ))}

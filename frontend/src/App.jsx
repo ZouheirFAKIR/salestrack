@@ -14,6 +14,7 @@ import AdminCourses from './pages/admin/AdminCourses';
 import AdminRewards from './pages/admin/AdminRewards';
 import AdminNotifications from './pages/admin/AdminNotifications';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminOdooMapping from './pages/admin/AdminOdooMapping';
 import AdminRoute from './components/AdminRoute';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
@@ -99,6 +100,7 @@ function App() {
         <Route path="/admin/courses" element={<AdminRoute><AppLayout><AdminCourses /></AppLayout></AdminRoute>} />
         <Route path="/admin/rewards" element={<AdminRoute><AppLayout><AdminRewards /></AppLayout></AdminRoute>} />
         <Route path="/admin/notifications" element={<AdminRoute><AppLayout><AdminNotifications /></AppLayout></AdminRoute>} />
+        <Route path="/admin/odoo" element={<AdminRoute><AppLayout><AdminOdooMapping /></AppLayout></AdminRoute>} />
       </Routes>
     </BrowserRouter>
   );

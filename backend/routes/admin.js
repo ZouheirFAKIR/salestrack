@@ -3,7 +3,7 @@ const router = express.Router();
 const pool = require('../db');
 const authMiddleware = require('../middleware/authMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
-const { getOdooSalesStats } = require('../odoo');
+const odoo = require('../utils/odooClient');
 router.use(authMiddleware, adminMiddleware);
 
 router.get('/courses', async (req, res) => {
@@ -353,9 +353,25 @@ router.put('/commercials/:id/type-quotas', async (req, res) => {
 });
 
 router.get('/odoo-stats', async (req, res) => {
+  const date = req.query.date || new Date().toISOString().slice(0, 10);
+
   try {
-    const stats = await getOdooSalesStats();
-    res.json(stats);
+    const orders = await odoo.execute(
+      'sale.order',
+      'search_read',
+      [[
+        ['date_order', '>=', `${date} 00:00:00`],
+        ['date_order', '<=', `${date} 23:59:59`],
+      ]],
+      { fields: ['state', 'amount_total'] }
+    );
+
+    const devis = orders.filter((o) => ['draft', 'sent'].includes(o.state)).length;
+    const commandesList = orders.filter((o) => ['sale', 'done'].includes(o.state));
+    const commandes = commandesList.length;
+    const chiffreAffaires = commandesList.reduce((sum, o) => sum + o.amount_total, 0);
+
+    res.json({ devis, commandes, chiffreAffaires: Math.round(chiffreAffaires) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Impossible de récupérer les stats Odoo', details: err.message });

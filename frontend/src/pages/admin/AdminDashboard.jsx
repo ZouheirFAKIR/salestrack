@@ -217,11 +217,11 @@ function OdooStatsCard() {
       {!loading && !error && stats && (
         <div className="grid grid-cols-1 xs:grid-cols-3 sm:grid-cols-3 gap-3">
           <div className="text-center">
-            <p className="text-xl sm:text-2xl font-semibold text-white">{stats.nbDevis}</p>
+            <p className="text-xl sm:text-2xl font-semibold text-white">{stats.devis}</p>
             <p className="text-[11px] text-white/40 mt-0.5">Devis</p>
           </div>
           <div className="text-center">
-            <p className="text-xl sm:text-2xl font-semibold text-white">{stats.nbCommandes}</p>
+            <p className="text-xl sm:text-2xl font-semibold text-white">{stats.commandes}</p>
             <p className="text-[11px] text-white/40 mt-0.5">Commandes</p>
           </div>
           <div className="text-center">
@@ -287,6 +287,9 @@ function AdminDashboard() {
             <Link to="/admin/notifications" className="text-xs px-3 py-2 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
               Notifications
             </Link>
+            <Link to="/admin/odoo" className="text-xs px-3 py-2 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
+              Liaison Odoo
+            </Link>
             <button
               onClick={handleDownloadReport}
               className="text-xs px-3 py-2 rounded-lg font-medium flex items-center gap-1.5"
@@ -333,6 +336,13 @@ function AdminDashboard() {
                   className="text-xs px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-colors"
                 >
                   Notifications
+                </Link>
+                <Link
+                  to="/admin/odoo"
+                  onClick={() => setAdminMenuOpen(false)}
+                  className="text-xs px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+                >
+                  Liaison Odoo
                 </Link>
                 <button
                   onClick={handleDownloadReport}
