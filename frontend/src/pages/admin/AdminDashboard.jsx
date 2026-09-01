@@ -306,6 +306,9 @@ function AdminDashboard() {
             <Link to="/admin/odoo" className="text-xs px-3 py-2 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
               Liaison Odoo
             </Link>
+            <Link to="/admin/challenge" className="text-xs px-3 py-2 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
+              Défi
+            </Link>
             <button
               onClick={handleDownloadReport}
               className="text-xs px-3 py-2 rounded-lg font-medium flex items-center gap-1.5"
@@ -359,6 +362,13 @@ function AdminDashboard() {
                   className="text-xs px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-colors"
                 >
                   Liaison Odoo
+                </Link>
+                <Link
+                  to="/admin/challenge"
+                  onClick={() => setAdminMenuOpen(false)}
+                  className="text-xs px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+                >
+                  Défi
                 </Link>
                 <button
                   onClick={handleDownloadReport}

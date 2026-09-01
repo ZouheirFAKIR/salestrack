@@ -550,4 +550,87 @@ router.post('/notifications/redemptions/mark-seen', async (req, res) => {
   }
 });
 
+
+router.get('/challenge', async (req, res) => {
+  try {
+    const challengeResult = await pool.query(
+      `SELECT c.*, u.nom as winner_nom FROM challenges c
+       LEFT JOIN users u ON u.id = c.winner_id
+       WHERE c.ended = FALSE
+       ORDER BY c.created_at DESC LIMIT 1`
+    );
+    const challenge = challengeResult.rows[0];
+
+    if (!challenge) {
+      return res.json({ active: false, runners: [] });
+    }
+
+    const runnersResult = await pool.query(
+      `SELECT u.id, u.nom, u.photo_url, COUNT(a.id) as total
+       FROM users u
+       LEFT JOIN activities a ON a.commercial_id = u.id
+         AND a.date_activite >= $1 AND a.date_activite <= NOW()
+       WHERE u.role != 'admin' OR u.role IS NULL
+       GROUP BY u.id
+       ORDER BY total DESC`,
+      [challenge.created_at]
+    );
+
+    const runners = runnersResult.rows.map((r) => ({
+      id: r.id,
+      nom: r.nom,
+      photo_url: r.photo_url,
+      total: Number(r.total),
+      progress: Math.min(Math.round((Number(r.total) / challenge.target) * 100), 100),
+      isWinner: r.id === challenge.winner_id,
+    }));
+
+    res.json({
+      active: true,
+      id: challenge.id,
+      title: challenge.title,
+      target: challenge.target,
+      deadline: challenge.deadline,
+      winnerId: challenge.winner_id,
+      winnerNom: challenge.winner_nom,
+      runners,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.post('/challenge', async (req, res) => {
+  const { title, target, deadline } = req.body;
+  if (!title || !target || !deadline) {
+    return res.status(400).json({ error: 'Titre, objectif et deadline requis' });
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO challenges (title, target, deadline, created_by)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [title, target, deadline, req.userId]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(400).json({ error: 'Un défi est déjà en cours — termine-le avant d\'en créer un nouveau' });
+    }
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.post('/challenge/:id/end', async (req, res) => {
+  try {
+    await pool.query('UPDATE challenges SET ended = TRUE WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Défi terminé' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 module.exports = router;

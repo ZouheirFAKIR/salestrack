@@ -47,7 +47,42 @@ router.post('/', authMiddleware, async (req, res) => {
       bonusAwarded = bonusInsert.rows.length > 0;
     }
 
-    res.status(201).json({ count: result.rows.length, activities: result.rows, bonusAwarded, bonusPoints: DAILY_BONUS_POINTS });
+    let raceWon = false;
+    if (todayTotal >= totalTarget) {
+      const winCheck = await pool.query(
+        `INSERT INTO daily_winners (commercial_id, win_date, activity_count)
+         VALUES ($1, CURRENT_DATE, $2)
+         ON CONFLICT (win_date) DO NOTHING
+         RETURNING id`,
+        [req.userId, todayTotal]
+      );
+      raceWon = winCheck.rows.length > 0;
+    }
+
+    let challengeWon = false;
+    const activeChallenge = await pool.query(
+      `SELECT id, target, created_at FROM challenges WHERE ended = FALSE ORDER BY created_at DESC LIMIT 1`
+    );
+    if (activeChallenge.rows.length > 0) {
+      const challenge = activeChallenge.rows[0];
+      const progressResult = await pool.query(
+        `SELECT COUNT(*) as total FROM activities
+         WHERE commercial_id = $1 AND date_activite >= $2 AND date_activite <= NOW()`,
+        [req.userId, challenge.created_at]
+      );
+      const progress = Number(progressResult.rows[0].total);
+      if (progress >= challenge.target) {
+        const winUpdate = await pool.query(
+          `UPDATE challenges SET winner_id = $1, ended = TRUE
+           WHERE id = $2 AND winner_id IS NULL
+           RETURNING id`,
+          [req.userId, challenge.id]
+        );
+        challengeWon = winUpdate.rows.length > 0;
+      }
+    }
+
+    res.status(201).json({ count: result.rows.length, activities: result.rows, bonusAwarded, bonusPoints: DAILY_BONUS_POINTS, raceWon, challengeWon });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -613,5 +648,59 @@ router.get('/my-type-quotas', authMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
+
+
+
+
+
+router.get('/race', authMiddleware, async (req, res) => {
+  try {
+    const challengeResult = await pool.query(
+      `SELECT c.*, u.nom as winner_nom FROM challenges c
+       LEFT JOIN users u ON u.id = c.winner_id
+       WHERE c.ended = FALSE
+       ORDER BY c.created_at DESC LIMIT 1`
+    );
+    const challenge = challengeResult.rows[0];
+
+    if (!challenge) {
+      return res.json({ active: false, runners: [] });
+    }
+
+    const result = await pool.query(
+      `SELECT u.id, u.nom, u.photo_url, COUNT(a.id) as total
+       FROM users u
+       LEFT JOIN activities a ON a.commercial_id = u.id
+         AND a.date_activite >= $1 AND a.date_activite <= NOW()
+       WHERE u.role != 'admin' OR u.role IS NULL
+       GROUP BY u.id
+       ORDER BY total DESC`,
+      [challenge.created_at]
+    );
+
+    const runners = result.rows.map((r) => ({
+      id: r.id,
+      nom: r.nom,
+      photo_url: r.photo_url,
+      total: Number(r.total),
+      progress: Math.min(Math.round((Number(r.total) / challenge.target) * 100), 100),
+      isWinner: r.id === challenge.winner_id,
+    }));
+
+    res.json({
+      active: true,
+      title: challenge.title,
+      target: challenge.target,
+      deadline: challenge.deadline,
+      winnerId: challenge.winner_id,
+      winnerNom: challenge.winner_nom,
+      runners,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 
 module.exports = router;

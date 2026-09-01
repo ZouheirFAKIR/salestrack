@@ -215,6 +215,65 @@ function NouvelleActivite() {
   const totalToday = todayStats.reduce((sum, s) => sum + Number(s.total), 0);
   const totalObjectif = Object.values(typeQuotas).reduce((sum, v) => sum + Number(v), 0);
 
+  const objectifsCard = (
+    <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold" style={{ backgroundColor: ACCENT, color: '#fff' }}>
+          {prenom.charAt(0).toUpperCase()}
+        </div>
+        <div>
+          <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{prenom}</p>
+          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Objectifs du jour</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2.5">
+        {activityTypes.map((t) => {
+          const current = getStat(t.key);
+          const target = typeQuotas[t.key] || 5;
+          const percent = Math.min(Math.round((current / target) * 100), 100);
+          const circumference = 2 * Math.PI * 22;
+          const ringColor =
+            percent >= 100 ? '#22c55e' :
+            percent >= 75 ? '#86efac' :
+            percent >= 25 ? ACCENT :
+            '#ef4444';
+          const displayPercent = Math.max(percent, 4);
+
+          return (
+            <div
+              key={t.key}
+              className="rounded-xl p-2.5 flex flex-col items-center text-center"
+              style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}
+            >
+              <div className="relative w-14 h-14 mb-1.5">
+                <svg viewBox="0 0 56 56" className="w-14 h-14 -rotate-90">
+                  <circle cx="28" cy="28" r="22" stroke="var(--border)" strokeWidth="4" fill="none" />
+                  <circle
+                    cx="28" cy="28" r="22" stroke={ringColor} strokeWidth="4" fill="none" strokeLinecap="round"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={circumference - (displayPercent / 100) * circumference}
+                    style={{ transition: 'stroke-dashoffset 0.6s ease, stroke 0.4s ease' }}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Icon name={t.key} size={15} style={{ color: 'var(--text-primary)' }} />
+                </div>
+              </div>
+              <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{current}/{target}</p>
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{labels[t.key]}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="text-[11px] mt-3 pt-3 flex items-center gap-1" style={{ color: ACCENT, borderTop: '1px solid var(--border)' }}>
+        <CoinIcon size={12} />
+        +5 points en complétant tous les objectifs
+      </p>
+    </div>
+  );
+
   if (pageLoading) return <PageLoader />;
 
   return (
@@ -274,6 +333,8 @@ function NouvelleActivite() {
               </span>
             )}
           </div>
+
+          <div className="lg:hidden">{objectifsCard}</div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {activityTypes.map((t) => {
@@ -395,62 +456,7 @@ function NouvelleActivite() {
         </div>
 
         <div className="lg:col-span-1 flex flex-col gap-3">
-          <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold" style={{ backgroundColor: ACCENT, color: '#fff' }}>
-                {prenom.charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{prenom}</p>
-                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Objectifs du jour</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2.5">
-              {activityTypes.map((t) => {
-                const current = getStat(t.key);
-                const target = typeQuotas[t.key] || 5;
-                const percent = Math.min(Math.round((current / target) * 100), 100);
-                const circumference = 2 * Math.PI * 22;
-                const ringColor =
-                  percent >= 100 ? '#22c55e' :
-                  percent >= 75 ? '#86efac' :
-                  percent >= 25 ? ACCENT :
-                  '#ef4444';
-                const displayPercent = Math.max(percent, 4);
-
-                return (
-                  <div
-                    key={t.key}
-                    className="rounded-xl p-2.5 flex flex-col items-center text-center"
-                    style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}
-                  >
-                    <div className="relative w-14 h-14 mb-1.5">
-                      <svg viewBox="0 0 56 56" className="w-14 h-14 -rotate-90">
-                        <circle cx="28" cy="28" r="22" stroke="var(--border)" strokeWidth="4" fill="none" />
-                        <circle
-                          cx="28" cy="28" r="22" stroke={ringColor} strokeWidth="4" fill="none" strokeLinecap="round"
-                          strokeDasharray={circumference}
-                          strokeDashoffset={circumference - (displayPercent / 100) * circumference}
-                          style={{ transition: 'stroke-dashoffset 0.6s ease, stroke 0.4s ease' }}
-                        />
-                      </svg>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <Icon name={t.key} size={15} style={{ color: 'var(--text-primary)' }} />
-                      </div>
-                    </div>
-                    <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{current}/{target}</p>
-                    <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{labels[t.key]}</p>
-                  </div>
-                );
-              })}
-            </div>
-
-            <p className="text-[11px] mt-3 pt-3 flex items-center gap-1" style={{ color: ACCENT, borderTop: '1px solid var(--border)' }}>
-              <CoinIcon size={12} />
-              +5 points en complétant tous les objectifs
-            </p>
-          </div>
+          <div className="hidden lg:block">{objectifsCard}</div>
 
           {points !== null && (
             <div className="rounded-2xl p-4 flex items-center justify-between" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
