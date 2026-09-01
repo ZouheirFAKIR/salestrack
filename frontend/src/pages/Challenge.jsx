@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import PageLoader from '../components/PageLoader';
 import Spinner from '../components/Spinner';
+import RaceTrack from '../components/RaceTrack';
 import { apiFetch } from '../utils/api';
 
 const ACCENT = '#f86635';
@@ -44,41 +45,7 @@ function Challenge() {
           </div>
           <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>Objectif : {data.target} activités</p>
 
-          <div className="flex flex-col gap-4">
-            {data.runners.map((r) => {
-              const isMe = r.id === user?.id;
-              return (
-                <div key={r.id}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-medium" style={{ color: isMe ? ACCENT : 'var(--text-primary)' }}>
-                      {r.nom}{isMe && ' (toi)'}{r.isWinner && ' 🏆'}
-                    </span>
-                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{r.total}/{data.target}</span>
-                  </div>
-                  <div className="relative w-full rounded-full h-3" style={{ backgroundColor: 'var(--surface-strong)' }}>
-                    <div
-                      className="h-3 rounded-full transition-all duration-700 ease-out relative"
-                      style={{
-                        width: `${Math.max(r.progress, 4)}%`,
-                        background: r.isWinner ? 'linear-gradient(90deg, #ffd700, #f86635)' : ACCENT,
-                      }}
-                    >
-                      <div
-                        className="absolute -right-3 -top-2.5 w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-md overflow-hidden"
-                        style={{ backgroundColor: r.isWinner ? '#ffd700' : ACCENT, border: '2px solid var(--surface)' }}
-                      >
-                        {r.photo_url ? (
-                          <img src={r.photo_url} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          r.nom?.charAt(0).toUpperCase()
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <RaceTrack runners={data.runners} target={data.target} />
         </div>
       )}
 
