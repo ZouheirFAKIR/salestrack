@@ -6,6 +6,8 @@ import PageLoader from '../../components/PageLoader';
 import Spinner from '../../components/Spinner';
 import LineChart from '../../components/LineChart';
 import CoinIcon from '../../components/CoinIcon';
+import OdooRangeCard from '../../components/OdooRangeCard';
+import OdooActivitiesCard from '../../components/OdooActivitiesCard';
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -96,86 +98,80 @@ function CommercialDetail({ commercial, onClose, onQuotaUpdated }) {
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-3 sm:p-4 z-50" onClick={onClose}>
       <div
-        className="bg-[#0d0d0d] border border-white/10 rounded-2xl p-4 sm:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        className="bg-[#0d0d0d] border border-white/10 rounded-2xl p-4 sm:p-8 max-w-5xl w-full max-h-[92vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-5 gap-3">
+        <div className="flex items-center justify-between mb-6 gap-3">
           <div className="min-w-0">
-            <p className="text-white font-semibold truncate">{commercial.nom}</p>
-            <p className="text-white/40 text-xs truncate">{commercial.email}</p>
+            <p className="text-white font-semibold text-lg truncate">{commercial.nom}</p>
+            <p className="text-white/40 text-sm truncate">{commercial.email}</p>
           </div>
-          <button onClick={onClose} className="text-white/40 hover:text-white text-xl shrink-0">×</button>
+          <button onClick={onClose} className="text-white/40 hover:text-white text-2xl shrink-0 leading-none">×</button>
         </div>
 
-        {loading && <Spinner size={24} color={ACCENT} />}
+        {loading && (
+          <div className="flex justify-center py-16">
+            <Spinner size={24} color={ACCENT} />
+          </div>
+        )}
 
         {!loading && detail && (
-          <>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+          <div className="flex flex-col gap-5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {['appel', 'rdv', 'devis', 'commande'].map((type) => {
                 const stat = detail.stats.find((s) => s.type === type);
                 return (
-                  <div key={type} className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-                    <Icon name={type} size={20} className="mx-auto" style={{ color: ACCENT }} />
-                    <p className="text-xl font-semibold text-white mt-1">{stat?.total || 0}</p>
-                    <p className="text-[11px] text-white/40">{labels[type]}</p>
+                  <div key={type} className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
+                    <Icon name={type} size={22} className="mx-auto" style={{ color: ACCENT }} />
+                    <p className="text-2xl font-semibold text-white mt-2">{stat?.total || 0}</p>
+                    <p className="text-xs text-white/40 mt-0.5">{labels[type]}</p>
                   </div>
                 );
               })}
             </div>
 
-            <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4 mb-5">
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4 sm:p-5">
               <p className="text-sm text-white/50 mb-3">Activités (7 derniers jours)</p>
               <LineChart data={detail.daily} />
             </div>
 
-            <div className="mb-5">
-              <OdooActivitiesCard commercialId={commercial.id} />
-            </div>
+            <OdooActivitiesCard commercialId={commercial.id} />
 
-            <div className="mb-5">
-              <OdooRangeCard commercialId={commercial.id} />
-            </div>
+            <OdooRangeCard commercialId={commercial.id} />
 
-            <div className="mb-5">
-              <OdooActivitiesCard commercialId={commercial.id} />
-            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4 sm:p-5">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-white">Solde de points</p>
+                  <span className="flex items-center gap-1.5 text-lg font-semibold" style={{ color: ACCENT }}>
+                    <CoinIcon size={16} />
+                    {detail.points_balance ?? 0}
+                  </span>
+                </div>
 
-            <div className="mb-5">
-              <OdooRangeCard commercialId={commercial.id} />
-            </div>
-
-            <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4 mb-5">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-white">Solde de points</p>
-                <span className="flex items-center gap-1.5 text-lg font-semibold" style={{ color: ACCENT }}>
-                  <CoinIcon size={16} />
-                  {detail.points_balance ?? 0}
-                </span>
+                {detail.redemptions?.length > 0 && (
+                  <div className="flex flex-col gap-1.5 mt-3 pt-3 border-t border-white/10">
+                    <p className="text-xs text-white/40 uppercase tracking-wide mb-1">Récompenses échangées</p>
+                    {detail.redemptions.map((r) => (
+                      <div key={r.id} className="flex items-center justify-between gap-2 bg-black/30 rounded-lg p-2">
+                        <p className="text-xs text-white/70 truncate">
+                          {r.quantity > 1 ? `${r.quantity} × ` : ''}{r.title}
+                        </p>
+                        <span className="text-[11px] text-white/40 shrink-0">
+                          {new Date(r.redeemed_at).toLocaleDateString('fr-FR')} · −{r.cost_at_redemption}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              {detail.redemptions?.length > 0 && (
-                <div className="flex flex-col gap-1.5 mt-3 pt-3 border-t border-white/10">
-                  <p className="text-xs text-white/40 uppercase tracking-wide mb-1">Récompenses échangées</p>
-                  {detail.redemptions.map((r) => (
-                    <div key={r.id} className="flex items-center justify-between gap-2 bg-black/30 rounded-lg p-2">
-                      <p className="text-xs text-white/70 truncate">
-                        {r.quantity > 1 ? `${r.quantity} × ` : ''}{r.title}
-                      </p>
-                      <span className="text-[11px] text-white/40 shrink-0">
-                        {new Date(r.redeemed_at).toLocaleDateString('fr-FR')} · −{r.cost_at_redemption}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4 sm:p-5">
+                <p className="text-sm font-medium text-white mb-3">Objectifs quotidiens par type</p>
+                <TypeQuotasForm commercialId={commercial.id} onSaved={onQuotaUpdated} />
+              </div>
             </div>
-
-            <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4">
-              <p className="text-sm font-medium text-white mb-3">Objectifs quotidiens par type</p>
-              <TypeQuotasForm commercialId={commercial.id} onSaved={onQuotaUpdated} />
-            </div>
-          </>
+          </div>
         )}
       </div>
     </div>
