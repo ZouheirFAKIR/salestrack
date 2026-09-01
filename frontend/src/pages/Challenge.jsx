@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import PageLoader from '../components/PageLoader';
 import Spinner from '../components/Spinner';
 import RaceTrack from '../components/RaceTrack';
 import CountdownClock from '../components/CountdownClock';
+import Confetti from '../components/Confetti';
 import { apiFetch } from '../utils/api';
 
 const ACCENT = '#f86635';
@@ -11,12 +12,19 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 function Challenge() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const wasWinnerSeen = useRef(false);
   const user = JSON.parse(localStorage.getItem('user') || 'null');
 
   const load = () => {
     apiFetch(`${API_URL}/api/activities/race`)
       .then((r) => r.json())
       .then((res) => {
+        if (res.active && res.winnerId && !wasWinnerSeen.current) {
+          wasWinnerSeen.current = true;
+          setShowConfetti(true);
+          setTimeout(() => setShowConfetti(false), 2500);
+        }
         setData(res);
         setLoading(false);
       })
@@ -33,6 +41,7 @@ function Challenge() {
 
   return (
     <div className="max-w-3xl mx-auto p-4 sm:p-6">
+      <Confetti show={showConfetti} />
       <h1 className="text-lg font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Défi</h1>
       <p className="text-xs mb-5" style={{ color: 'var(--text-secondary)' }}>Le sprint collectif du moment, et le dernier gagnant</p>
 
