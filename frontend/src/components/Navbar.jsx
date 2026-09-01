@@ -83,6 +83,7 @@ function Navbar() {
     { path: '/courses', label: 'Formation', iconName: 'formation' },
     { path: '/badges', label: 'Badges', iconName: 'badges' },
     { path: '/rewards', label: 'Récompenses', iconName: 'gift' },
+    { path: '/challenge', label: 'Défi', iconName: 'trophy' },
   ];
 
   const links = [...primaryLinks, ...secondaryLinks];

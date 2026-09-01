@@ -664,7 +664,29 @@ router.get('/race', authMiddleware, async (req, res) => {
     const challenge = challengeResult.rows[0];
 
     if (!challenge) {
-      return res.json({ active: false, runners: [] });
+      const lastResult = await pool.query(
+        `SELECT c.*, u.nom as winner_nom, u.photo_url as winner_photo_url FROM challenges c
+         LEFT JOIN users u ON u.id = c.winner_id
+         WHERE c.ended = TRUE
+         ORDER BY c.created_at DESC LIMIT 1`
+      );
+      const last = lastResult.rows[0];
+
+      if (!last) return res.json({ active: false, runners: [], last: null });
+
+      return res.json({
+        active: false,
+        runners: [],
+        last: {
+          title: last.title,
+          target: last.target,
+          deadline: last.deadline,
+          winnerId: last.winner_id,
+          winnerNom: last.winner_nom,
+          winnerPhotoUrl: last.winner_photo_url,
+          createdAt: last.created_at,
+        },
+      });
     }
 
     const result = await pool.query(

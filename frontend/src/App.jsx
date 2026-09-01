@@ -4,6 +4,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Dashboard from './pages/Dashboard';
 import NouvelleActivite from './pages/NouvelleActivite';
+import Challenge from './pages/Challenge';
 import Feed from './pages/Feed';
 import Profile from './pages/Profile';
 import Badges from './pages/Badges';
@@ -91,6 +92,7 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />
         <Route path="/nouvelle-activite" element={<AppLayout><NouvelleActivite /></AppLayout>} />
+        <Route path="/challenge" element={<AppLayout><Challenge /></AppLayout>} />
         <Route path="/feed" element={<AppLayout><Feed /></AppLayout>} />
         <Route path="/profile" element={<AppLayout><Profile /></AppLayout>} />
         <Route path="/badges" element={<AppLayout><Badges /></AppLayout>} />
