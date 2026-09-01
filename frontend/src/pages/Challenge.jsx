@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import PageLoader from '../components/PageLoader';
 import Spinner from '../components/Spinner';
 import RaceTrack from '../components/RaceTrack';
+import CountdownClock from '../components/CountdownClock';
 import { apiFetch } from '../utils/api';
 
 const ACCENT = '#f86635';
@@ -39,9 +40,13 @@ function Challenge() {
         <div className="rounded-2xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
             <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{data.title}</p>
-            <span className="text-xs px-2.5 py-1 rounded-full font-medium" style={{ backgroundColor: `${ACCENT}17`, color: ACCENT }}>
-              {data.winnerId ? `Gagné par ${data.winnerNom} 🏆` : `Fin : ${new Date(data.deadline).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`}
-            </span>
+            {data.winnerId ? (
+              <span className="text-xs px-2.5 py-1 rounded-full font-medium" style={{ backgroundColor: `${ACCENT}17`, color: ACCENT }}>
+                Gagné par {data.winnerNom} 🏆
+              </span>
+            ) : (
+              <CountdownClock deadline={data.deadline} />
+            )}
           </div>
           <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>Objectif : {data.target} activités</p>
 
