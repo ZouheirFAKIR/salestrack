@@ -4,6 +4,7 @@ const pool = require('../db');
 const authMiddleware = require('../middleware/authMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
 const odoo = require('../utils/odooClient');
+const { toMoroccoDate } = odoo;
 
 const CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
 const cache = new Map();
@@ -83,21 +84,26 @@ router.get('/stats/:commercialId', authMiddleware, async (req, res) => {
       return res.json(result);
     }
 
+    const dateObj = new Date(`${date}T00:00:00Z`);
+    const prevDay = new Date(dateObj); prevDay.setUTCDate(prevDay.getUTCDate() - 1);
+    const nextDay = new Date(dateObj); nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+
     const orders = await odoo.execute(
       'sale.order',
       'search_read',
       [[
         ['user_id', '=', odooUserId],
-        ['date_order', '>=', `${date} 00:00:00`],
-        ['date_order', '<=', `${date} 23:59:59`],
+        ['date_order', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
+        ['date_order', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
       ]],
-      { fields: ['state', 'amount_untaxed'] }
+      { fields: ['state', 'amount_total', 'date_order'] }
     );
 
-    const devis = orders.filter((o) => ['draft', 'sent'].includes(o.state)).length;
-    const commandesList = orders.filter((o) => ['sale', 'done'].includes(o.state));
+    const ordersToday = orders.filter((o) => toMoroccoDate(o.date_order) === date);
+    const devis = ordersToday.filter((o) => ['draft', 'sent'].includes(o.state)).length;
+    const commandesList = ordersToday.filter((o) => ['sale', 'done'].includes(o.state));
     const commandes = commandesList.length;
-    const chiffreAffaires = commandesList.reduce((sum, o) => sum + o.amount_untaxed, 0);
+    const chiffreAffaires = commandesList.reduce((sum, o) => sum + o.amount_total, 0);
 
     const result = { linked: true, devis, commandes, chiffreAffaires: Math.round(chiffreAffaires) };
     setCached(cacheKey, result);
@@ -124,7 +130,8 @@ router.get('/daily/:commercialId', authMiddleware, async (req, res) => {
 
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - (days - 1));
-    const startStr = startDate.toISOString().slice(0, 10);
+    const fetchStart = new Date(startDate); fetchStart.setDate(fetchStart.getDate() - 1);
+    const startStr = fetchStart.toISOString().slice(0, 10);
 
     const orders = await odoo.execute(
       'sale.order',
@@ -145,7 +152,7 @@ router.get('/daily/:commercialId', authMiddleware, async (req, res) => {
     }
 
     orders.forEach((o) => {
-      const day = o.date_order.slice(0, 10);
+      const day = toMoroccoDate(o.date_order);
       if (!dayMap[day]) return;
       if (['draft', 'sent'].includes(o.state)) dayMap[day].devis++;
       if (['sale', 'done'].includes(o.state)) dayMap[day].commande++;
@@ -180,15 +187,18 @@ router.get('/range/:commercialId', authMiddleware, async (req, res) => {
       return res.json(result);
     }
 
+    const fetchStartDate = new Date(`${start}T00:00:00Z`); fetchStartDate.setUTCDate(fetchStartDate.getUTCDate() - 1);
+    const fetchEndDate = new Date(`${end}T00:00:00Z`); fetchEndDate.setUTCDate(fetchEndDate.getUTCDate() + 1);
+
     const orders = await odoo.execute(
       'sale.order',
       'search_read',
       [[
         ['user_id', '=', odooUserId],
-        ['date_order', '>=', `${start} 00:00:00`],
-        ['date_order', '<=', `${end} 23:59:59`],
+        ['date_order', '>=', `${fetchStartDate.toISOString().slice(0, 10)} 00:00:00`],
+        ['date_order', '<=', `${fetchEndDate.toISOString().slice(0, 10)} 23:59:59`],
       ]],
-      { fields: ['state', 'date_order', 'amount_untaxed'] }
+      { fields: ['state', 'date_order', 'amount_total'] }
     );
 
     const bucketMap = {};
@@ -213,12 +223,13 @@ router.get('/range/:commercialId', authMiddleware, async (req, res) => {
     }
 
     orders.forEach((o) => {
-      const key = getBucketKey(o.date_order);
+      const localDate = toMoroccoDate(o.date_order);
+      const key = getBucketKey(localDate);
       if (!bucketMap[key]) return;
       if (['draft', 'sent'].includes(o.state)) bucketMap[key].devis++;
       if (['sale', 'done'].includes(o.state)) {
         bucketMap[key].commande++;
-        bucketMap[key].chiffreAffaires += o.amount_untaxed;
+        bucketMap[key].chiffreAffaires += o.amount_total;
       }
     });
 

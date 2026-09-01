@@ -37,4 +37,9 @@ function execute(model, method, args, kwargs = {}) {
   });
 }
 
-module.exports = { execute };
+function toMoroccoDate(dateOrderStr) {
+  const utcDate = new Date(dateOrderStr.replace(' ', 'T') + 'Z');
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Casablanca' }).format(utcDate);
+}
+
+module.exports = { execute, toMoroccoDate };

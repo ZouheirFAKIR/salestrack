@@ -24,7 +24,7 @@ function CountdownClock({ deadline }) {
       className="px-3 py-1.5 rounded-lg font-mono text-sm sm:text-base tracking-widest"
       style={{ backgroundColor: '#111', color: remaining > 0 ? '#f86635' : '#666', border: '1px solid rgba(255,255,255,0.1)' }}
     >
-      {formatDuration(remaining)}
+      {remaining > 0 ? formatDuration(remaining) : 'Terminé'}
     </div>
   );
 }

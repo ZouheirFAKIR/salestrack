@@ -373,20 +373,25 @@ router.get('/odoo-stats', async (req, res) => {
   }
 
   try {
+    const dateObj = new Date(`${date}T00:00:00Z`);
+    const prevDay = new Date(dateObj); prevDay.setUTCDate(prevDay.getUTCDate() - 1);
+    const nextDay = new Date(dateObj); nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+
     const orders = await odoo.execute(
       'sale.order',
       'search_read',
       [[
-        ['date_order', '>=', `${date} 00:00:00`],
-        ['date_order', '<=', `${date} 23:59:59`],
+        ['date_order', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
+        ['date_order', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
       ]],
-      { fields: ['state', 'amount_untaxed'] }
+      { fields: ['state', 'amount_total', 'date_order'] }
     );
 
-    const devis = orders.filter((o) => ['draft', 'sent'].includes(o.state)).length;
-    const commandesList = orders.filter((o) => ['sale', 'done'].includes(o.state));
+    const ordersToday = orders.filter((o) => toMoroccoDate(o.date_order) === date);
+    const devis = ordersToday.filter((o) => ['draft', 'sent'].includes(o.state)).length;
+    const commandesList = ordersToday.filter((o) => ['sale', 'done'].includes(o.state));
     const commandes = commandesList.length;
-    const chiffreAffaires = commandesList.reduce((sum, o) => sum + o.amount_untaxed, 0);
+    const chiffreAffaires = commandesList.reduce((sum, o) => sum + o.amount_total, 0);
 
     const result = { devis, commandes, chiffreAffaires: Math.round(chiffreAffaires) };
     odooStatsCache.set(date, { data: result, time: Date.now() });
@@ -566,7 +571,12 @@ router.get('/challenge', async (req, res) => {
     }
 
     const runnersResult = await pool.query(
-      `SELECT u.id, u.nom, u.photo_url, COUNT(a.id) as total
+      `SELECT u.id, u.nom, u.photo_url,
+         COUNT(a.id) as total,
+         COUNT(a.id) FILTER (WHERE a.type = 'appel') as appel,
+         COUNT(a.id) FILTER (WHERE a.type = 'rdv') as rdv,
+         COUNT(a.id) FILTER (WHERE a.type = 'devis') as devis,
+         COUNT(a.id) FILTER (WHERE a.type = 'commande') as commande
        FROM users u
        LEFT JOIN activities a ON a.commercial_id = u.id
          AND a.date_activite >= $1 AND a.date_activite <= NOW()
@@ -581,6 +591,12 @@ router.get('/challenge', async (req, res) => {
       nom: r.nom,
       photo_url: r.photo_url,
       total: Number(r.total),
+      breakdown: {
+        appel: Number(r.appel),
+        rdv: Number(r.rdv),
+        devis: Number(r.devis),
+        commande: Number(r.commande),
+      },
       progress: Math.min(Math.round((Number(r.total) / challenge.target) * 100), 100),
       isWinner: r.id === challenge.winner_id,
     }));
@@ -590,6 +606,12 @@ router.get('/challenge', async (req, res) => {
       id: challenge.id,
       title: challenge.title,
       target: challenge.target,
+      targets: {
+        appel: challenge.target_appel,
+        rdv: challenge.target_rdv,
+        devis: challenge.target_devis,
+        commande: challenge.target_commande,
+      },
       deadline: challenge.deadline,
       winnerId: challenge.winner_id,
       winnerNom: challenge.winner_nom,
@@ -602,16 +624,22 @@ router.get('/challenge', async (req, res) => {
 });
 
 router.post('/challenge', async (req, res) => {
-  const { title, target, deadline } = req.body;
-  if (!title || !target || !deadline) {
-    return res.status(400).json({ error: 'Titre, objectif et deadline requis' });
+  const { title, deadline } = req.body;
+  const targetAppel = parseInt(req.body.targetAppel, 10) || 0;
+  const targetRdv = parseInt(req.body.targetRdv, 10) || 0;
+  const targetDevis = parseInt(req.body.targetDevis, 10) || 0;
+  const targetCommande = parseInt(req.body.targetCommande, 10) || 0;
+  const target = targetAppel + targetRdv + targetDevis + targetCommande;
+
+  if (!title || !deadline || target <= 0) {
+    return res.status(400).json({ error: 'Titre, au moins un objectif par type, et deadline requis' });
   }
 
   try {
     const result = await pool.query(
-      `INSERT INTO challenges (title, target, deadline, created_by)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [title, target, deadline, req.userId]
+      `INSERT INTO challenges (title, target, target_appel, target_rdv, target_devis, target_commande, deadline, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [title, target, targetAppel, targetRdv, targetDevis, targetCommande, deadline, req.userId]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {

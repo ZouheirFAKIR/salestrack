@@ -73,7 +73,7 @@ router.post('/', authMiddleware, async (req, res) => {
       const progress = Number(progressResult.rows[0].total);
       if (progress >= challenge.target) {
         const winUpdate = await pool.query(
-          `UPDATE challenges SET winner_id = $1, ended = TRUE
+          `UPDATE challenges SET winner_id = $1, ended = TRUE, ended_at = NOW()
            WHERE id = $2 AND winner_id IS NULL
            RETURNING id`,
           [req.userId, challenge.id]
@@ -195,6 +195,27 @@ router.get('/', authMiddleware, async (req, res) => {
            u.photo_url as commercial_photo_url
          FROM daily_winners dw
          JOIN users u ON u.id = dw.commercial_id
+
+         UNION ALL
+
+         SELECT
+           'challenge-' || c.id as batch_id,
+           'challenge_won' as type,
+           NULL as sens,
+           NULL as statut,
+           c.title as description,
+           NULL::text as image_url,
+           COALESCE(c.ended_at, c.created_at) as date_activite,
+           NULL::int as nombre,
+           'announcement' as kind,
+           NULL::text as reward_title,
+           NULL::int as cost_at_redemption,
+           c.winner_id as commercial_id,
+           u.nom as commercial_nom,
+           u.photo_url as commercial_photo_url
+         FROM challenges c
+         JOIN users u ON u.id = c.winner_id
+         WHERE c.winner_id IS NOT NULL
        ) combined
        LEFT JOIN (SELECT post_id, COUNT(*) as likes_count FROM post_likes GROUP BY post_id) pl ON pl.post_id = combined.batch_id
        LEFT JOIN (SELECT post_id, COUNT(*) as comments_count FROM post_comments GROUP BY post_id) pc ON pc.post_id = combined.batch_id
@@ -653,6 +674,24 @@ router.get('/my-type-quotas', authMiddleware, async (req, res) => {
 
 
 
+router.get('/challenges-history', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT c.id, c.title, c.target, c.target_appel, c.target_rdv, c.target_devis, c.target_commande,
+              c.deadline, c.ended_at, c.created_at, c.winner_id, u.nom as winner_nom, u.photo_url as winner_photo_url
+       FROM challenges c
+       LEFT JOIN users u ON u.id = c.winner_id
+       WHERE c.ended = TRUE
+       ORDER BY COALESCE(c.ended_at, c.created_at) DESC
+       LIMIT 20`
+    );
+    res.json({ history: result.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 router.get('/race', authMiddleware, async (req, res) => {
   try {
     const challengeResult = await pool.query(
@@ -690,7 +729,12 @@ router.get('/race', authMiddleware, async (req, res) => {
     }
 
     const result = await pool.query(
-      `SELECT u.id, u.nom, u.photo_url, COUNT(a.id) as total
+      `SELECT u.id, u.nom, u.photo_url,
+         COUNT(a.id) as total,
+         COUNT(a.id) FILTER (WHERE a.type = 'appel') as appel,
+         COUNT(a.id) FILTER (WHERE a.type = 'rdv') as rdv,
+         COUNT(a.id) FILTER (WHERE a.type = 'devis') as devis,
+         COUNT(a.id) FILTER (WHERE a.type = 'commande') as commande
        FROM users u
        LEFT JOIN activities a ON a.commercial_id = u.id
          AND a.date_activite >= $1 AND a.date_activite <= NOW()
@@ -705,6 +749,12 @@ router.get('/race', authMiddleware, async (req, res) => {
       nom: r.nom,
       photo_url: r.photo_url,
       total: Number(r.total),
+      breakdown: {
+        appel: Number(r.appel),
+        rdv: Number(r.rdv),
+        devis: Number(r.devis),
+        commande: Number(r.commande),
+      },
       progress: Math.min(Math.round((Number(r.total) / challenge.target) * 100), 100),
       isWinner: r.id === challenge.winner_id,
     }));
@@ -713,6 +763,12 @@ router.get('/race', authMiddleware, async (req, res) => {
       active: true,
       title: challenge.title,
       target: challenge.target,
+      targets: {
+        appel: challenge.target_appel,
+        rdv: challenge.target_rdv,
+        devis: challenge.target_devis,
+        commande: challenge.target_commande,
+      },
       deadline: challenge.deadline,
       winnerId: challenge.winner_id,
       winnerNom: challenge.winner_nom,

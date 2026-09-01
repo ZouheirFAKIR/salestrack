@@ -293,6 +293,7 @@ function RedemptionCard({ item, index, currentUserId }) {
 }
 
 function AnnouncementCard({ item, index }) {
+  const isChallenge = item.type === 'challenge_won';
   return (
     <div
       className="rounded-2xl overflow-hidden p-4 flex items-center gap-4"
@@ -306,14 +307,16 @@ function AnnouncementCard({ item, index }) {
       <img src={goldTrophy} alt="" className="w-14 h-14 object-contain shrink-0" />
       <div className="flex-1 min-w-0">
         <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: '#b8860b' }}>
-          Champion du jour
+          {isChallenge ? 'Défi remporté' : 'Champion du jour'}
         </p>
         <div className="flex items-center gap-2 mb-1">
           <Avatar nom={item.commercial_nom} photoUrl={item.commercial_photo_url} size={24} />
           <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.commercial_nom}</p>
         </div>
         <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-          {item.nombre} activité{Number(item.nombre) > 1 ? 's' : ''} enregistrée{Number(item.nombre) > 1 ? 's' : ''} aujourd'hui 🏆
+          {isChallenge
+            ? `A remporté le défi "${item.description}" 🏆`
+            : `${item.nombre} activité${Number(item.nombre) > 1 ? 's' : ''} enregistrée${Number(item.nombre) > 1 ? 's' : ''} aujourd'hui 🏆`}
         </p>
       </div>
     </div>

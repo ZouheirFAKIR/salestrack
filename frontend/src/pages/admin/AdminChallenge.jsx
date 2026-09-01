@@ -8,7 +8,10 @@ function AdminChallenge() {
   const [error, setError] = useState('');
 
   const [title, setTitle] = useState('');
-  const [target, setTarget] = useState('');
+  const [targetAppel, setTargetAppel] = useState('');
+  const [targetRdv, setTargetRdv] = useState('');
+  const [targetDevis, setTargetDevis] = useState('');
+  const [targetCommande, setTargetCommande] = useState('');
   const [deadline, setDeadline] = useState('');
 
   const fetchActiveChallenge = async () => {
@@ -31,8 +34,10 @@ function AdminChallenge() {
     e.preventDefault();
     setError('');
 
-    if (!title.trim() || !target || !deadline) {
-      setError('Remplis tous les champs.');
+    const total = (parseInt(targetAppel, 10) || 0) + (parseInt(targetRdv, 10) || 0) + (parseInt(targetDevis, 10) || 0) + (parseInt(targetCommande, 10) || 0);
+
+    if (!title.trim() || total <= 0 || !deadline) {
+      setError('Remplis le titre, au moins un objectif, et la deadline.');
       return;
     }
 
@@ -42,7 +47,10 @@ function AdminChallenge() {
         method: 'POST',
         body: JSON.stringify({
           title: title.trim(),
-          target: parseInt(target, 10),
+          targetAppel: parseInt(targetAppel, 10) || 0,
+          targetRdv: parseInt(targetRdv, 10) || 0,
+          targetDevis: parseInt(targetDevis, 10) || 0,
+          targetCommande: parseInt(targetCommande, 10) || 0,
           deadline,
         }),
       });
@@ -53,7 +61,10 @@ function AdminChallenge() {
       }
 
       setTitle('');
-      setTarget('');
+      setTargetAppel('');
+      setTargetRdv('');
+      setTargetDevis('');
+      setTargetCommande('');
       setDeadline('');
       await fetchActiveChallenge();
     } catch (err) {
@@ -115,7 +126,7 @@ function AdminChallenge() {
           </div>
 
           <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '4px' }}>
-            Objectif : {activeChallenge.target} activités
+            Objectifs : {activeChallenge.targets?.appel || 0} appels · {activeChallenge.targets?.rdv || 0} rdv · {activeChallenge.targets?.devis || 0} devis · {activeChallenge.targets?.commande || 0} commandes
           </p>
           <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '16px' }}>
             Deadline : {new Date(activeChallenge.deadline).toLocaleString('fr-FR')}
@@ -200,24 +211,38 @@ function AdminChallenge() {
           </div>
 
           <div>
-            <label style={{ color: 'var(--text-secondary)', fontSize: '13px', display: 'block', marginBottom: '4px' }}>
-              Objectif (nombre d'activités)
+            <label style={{ color: 'var(--text-secondary)', fontSize: '13px', display: 'block', marginBottom: '8px' }}>
+              Objectifs par type d'activité
             </label>
-            <input
-              type="number"
-              min="1"
-              value={target}
-              onChange={(e) => setTarget(e.target.value)}
-              placeholder="Ex : 50"
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: '8px',
-                border: '1px solid var(--border)',
-                background: 'var(--input-bg, var(--surface-alt))',
-                color: 'var(--text-primary)',
-              }}
-            />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              {[
+                { label: 'Appels', value: targetAppel, set: setTargetAppel },
+                { label: 'Rendez-vous', value: targetRdv, set: setTargetRdv },
+                { label: 'Devis', value: targetDevis, set: setTargetDevis },
+                { label: 'Commandes', value: targetCommande, set: setTargetCommande },
+              ].map((f) => (
+                <div key={f.label}>
+                  <label style={{ color: 'var(--text-muted, var(--text-secondary))', fontSize: '12px', display: 'block', marginBottom: '3px' }}>
+                    {f.label}
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={f.value}
+                    onChange={(e) => f.set(e.target.value)}
+                    placeholder="0"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border)',
+                      background: 'var(--input-bg, var(--surface-alt))',
+                      color: 'var(--text-primary)',
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
 
           <div>
