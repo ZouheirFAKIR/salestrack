@@ -1,19 +1,24 @@
-const COLORS = {
+const DEFAULT_COLORS = {
   appel: '#f86635',
   rdv: '#3fb8e8',
   devis: '#a78bfa',
   commande: '#22c55e',
 };
 
-const LABELS = {
+const DEFAULT_LABELS = {
   appel: 'Appels',
   rdv: 'Rendez-vous',
   devis: 'Devis',
   commande: 'Commandes',
 };
 
-function ActivityMultiChart({ data, keys = ['appel', 'rdv', 'devis', 'commande'], labelKey = 'jour', formatLabel }) {
+const PALETTE = ['#f86635', '#3fb8e8', '#a78bfa', '#22c55e', '#eab308', '#ec4899', '#14b8a6', '#6366f1', '#84cc16', '#0891b2', '#be185d', '#65a30d'];
+
+function ActivityMultiChart({ data, keys = ['appel', 'rdv', 'devis', 'commande'], labelKey = 'jour', formatLabel, colors, labels }) {
   if (!data || data.length === 0) return null;
+
+  const COLORS = colors || keys.reduce((acc, k, i) => ({ ...acc, [k]: DEFAULT_COLORS[k] || PALETTE[i % PALETTE.length] }), {});
+  const LABELS = labels || DEFAULT_LABELS;
 
   const width = 600;
   const height = 160;

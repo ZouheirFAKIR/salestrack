@@ -4,6 +4,7 @@ import MultiLineChart from '../components/MultiLineChart';
 import ActivityMultiChart from '../components/ActivityMultiChart';
 import OdooRangeCard from '../components/OdooRangeCard';
 import OdooActivitiesCard from '../components/OdooActivitiesCard';
+import OdooActivitiesChartCard from '../components/OdooActivitiesChartCard';
 import PageLoader from '../components/PageLoader';
 import { apiFetch } from '../utils/api';
 import { Icon } from '../data/icons';
@@ -256,10 +257,9 @@ function Dashboard() {
         <Leaderboard entries={leaderboard} currentUserId={user?.id} />
         </div>
 
-        <MultiChartCard title="Appels & Rendez-vous par jour (7 derniers jours)" data={daily} keys={['appel', 'rdv']} labelKey="jour" formatLabel={(d) => parseLocalDate(d).toLocaleDateString('fr-FR', { weekday: 'short' })} />
-
         <OdooRangeCard commercialId={user?.id} />
         <OdooActivitiesCard commercialId={user?.id} />
+        <OdooActivitiesChartCard commercialId={user?.id} />
       </div>
 
       <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>

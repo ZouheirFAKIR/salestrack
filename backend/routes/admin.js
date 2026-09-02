@@ -4,6 +4,7 @@ const pool = require('../db');
 const authMiddleware = require('../middleware/authMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
 const odoo = require('../utils/odooClient');
+const { toMoroccoDate } = odoo;
 router.use(authMiddleware, adminMiddleware);
 
 router.get('/courses', async (req, res) => {
@@ -381,13 +382,13 @@ router.get('/odoo-stats', async (req, res) => {
       'sale.order',
       'search_read',
       [[
-        ['date_order', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
-        ['date_order', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
+        ['create_date', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
+        ['create_date', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
       ]],
-      { fields: ['state', 'amount_total', 'date_order'] }
+      { fields: ['state', 'amount_total', 'create_date'] }
     );
 
-    const ordersToday = orders.filter((o) => toMoroccoDate(o.date_order) === date);
+    const ordersToday = orders.filter((o) => toMoroccoDate(o.create_date) === date);
     const devis = ordersToday.filter((o) => ['draft', 'sent'].includes(o.state)).length;
     const commandesList = ordersToday.filter((o) => ['sale', 'done'].includes(o.state));
     const commandes = commandesList.length;

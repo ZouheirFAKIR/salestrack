@@ -31,7 +31,7 @@ function OdooActivitiesCard({ commercialId }) {
 
   if (!data || !data.linked || data.total === 0) return null;
 
-  const maxCount = Math.max(...data.byCategory.map((c) => c.planned + c.overdue + c.done), 1);
+  const maxCount = Math.max(...data.byCategory.map((c) => c.planned + c.overdue + c.done + (c.cancelled || 0)), 1);
 
   return (
     <div className="rounded-xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
@@ -40,7 +40,7 @@ function OdooActivitiesCard({ commercialId }) {
         {data.total} activités
       </p>
 
-      <div className="grid grid-cols-3 gap-3 mb-5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         <div className="rounded-xl p-3 text-center" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
           <p className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{data.planned}</p>
           <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Prévues</p>
@@ -53,12 +53,16 @@ function OdooActivitiesCard({ commercialId }) {
           <p className="text-lg font-semibold" style={{ color: data.overdue > 0 ? '#ef4444' : 'var(--text-primary)' }}>{data.overdue}</p>
           <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>En retard</p>
         </div>
+        <div className="rounded-xl p-3 text-center" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
+          <p className="text-lg font-semibold" style={{ color: 'var(--text-muted)' }}>{data.cancelled}</p>
+          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Annulées</p>
+        </div>
       </div>
 
       <p className="text-xs font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>Par catégorie</p>
       <div className="flex flex-col gap-2.5">
         {data.byCategory.map((cat, i) => {
-          const total = cat.planned + cat.overdue + cat.done;
+          const total = cat.planned + cat.overdue + cat.done + (cat.cancelled || 0);
           const percent = Math.round((total / maxCount) * 100);
           return (
             <div key={cat.type}>

@@ -93,19 +93,19 @@ router.get('/stats/:commercialId', authMiddleware, async (req, res) => {
       'search_read',
       [[
         ['user_id', '=', odooUserId],
-        ['date_order', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
-        ['date_order', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
+        ['create_date', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
+        ['create_date', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
       ]],
-      { fields: ['state', 'amount_total', 'date_order'] }
+      { fields: ['state', 'amount_total', 'create_date'] }
     );
 
-    const ordersToday = orders.filter((o) => toMoroccoDate(o.date_order) === date);
+    const ordersToday = orders.filter((o) => toMoroccoDate(o.create_date) === date);
     const devis = ordersToday.filter((o) => ['draft', 'sent'].includes(o.state)).length;
     const commandesList = ordersToday.filter((o) => ['sale', 'done'].includes(o.state));
     const commandes = commandesList.length;
     const chiffreAffaires = commandesList.reduce((sum, o) => sum + o.amount_total, 0);
 
-    const result = { linked: true, devis, commandes, chiffreAffaires: Math.round(chiffreAffaires) };
+    const result = { linked: true, devis, commandes, chiffreAffaires: Math.round(chiffreAffaires * 100) / 100 };
     setCached(cacheKey, result);
     res.json(result);
   } catch (err) {
@@ -138,9 +138,9 @@ router.get('/daily/:commercialId', authMiddleware, async (req, res) => {
       'search_read',
       [[
         ['user_id', '=', odooUserId],
-        ['date_order', '>=', `${startStr} 00:00:00`],
+        ['create_date', '>=', `${startStr} 00:00:00`],
       ]],
-      { fields: ['state', 'date_order'] }
+      { fields: ['state', 'create_date'] }
     );
 
     const dayMap = {};
@@ -152,7 +152,7 @@ router.get('/daily/:commercialId', authMiddleware, async (req, res) => {
     }
 
     orders.forEach((o) => {
-      const day = toMoroccoDate(o.date_order);
+      const day = toMoroccoDate(o.create_date);
       if (!dayMap[day]) return;
       if (['draft', 'sent'].includes(o.state)) dayMap[day].devis++;
       if (['sale', 'done'].includes(o.state)) dayMap[day].commande++;
@@ -195,10 +195,10 @@ router.get('/range/:commercialId', authMiddleware, async (req, res) => {
       'search_read',
       [[
         ['user_id', '=', odooUserId],
-        ['date_order', '>=', `${fetchStartDate.toISOString().slice(0, 10)} 00:00:00`],
-        ['date_order', '<=', `${fetchEndDate.toISOString().slice(0, 10)} 23:59:59`],
+        ['create_date', '>=', `${fetchStartDate.toISOString().slice(0, 10)} 00:00:00`],
+        ['create_date', '<=', `${fetchEndDate.toISOString().slice(0, 10)} 23:59:59`],
       ]],
-      { fields: ['state', 'date_order', 'amount_total'] }
+      { fields: ['state', 'create_date', 'amount_total'] }
     );
 
     const bucketMap = {};
@@ -223,7 +223,7 @@ router.get('/range/:commercialId', authMiddleware, async (req, res) => {
     }
 
     orders.forEach((o) => {
-      const localDate = toMoroccoDate(o.date_order);
+      const localDate = toMoroccoDate(o.create_date);
       const key = getBucketKey(localDate);
       if (!bucketMap[key]) return;
       if (['draft', 'sent'].includes(o.state)) bucketMap[key].devis++;
@@ -243,6 +243,89 @@ router.get('/range/:commercialId', authMiddleware, async (req, res) => {
   }
 });
 
+
+router.get('/activities-daily/:commercialId', authMiddleware, async (req, res) => {
+  const { commercialId } = req.params;
+  const days = Math.min(parseInt(req.query.days, 10) || 7, 30);
+  const endStr = req.query.end || new Date().toISOString().slice(0, 10);
+  const cacheKey = `activities-daily:${commercialId}:${endStr}:${days}`;
+
+  const cached = getCached(cacheKey);
+  if (cached) return res.json(cached);
+
+  try {
+    const userResult = await pool.query('SELECT odoo_user_id FROM users WHERE id = $1', [commercialId]);
+    const odooUserId = userResult.rows[0]?.odoo_user_id;
+
+    if (!odooUserId) {
+      return res.json({ linked: false, daily: [], categories: [] });
+    }
+
+    const allTimeRaw = await odoo.execute(
+      'mail.activity',
+      'search_read',
+      [[['user_id', '=', odooUserId]]],
+      { fields: ['activity_type_id', 'active', 'activity_cancel'], context: { active_test: false } }
+    );
+    const allTimeRecords = allTimeRaw.filter((r) => !(r.active === false && r.activity_cancel));
+
+    const allTimeCount = {};
+    allTimeRecords.forEach((r) => {
+      const label = r.activity_type_id ? r.activity_type_id[1] : 'Autre';
+      allTimeCount[label] = (allTimeCount[label] || 0) + 1;
+    });
+
+    const allCategories = Object.entries(allTimeCount)
+      .sort((a, b) => b[1] - a[1])
+      .map(([label]) => label);
+
+    const slugify = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '_');
+    const categorySlugs = {};
+    allCategories.forEach((label) => { categorySlugs[label] = slugify(label); });
+
+    const endDate = new Date(`${endStr}T00:00:00Z`);
+    const startDate = new Date(endDate);
+    startDate.setUTCDate(startDate.getUTCDate() - (days - 1));
+    const startStr = startDate.toISOString().slice(0, 10);
+
+    const weekRaw = await odoo.execute(
+      'mail.activity',
+      'search_read',
+      [[
+        ['user_id', '=', odooUserId],
+        ['date_deadline', '>=', startStr],
+        ['date_deadline', '<=', endStr],
+      ]],
+      { fields: ['activity_type_id', 'date_deadline', 'active', 'activity_cancel'], context: { active_test: false } }
+    );
+    const weekRecords = weekRaw.filter((r) => !(r.active === false && r.activity_cancel));
+
+    const dayMap = {};
+    for (let i = 0; i < days; i++) {
+      const d = new Date(startDate);
+      d.setUTCDate(d.getUTCDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      dayMap[key] = { jour: key };
+      allCategories.forEach((label) => { dayMap[key][categorySlugs[label]] = 0; });
+    }
+
+    weekRecords.forEach((r) => {
+      const day = r.date_deadline;
+      if (!dayMap[day]) return;
+      const label = r.activity_type_id ? r.activity_type_id[1] : 'Autre';
+      dayMap[day][categorySlugs[label]]++;
+    });
+
+    const categories = allCategories.map((label) => ({ key: categorySlugs[label], label }));
+
+    const result = { linked: true, daily: Object.values(dayMap), categories };
+    setCached(cacheKey, result);
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur de connexion à Odoo' });
+  }
+});
 
 router.get('/activities/:commercialId', authMiddleware, async (req, res) => {
   const { commercialId } = req.params;
@@ -274,8 +357,9 @@ router.get('/activities/:commercialId', authMiddleware, async (req, res) => {
     const categoryMap = {};
     records.forEach((r) => {
       const label = r.activity_type_id ? r.activity_type_id[1] : 'Autre';
-      if (!categoryMap[label]) categoryMap[label] = { type: label, planned: 0, overdue: 0, done: 0 };
-      if (r.active === false) categoryMap[label].done++;
+      if (!categoryMap[label]) categoryMap[label] = { type: label, planned: 0, overdue: 0, done: 0, cancelled: 0 };
+      if (r.active === false && r.activity_cancel) categoryMap[label].cancelled++;
+      else if (r.active === false) categoryMap[label].done++;
       else if (r.state === 'overdue') categoryMap[label].overdue++;
       else categoryMap[label].planned++;
     });
@@ -287,7 +371,9 @@ router.get('/activities/:commercialId', authMiddleware, async (req, res) => {
       overdue,
       done,
       cancelled,
-      byCategory: Object.values(categoryMap).sort((a, b) => (b.planned + b.overdue + b.done) - (a.planned + a.overdue + a.done)),
+      byCategory: Object.values(categoryMap).sort(
+        (a, b) => (b.planned + b.overdue + b.done + b.cancelled) - (a.planned + a.overdue + a.done + a.cancelled)
+      ),
     };
 
     setCached(cacheKey, result);

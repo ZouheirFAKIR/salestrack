@@ -93,16 +93,23 @@ function OdooRangeCard({ commercialId }) {
   const totalDevis = data.reduce((s, d) => s + d.devis, 0);
   const totalCommande = data.reduce((s, d) => s + d.commande, 0);
   const totalCA = data.reduce((s, d) => s + d.chiffreAffaires, 0);
-  const formatMAD = (n) => new Intl.NumberFormat('fr-MA', { style: 'currency', currency: 'MAD', maximumFractionDigits: 0 }).format(n);
+  const formatMAD = (n) => new Intl.NumberFormat('fr-MA', { style: 'currency', currency: 'MAD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 
   return (
     <div className="rounded-xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
       <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>Devis &amp; commandes réels (Odoo)</p>
 
-      <div className="flex items-center justify-center gap-3 mb-3">
+      <div className="flex items-center justify-center gap-2 mb-3 flex-wrap">
         <button onClick={() => setRefDate(shiftDate(period, refDate, -1))} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>‹</button>
         <p className="text-sm font-medium capitalize" style={{ color: 'var(--text-primary)' }}>{formatPeriodLabel(period, refDate)}</p>
         <button onClick={() => setRefDate(shiftDate(period, refDate, 1))} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>›</button>
+        <input
+          type="date"
+          value={toISO(refDate)}
+          onChange={(e) => e.target.value && setRefDate(new Date(`${e.target.value}T00:00:00`))}
+          className="text-xs px-2 py-1 rounded-lg ml-2"
+          style={{ border: '1px solid var(--border)', backgroundColor: 'var(--surface-strong)', color: 'var(--text-primary)' }}
+        />
       </div>
 
       {loading ? (
