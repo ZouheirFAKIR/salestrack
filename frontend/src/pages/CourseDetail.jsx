@@ -38,12 +38,13 @@ function getYoutubeEmbedUrl(url) {
     listId = listMatch ? listMatch[1] : null;
   }
 
+  // Format officiel Google pour charger une playlist en iframe
+  if (listId) return `https://www.youtube.com/embed?listType=playlist&list=${listId}`;
+
   const videoMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
   const videoId = videoMatch ? videoMatch[1] : null;
-
-  if (listId && videoId) return `https://www.youtube.com/embed/${videoId}?list=${listId}`;
-  if (listId) return `https://www.youtube.com/embed/videoseries?list=${listId}`;
   if (videoId) return `https://www.youtube.com/embed/${videoId}`;
+
   return null;
 }
 
@@ -84,6 +85,8 @@ function CourseDetail() {
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState('reading');
+  const [playlistItems, setPlaylistItems] = useState([]);
+  const [activeVideoId, setActiveVideoId] = useState(null);
   const [answers, setAnswers] = useState({});
   const [answerResults, setAnswerResults] = useState({});
   const [checkingId, setCheckingId] = useState(null);
@@ -100,6 +103,17 @@ function CourseDetail() {
       .then((data) => {
         setCourse(data);
         setLoading(false);
+        if (data.content_type === 'video') {
+          apiFetch(`${API_URL}/api/courses/${id}/playlist`)
+            .then((r) => r.json())
+            .then((res) => {
+              if (res.items?.length > 0) {
+                setPlaylistItems(res.items);
+                setActiveVideoId(res.items[0].videoId);
+              }
+            })
+            .catch(() => {});
+        }
       })
       .catch(() => setLoading(false));
   }, [id, token]);
@@ -252,15 +266,15 @@ function CourseDetail() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4 items-start">
+          <div className={`grid grid-cols-1 gap-4 items-start ${(headings.length > 0 || playlistItems.length > 0) ? 'lg:grid-cols-[1fr_320px]' : ''}`}>
             <div
               className="rounded-2xl p-5 sm:p-8"
               style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
             >
-              {course.content_type === 'video' && course.content_url && getYoutubeEmbedUrl(course.content_url) && (
+              {course.content_type === 'video' && course.content_url && (
                 <div className="relative w-full mb-6 rounded-xl overflow-hidden" style={{ paddingTop: '56.25%' }}>
                   <iframe
-                    src={getYoutubeEmbedUrl(course.content_url)}
+                    src={activeVideoId ? `https://www.youtube.com/embed/${activeVideoId}` : getYoutubeEmbedUrl(course.content_url)}
                     title={course.title}
                     className="absolute inset-0 w-full h-full"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -329,7 +343,41 @@ function CourseDetail() {
               )}
             </div>
 
-            {headings.length > 0 && (
+            {playlistItems.length > 0 && (
+              <aside
+                className="rounded-2xl p-3 lg:sticky lg:top-6 lg:max-h-[80vh] lg:overflow-y-auto"
+                style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+              >
+                <p className="text-[11px] uppercase tracking-wide mb-3 font-medium px-2 pt-1" style={{ color: 'var(--text-muted)' }}>
+                  {playlistItems.length} vidéos
+                </p>
+                <div className="flex flex-col gap-1">
+                  {playlistItems.map((v, i) => {
+                    const isActive = v.videoId === activeVideoId;
+                    return (
+                      <button
+                        key={v.videoId}
+                        onClick={() => setActiveVideoId(v.videoId)}
+                        className="flex items-center gap-2.5 p-2 rounded-xl text-left transition-colors"
+                        style={{ backgroundColor: isActive ? `${ACCENT}15` : 'transparent' }}
+                      >
+                        <div className="relative w-20 aspect-video rounded-lg overflow-hidden shrink-0" style={{ border: isActive ? `2px solid ${ACCENT}` : '1px solid var(--border)' }}>
+                          <img src={v.thumbnail} alt="" className="w-full h-full object-cover" />
+                        </div>
+                        <p
+                          className="text-xs leading-snug line-clamp-2"
+                          style={{ color: isActive ? ACCENT : 'var(--text-secondary)', fontWeight: isActive ? 600 : 400 }}
+                        >
+                          {i + 1}. {v.title}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </aside>
+            )}
+
+            {playlistItems.length === 0 && headings.length > 0 && (
               <aside
                 className="rounded-2xl p-5 lg:sticky lg:top-6"
                 style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}

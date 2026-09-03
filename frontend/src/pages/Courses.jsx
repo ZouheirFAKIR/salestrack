@@ -7,9 +7,16 @@ import EmptyState from '../components/EmptyState';
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+const FILTERS = [
+  { key: 'all', label: 'Tout' },
+  { key: 'text', label: '📄 Articles' },
+  { key: 'video', label: '🎬 Vidéos' },
+];
+
 function Courses() {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
   const token = localStorage.getItem('token');
 
   useEffect(() => {
@@ -40,6 +47,8 @@ function Courses() {
   const totalMax = courses.reduce((sum, c) => sum + (c.max_score || 0), 0);
   const completedCount = courses.filter((c) => c.completed).length;
   const progressPercent = courses.length > 0 ? Math.round((completedCount / courses.length) * 100) : 0;
+
+  const filteredCourses = filter === 'all' ? courses : courses.filter((c) => (c.content_type || 'text') === filter);
 
   return (
     <div className="min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12 relative overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
@@ -95,6 +104,27 @@ function Courses() {
           </div>
         </div>
 
+        {courses.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {FILTERS.map((f) => {
+              const active = filter === f.key;
+              const count = f.key === 'all' ? courses.length : courses.filter((c) => (c.content_type || 'text') === f.key).length;
+              return (
+                <button
+                  key={f.key}
+                  onClick={() => setFilter(f.key)}
+                  className="text-xs px-3.5 py-2 rounded-full font-medium whitespace-nowrap transition-all"
+                  style={active
+                    ? { backgroundColor: ACCENT, color: '#fff', boxShadow: `0 2px 10px ${ACCENT}40` }
+                    : { backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+                >
+                  {f.label} <span style={{ opacity: 0.7 }}>({count})</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {courses.length === 0 && (
           <EmptyState
             icon="🎓"
@@ -103,8 +133,12 @@ function Courses() {
           />
         )}
 
+        {courses.length > 0 && filteredCourses.length === 0 && (
+          <p className="text-sm text-center py-10" style={{ color: 'var(--text-muted)' }}>Aucun cours dans cette catégorie</p>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {courses.map((course, i) => (
+          {filteredCourses.map((course, i) => (
             <Link
               key={course.id}
               to={`/courses/${course.id}`}
@@ -127,6 +161,15 @@ function Courses() {
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-3xl" style={{ color: 'var(--text-muted)' }}>🎓</div>
                 )}
+                <span
+                  className="absolute top-3 left-3 text-[10px] font-semibold px-2.5 py-1 rounded-full backdrop-blur-sm"
+                  style={{
+                    backgroundColor: course.content_type === 'video' ? 'rgba(59,130,246,0.85)' : 'rgba(248,102,53,0.85)',
+                    color: '#fff',
+                  }}
+                >
+                  {course.content_type === 'video' ? '🎬 Vidéo' : '📄 Article'}
+                </span>
                 {course.completed && (
                   <span
                     className="absolute top-3 right-3 text-[10px] font-semibold px-2.5 py-1 rounded-full text-white backdrop-blur-sm"

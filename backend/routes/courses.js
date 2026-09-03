@@ -2,7 +2,20 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const authMiddleware = require('../middleware/authMiddleware');
+const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
+const playlistCache = new Map();
+const PLAYLIST_CACHE_TTL = 60 * 60 * 1000; // 1h
 
+function extractPlaylistId(url) {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    return parsed.searchParams.get('list');
+  } catch (err) {
+    const m = url.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+    return m ? m[1] : null;
+  }
+}
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const courses = await pool.query('SELECT * FROM courses ORDER BY id ASC');
@@ -149,5 +162,51 @@ router.post('/:id/submit', authMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
+router.get('/:id/playlist', authMiddleware, async (req, res) => {
+  try {
+    const course = await pool.query('SELECT content_type, content_url FROM courses WHERE id = $1', [req.params.id]);
+    if (course.rows.length === 0) return res.status(404).json({ error: 'Cours introuvable' });
+
+    const { content_type, content_url } = course.rows[0];
+    if (content_type !== 'video') return res.json({ items: [] });
+
+    const playlistId = extractPlaylistId(content_url);
+    if (!playlistId) return res.json({ items: [] });
+
+    const cached = playlistCache.get(playlistId);
+    if (cached && Date.now() - cached.time < PLAYLIST_CACHE_TTL) {
+      return res.json({ items: cached.items });
+    }
+
+    if (!YOUTUBE_API_KEY) return res.json({ items: [] });
+
+    let items = [];
+    let pageToken = '';
+    do {
+      const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${YOUTUBE_API_KEY}${pageToken ? `&pageToken=${pageToken}` : ''}`;
+      const r = await fetch(url);
+      const data = await r.json();
+      if (data.error) throw new Error(data.error.message);
+
+      items = items.concat(
+        (data.items || [])
+          .map((it) => ({
+            videoId: it.snippet?.resourceId?.videoId,
+            title: it.snippet?.title,
+            thumbnail: it.snippet?.thumbnails?.default?.url || it.snippet?.thumbnails?.medium?.url,
+          }))
+          .filter((it) => it.videoId)
+      );
+      pageToken = data.nextPageToken || '';
+    } while (pageToken && items.length < 200);
+
+    playlistCache.set(playlistId, { items, time: Date.now() });
+    res.json({ items });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Impossible de récupérer la playlist' });
+  }
+});
+
 
 module.exports = router;
