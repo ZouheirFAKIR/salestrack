@@ -7,6 +7,12 @@ import Spinner from '../../components/Spinner';
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+const inputStyle = {
+  backgroundColor: 'var(--surface-strong)',
+  border: '1px solid var(--border)',
+  color: 'var(--text-primary)',
+};
+
 function RewardFields({ values, onChange }) {
   const [imgLoading, setImgLoading] = useState(false);
 
@@ -24,30 +30,37 @@ function RewardFields({ values, onChange }) {
   };
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div className="flex flex-col gap-3">
       <input
         value={values.title} onChange={(e) => onChange('title', e.target.value)}
         placeholder="Nom de la récompense"
-        className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 sm:col-span-2"
+        className="p-2.5 rounded-lg text-sm outline-none focus:border-orange-500/60"
+        style={inputStyle}
       />
-      <input
+      <textarea
         value={values.description} onChange={(e) => onChange('description', e.target.value)}
         placeholder="Description"
-        className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 sm:col-span-2"
+        rows={3}
+        className="p-2.5 rounded-lg text-sm outline-none focus:border-orange-500/60 resize-none"
+        style={inputStyle}
       />
-      <label className="p-2.5 rounded-lg bg-black border border-white/10 text-white/50 text-sm cursor-pointer hover:text-white transition-colors sm:col-span-2 flex items-center justify-center gap-2">
+      <label
+        className="p-2.5 rounded-lg text-sm cursor-pointer transition-colors flex items-center justify-center gap-2 hover:bg-[var(--surface)]"
+        style={{ ...inputStyle, color: 'var(--text-muted)' }}
+      >
         {imgLoading ? 'Chargement...' : values.imageUrl ? "Changer l'image" : 'Choisir une image'}
         <input type="file" accept="image/*" onChange={handleImageFile} className="hidden" />
       </label>
       {values.imageUrl && (
-        <div className="sm:col-span-2 rounded-lg overflow-hidden border border-white/10 h-28">
+        <div className="rounded-lg overflow-hidden h-32" style={{ border: '1px solid var(--border)' }}>
           <img src={values.imageUrl} alt="Aperçu" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
         </div>
       )}
       <input
         value={values.cost} onChange={(e) => onChange('cost', e.target.value)}
         placeholder="Coût en points" type="number"
-        className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 sm:col-span-2"
+        className="p-2.5 rounded-lg text-sm outline-none focus:border-orange-500/60"
+        style={inputStyle}
       />
     </div>
   );
@@ -86,19 +99,36 @@ function NewRewardForm({ onCreated }) {
   };
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 sm:p-5 mb-5">
-      <p className="text-sm font-semibold text-white mb-3">Nouvelle récompense</p>
-      {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
-      <RewardFields values={values} onChange={handleChange} />
-      <button
-        onClick={handleCreate}
-        disabled={saving}
-        className="mt-4 w-full sm:w-auto px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-60 flex items-center justify-center gap-2"
-        style={{ backgroundColor: ACCENT }}
-      >
-        {saving && <Spinner size={13} color="#fff" />}
-        Créer la récompense
-      </button>
+    <div className="rounded-2xl p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+      <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>Nouvelle récompense</p>
+      {error && <p className="text-red-500 text-xs mb-3">{error}</p>}
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5 items-start">
+        <RewardFields values={values} onChange={handleChange} />
+
+        <div className="rounded-xl p-4 flex flex-col items-center text-center" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
+          <p className="text-xs font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>Aperçu</p>
+          <div className="w-full aspect-video rounded-lg overflow-hidden mb-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            {values.imageUrl ? (
+              <img src={values.imageUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-2xl" style={{ color: 'var(--text-muted)' }}>🎁</div>
+            )}
+          </div>
+          <p className="text-sm font-medium truncate w-full" style={{ color: 'var(--text-primary)' }}>{values.title || 'Nom de la récompense'}</p>
+          <p className="text-xs mt-1" style={{ color: ACCENT }}>{values.cost || 0} points</p>
+
+          <button
+            onClick={handleCreate}
+            disabled={saving}
+            className="mt-4 w-full px-4 py-2.5 rounded-lg text-white text-sm font-medium disabled:opacity-60 flex items-center justify-center gap-2"
+            style={{ backgroundColor: ACCENT }}
+          >
+            {saving && <Spinner size={13} color="#fff" />}
+            Créer la récompense
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -160,20 +190,24 @@ function RewardCard({ reward, onRefresh }) {
 
   if (editing) {
     return (
-      <div className="bg-black/40 border border-white/10 rounded-xl p-4">
-        {error && <p className="text-red-400 text-xs mb-2">{error}</p>}
+      <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+        {error && <p className="text-red-500 text-xs mb-2">{error}</p>}
         <RewardFields values={values} onChange={handleChange} />
         <div className="flex items-center gap-2 mt-3">
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-2 rounded-lg text-white text-xs font-medium disabled:opacity-60 flex items-center gap-2"
+            className="flex-1 px-4 py-2 rounded-lg text-white text-xs font-medium disabled:opacity-60 flex items-center justify-center gap-2"
             style={{ backgroundColor: ACCENT }}
           >
             {saving && <Spinner size={12} color="#fff" />}
             Enregistrer
           </button>
-          <button onClick={() => setEditing(false)} className="px-4 py-2 rounded-lg text-white/60 text-xs border border-white/10 hover:text-white transition-colors">
+          <button
+            onClick={() => setEditing(false)}
+            className="flex-1 px-4 py-2 rounded-lg text-xs transition-colors hover:bg-[var(--surface-strong)]"
+            style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+          >
             Annuler
           </button>
         </div>
@@ -183,21 +217,22 @@ function RewardCard({ reward, onRefresh }) {
 
   if (confirmDelete) {
     return (
-      <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+      <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ backgroundColor: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)' }}>
         <div className="flex items-center gap-3 min-w-0">
           {reward.image_url && (
-            <img src={reward.image_url} alt="" className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg object-cover shrink-0 border border-white/10 opacity-50" />
+            <img src={reward.image_url} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0 opacity-50" style={{ border: '1px solid var(--border)' }} />
           )}
           <div className="flex-1 min-w-0">
-            <p className="text-white text-sm font-medium truncate">Supprimer « {reward.title} » ?</p>
-            <p className="text-white/40 text-xs mt-0.5">{error || 'Cette action est définitive.'}</p>
+            <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>Supprimer « {reward.title} » ?</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{error || 'Cette action est définitive.'}</p>
           </div>
         </div>
-        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 shrink-0">
+        <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => setConfirmDelete(false)}
             disabled={deleting}
-            className="text-xs px-3 py-1.5 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors disabled:opacity-50"
+            className="text-xs px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 hover:bg-[var(--surface-strong)]"
+            style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
           >
             Annuler
           </button>
@@ -215,27 +250,44 @@ function RewardCard({ reward, onRefresh }) {
   }
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden flex flex-col sm:flex-row sm:items-center gap-3 p-3 sm:p-4">
-      <div className="flex items-center gap-3 min-w-0">
-        {reward.image_url && (
-          <img src={reward.image_url} alt="" className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg object-cover shrink-0 border border-white/10" onError={(e) => { e.target.style.display = 'none'; }} />
+    <div
+      className="rounded-2xl overflow-hidden flex flex-col"
+      style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+    >
+      <div className="relative aspect-video" style={{ backgroundColor: 'var(--surface-strong)' }}>
+        {reward.image_url ? (
+          <img src={reward.image_url} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-2xl" style={{ color: 'var(--text-muted)' }}>🎁</div>
         )}
-        <div className="flex-1 min-w-0">
-          <p className="text-white font-medium truncate">{reward.title}</p>
-          <p className="text-white/40 text-xs mt-0.5 truncate">{reward.description}</p>
-          <p className="text-xs mt-1 font-medium" style={{ color: ACCENT }}>{reward.cost} points</p>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 shrink-0">
-        <button onClick={() => setEditing(true)} className="text-xs px-3 py-1.5 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
-          Modifier
-        </button>
-        <button
-          onClick={() => setConfirmDelete(true)}
-          className="text-xs px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors"
+        <span
+          className="absolute top-2.5 right-2.5 text-xs font-semibold px-2.5 py-1 rounded-full"
+          style={{ backgroundColor: `${ACCENT}dd`, color: '#fff' }}
         >
-          Supprimer
-        </button>
+          {reward.cost} pts
+        </span>
+      </div>
+
+      <div className="p-3.5 flex-1 flex flex-col">
+        <p className="font-medium truncate" style={{ color: 'var(--text-primary)' }}>{reward.title}</p>
+        {reward.description && <p className="text-xs mt-1 line-clamp-2 flex-1" style={{ color: 'var(--text-muted)' }}>{reward.description}</p>}
+
+        <div className="grid grid-cols-2 gap-2 mt-3">
+          <button
+            onClick={() => setEditing(true)}
+            className="text-xs px-3 py-1.5 rounded-lg transition-colors hover:bg-[var(--surface-strong)]"
+            style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+          >
+            Modifier
+          </button>
+          <button
+            onClick={() => setConfirmDelete(true)}
+            className="text-xs px-3 py-1.5 rounded-lg transition-colors hover:bg-red-500/10"
+            style={{ border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444' }}
+          >
+            Supprimer
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -256,22 +308,33 @@ function AdminRewards() {
   if (loading) return <PageLoader />;
 
   return (
-    <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
-      <div className="max-w-3xl mx-auto flex flex-col gap-5">
+    <div className="min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12 relative overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
+      <div
+        className="absolute -top-24 -right-32 w-[36rem] h-[36rem] rounded-full pointer-events-none"
+        style={{ background: `radial-gradient(circle, ${ACCENT}18, transparent 70%)`, filter: 'blur(6px)' }}
+      />
+      <div
+        className="absolute -bottom-40 -left-32 w-[40rem] h-[40rem] rounded-full pointer-events-none"
+        style={{ background: `radial-gradient(circle, ${ACCENT}14, transparent 70%)`, filter: 'blur(6px)' }}
+      />
+
+      <div className="max-w-6xl mx-auto flex flex-col gap-5 relative z-10">
         <div>
-          <h1 className="text-lg font-semibold text-white">Administration — Récompenses</h1>
-          <p className="text-white/40 text-xs">Gère le catalogue de récompenses échangeables contre des points</p>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>Administration — Récompenses</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Gère le catalogue de récompenses échangeables contre des points</p>
         </div>
 
         <NewRewardForm onCreated={loadRewards} />
 
-        <div className="flex flex-col gap-3">
-          {rewards.length === 0 && <p className="text-white/30 text-sm text-center">Aucune récompense pour l'instant</p>}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {rewards.length === 0 && <p className="text-sm text-center xl:col-span-3" style={{ color: 'var(--text-muted)' }}>Aucune récompense pour l'instant</p>}
           {rewards.map((r) => (
             <RewardCard key={r.id} reward={r} onRefresh={loadRewards} />
           ))}
         </div>
       </div>
+
+      <style>{`.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }`}</style>
     </div>
   );
 }

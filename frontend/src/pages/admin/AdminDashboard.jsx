@@ -8,11 +8,31 @@ import LineChart from '../../components/LineChart';
 import CoinIcon from '../../components/CoinIcon';
 import OdooRangeCard from '../../components/OdooRangeCard';
 import OdooActivitiesCard from '../../components/OdooActivitiesCard';
+
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const TYPE_LABELS = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
-const TYPE_ICONS = { appel: '📞', rdv: '📅', devis: '📄', commande: '🛒' };
+
+const NAV_LINKS = [
+  { to: '/admin/courses', label: 'Cours' },
+  { to: '/admin/rewards', label: 'Récompenses' },
+  { to: '/admin/notifications', label: 'Notifications' },
+  { to: '/admin/odoo', label: 'Liaison Odoo' },
+  { to: '/admin/challenge', label: 'Défi' },
+];
+
+const progressColor = (percent) =>
+  percent >= 100 ? '#22c55e' :
+  percent >= 75 ? '#86efac' :
+  percent >= 25 ? '#f97316' :
+  '#ef4444';
+
+const inputStyle = {
+  backgroundColor: 'var(--surface-strong)',
+  border: '1px solid var(--border)',
+  color: 'var(--text-primary)',
+};
 
 function TypeQuotasForm({ commercialId, onSaved }) {
   const [quotas, setQuotas] = useState({ appel: 5, rdv: 2, devis: 1, commande: 1 });
@@ -53,14 +73,17 @@ function TypeQuotasForm({ commercialId, onSaved }) {
     <div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
         {Object.keys(TYPE_LABELS).map((type) => (
-          <div key={type} className="bg-black/40 border border-white/10 rounded-lg p-3 flex items-center gap-2">
-            <span className="text-lg shrink-0">{TYPE_ICONS[type]}</span>
+          <div key={type} className="rounded-lg p-3 flex items-center gap-2.5" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${ACCENT}15` }}>
+              <Icon name={type} size={15} style={{ color: ACCENT }} />
+            </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-white/50">{TYPE_LABELS[type]} / jour</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{TYPE_LABELS[type]} / jour</p>
               <input
                 type="number" min="0" value={quotas[type]}
                 onChange={(e) => handleChange(type, e.target.value)}
-                className="w-full bg-transparent text-white text-sm font-semibold outline-none border-b border-white/10 focus:border-orange-500/60 mt-1"
+                className="w-full bg-transparent text-sm font-semibold outline-none border-b mt-1"
+                style={{ color: 'var(--text-primary)', borderColor: 'var(--border)' }}
               />
             </div>
           </div>
@@ -98,15 +121,21 @@ function CommercialDetail({ commercial, onClose, onQuotaUpdated }) {
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-3 sm:p-4 z-50" onClick={onClose}>
       <div
-        className="bg-[#0d0d0d] border border-white/10 rounded-2xl p-4 sm:p-8 max-w-5xl w-full max-h-[92vh] overflow-y-auto"
+        className="rounded-2xl p-4 sm:p-8 max-w-5xl w-full max-h-[92vh] overflow-y-auto"
+        style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-6 gap-3">
-          <div className="min-w-0">
-            <p className="text-white font-semibold text-lg truncate">{commercial.nom}</p>
-            <p className="text-white/40 text-sm truncate">{commercial.email}</p>
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-full flex items-center justify-center text-base font-semibold shrink-0" style={{ backgroundColor: ACCENT, color: '#fff' }}>
+              {commercial.nom?.charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold text-lg truncate" style={{ color: 'var(--text-primary)' }}>{commercial.nom}</p>
+              <p className="text-sm truncate" style={{ color: 'var(--text-muted)' }}>{commercial.email}</p>
+            </div>
           </div>
-          <button onClick={onClose} className="text-white/40 hover:text-white text-2xl shrink-0 leading-none">×</button>
+          <button onClick={onClose} className="text-2xl shrink-0 leading-none transition-colors" style={{ color: 'var(--text-muted)' }}>×</button>
         </div>
 
         {loading && (
@@ -121,17 +150,17 @@ function CommercialDetail({ commercial, onClose, onQuotaUpdated }) {
               {['appel', 'rdv', 'devis', 'commande'].map((type) => {
                 const stat = detail.stats.find((s) => s.type === type);
                 return (
-                  <div key={type} className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
+                  <div key={type} className="rounded-xl p-4 text-center" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
                     <Icon name={type} size={22} className="mx-auto" style={{ color: ACCENT }} />
-                    <p className="text-2xl font-semibold text-white mt-2">{stat?.total || 0}</p>
-                    <p className="text-xs text-white/40 mt-0.5">{labels[type]}</p>
+                    <p className="text-2xl font-semibold mt-2" style={{ color: 'var(--text-primary)' }}>{stat?.total || 0}</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{labels[type]}</p>
                   </div>
                 );
               })}
             </div>
 
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4 sm:p-5">
-              <p className="text-sm text-white/50 mb-3">Activités (7 derniers jours)</p>
+            <div className="rounded-xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
+              <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>Activités (7 derniers jours)</p>
               <LineChart data={detail.daily} />
             </div>
 
@@ -140,9 +169,9 @@ function CommercialDetail({ commercial, onClose, onQuotaUpdated }) {
             <OdooRangeCard commercialId={commercial.id} />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              <div className="bg-white/5 border border-white/10 rounded-xl p-4 sm:p-5">
+              <div className="rounded-xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-white">Solde de points</p>
+                  <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Solde de points</p>
                   <span className="flex items-center gap-1.5 text-lg font-semibold" style={{ color: ACCENT }}>
                     <CoinIcon size={16} />
                     {detail.points_balance ?? 0}
@@ -150,14 +179,14 @@ function CommercialDetail({ commercial, onClose, onQuotaUpdated }) {
                 </div>
 
                 {detail.redemptions?.length > 0 && (
-                  <div className="flex flex-col gap-1.5 mt-3 pt-3 border-t border-white/10">
-                    <p className="text-xs text-white/40 uppercase tracking-wide mb-1">Récompenses échangées</p>
+                  <div className="flex flex-col gap-1.5 mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+                    <p className="text-xs uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Récompenses échangées</p>
                     {detail.redemptions.map((r) => (
-                      <div key={r.id} className="flex items-center justify-between gap-2 bg-black/30 rounded-lg p-2">
-                        <p className="text-xs text-white/70 truncate">
+                      <div key={r.id} className="flex items-center justify-between gap-2 rounded-lg p-2" style={{ backgroundColor: 'var(--surface)' }}>
+                        <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
                           {r.quantity > 1 ? `${r.quantity} × ` : ''}{r.title}
                         </p>
-                        <span className="text-[11px] text-white/40 shrink-0">
+                        <span className="text-[11px] shrink-0" style={{ color: 'var(--text-muted)' }}>
                           {new Date(r.redeemed_at).toLocaleDateString('fr-FR')} · −{r.cost_at_redemption}
                         </span>
                       </div>
@@ -166,8 +195,8 @@ function CommercialDetail({ commercial, onClose, onQuotaUpdated }) {
                 )}
               </div>
 
-              <div className="bg-white/5 border border-white/10 rounded-xl p-4 sm:p-5">
-                <p className="text-sm font-medium text-white mb-3">Objectifs quotidiens par type</p>
+              <div className="rounded-xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
+                <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>Objectifs quotidiens par type</p>
                 <TypeQuotasForm commercialId={commercial.id} onSaved={onQuotaUpdated} />
               </div>
             </div>
@@ -203,46 +232,85 @@ function OdooStatsCard() {
     new Intl.NumberFormat('fr-MA', { style: 'currency', currency: 'MAD', maximumFractionDigits: 0 }).format(n);
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-      <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
-        <p className="text-xs text-white/50 uppercase tracking-wide">Données Odoo — CRM &amp; Ventes</p>
+    <div className="rounded-2xl p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+      <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+        <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Données Odoo — CRM &amp; Ventes</p>
         {!loading && !error && (
-          <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full shrink-0">
+          <span className="text-[10px] px-2 py-0.5 rounded-full shrink-0" style={{ color: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)' }}>
             En direct
           </span>
         )}
       </div>
 
       {loading && (
-        <div className="flex items-center gap-2 text-white/40 text-xs py-4">
+        <div className="flex items-center gap-2 text-xs py-4" style={{ color: 'var(--text-muted)' }}>
           <Spinner size={14} color={ACCENT} />
           Connexion à Odoo...
         </div>
       )}
 
       {!loading && error && (
-        <p className="text-white/30 text-xs py-2">
+        <p className="text-xs py-2" style={{ color: 'var(--text-muted)' }}>
           Impossible de récupérer les données Odoo pour l'instant. Vérifie que le serveur Odoo est bien accessible.
         </p>
       )}
 
       {!loading && !error && stats && (
-        <div className="grid grid-cols-1 xs:grid-cols-3 sm:grid-cols-3 gap-3">
-          <div className="text-center">
-            <p className="text-xl sm:text-2xl font-semibold text-white">{stats.devis}</p>
-            <p className="text-[11px] text-white/40 mt-0.5">Devis</p>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-xl p-3 sm:p-4 text-center" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
+            <p className="text-xl sm:text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>{stats.devis}</p>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Devis</p>
           </div>
-          <div className="text-center">
-            <p className="text-xl sm:text-2xl font-semibold text-white">{stats.commandes}</p>
-            <p className="text-[11px] text-white/40 mt-0.5">Commandes</p>
+          <div className="rounded-xl p-3 sm:p-4 text-center" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
+            <p className="text-xl sm:text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>{stats.commandes}</p>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Commandes</p>
           </div>
-          <div className="text-center">
+          <div className="rounded-xl p-3 sm:p-4 text-center" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
             <p className="text-xl sm:text-2xl font-semibold break-words" style={{ color: ACCENT }}>{formatMAD(stats.chiffreAffaires)}</p>
-            <p className="text-[11px] text-white/40 mt-0.5">Chiffre d'affaires</p>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Chiffre d'affaires</p>
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+function CommercialRow({ c, onSelect, index }) {
+  return (
+    <button
+      onClick={() => onSelect(c)}
+      className="rounded-2xl p-4 transition-all text-left flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5 hover:-translate-y-0.5"
+      style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', animation: `riseIn 0.3s ease ${index * 0.04}s both` }}
+    >
+      <div className="flex items-center gap-3 sm:w-44 shrink-0">
+        <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold shrink-0" style={{ backgroundColor: ACCENT, color: '#fff' }}>
+          {c.nom?.charAt(0).toUpperCase()}
+        </div>
+        <p className="font-medium text-sm truncate" style={{ color: 'var(--text-primary)' }}>{c.nom}</p>
+      </div>
+
+      <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {['appel', 'rdv', 'devis', 'commande'].map((type) => {
+          const current = Number(c[`today_${type}`] || 0);
+          const target = Number(c[`target_${type}`] || 1);
+          const percent = Math.min(Math.round((current / target) * 100), 100);
+          return (
+            <div key={type}>
+              <div className="flex items-center gap-1.5 mb-1">
+                <Icon name={type} size={11} style={{ color: 'var(--text-muted)' }} />
+                <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{current}/{target}</span>
+              </div>
+              <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface-strong)' }}>
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ width: `${Math.max(percent, current > 0 ? 6 : 0)}%`, backgroundColor: progressColor(percent) }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </button>
   );
 }
 
@@ -280,48 +348,55 @@ function AdminDashboard() {
   if (loading) return <PageLoader />;
 
   return (
-    <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
-      <div className="max-w-4xl mx-auto flex flex-col gap-5">
-        <div className="flex items-center justify-between gap-3">
+    <div className="min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12 relative overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
+      <div
+        className="absolute -top-24 -right-32 w-[36rem] h-[36rem] rounded-full pointer-events-none"
+        style={{ background: `radial-gradient(circle, ${ACCENT}18, transparent 70%)`, filter: 'blur(6px)' }}
+      />
+      <div
+        className="absolute -bottom-40 -left-32 w-[40rem] h-[40rem] rounded-full pointer-events-none"
+        style={{ background: `radial-gradient(circle, ${ACCENT}14, transparent 70%)`, filter: 'blur(6px)' }}
+      />
+
+      <div className="max-w-6xl mx-auto flex flex-col gap-5 relative z-10">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-lg font-semibold text-white">Administration — Commerciaux</h1>
-            <p className="text-white/40 text-xs">Activité, objectifs et rapports</p>
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>Administration — Commerciaux</h1>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Activité, objectifs et rapports</p>
           </div>
 
-          {/* Liens visibles normalement à partir de sm */}
+          {/* Toolbar visible à partir de sm */}
           <div className="hidden sm:flex items-center gap-2 flex-wrap">
-            <Link to="/admin/courses" className="text-xs px-3 py-2 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
-              Gérer les cours
-            </Link>
-            <Link to="/admin/rewards" className="text-xs px-3 py-2 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
-              Gérer les récompenses
-            </Link>
-            <Link to="/admin/notifications" className="text-xs px-3 py-2 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
-              Notifications
-            </Link>
-            <Link to="/admin/odoo" className="text-xs px-3 py-2 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
-              Liaison Odoo
-            </Link>
-            <Link to="/admin/challenge" className="text-xs px-3 py-2 rounded-lg border border-white/15 text-white/70 hover:text-white transition-colors">
-              Défi
-            </Link>
+            <div className="flex items-center gap-1 rounded-xl p-1" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+              {NAV_LINKS.map((link) => (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  className="text-xs px-3 py-1.5 rounded-lg transition-colors hover:bg-[var(--surface-strong)]"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
             <button
               onClick={handleDownloadReport}
-              className="text-xs px-3 py-2 rounded-lg font-medium flex items-center gap-1.5"
-              style={{ backgroundColor: ACCENT, color: '#fff' }}
+              className="text-xs px-3.5 py-2 rounded-xl font-medium flex items-center gap-1.5 transition-all hover:brightness-110"
+              style={{ backgroundColor: ACCENT, color: '#fff', boxShadow: `0 2px 10px ${ACCENT}40` }}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
               </svg>
-              Télécharger le rapport
+              Rapport
             </button>
           </div>
 
-          {/* Hamburger visible uniquement sur mobile */}
+          {/* Hamburger sur mobile */}
           <div className="relative sm:hidden shrink-0">
             <button
               onClick={() => setAdminMenuOpen((v) => !v)}
-              className="w-9 h-9 rounded-full border border-white/15 flex items-center justify-center text-white/70 hover:text-white transition-colors"
+              className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
+              style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
               aria-label="Menu admin"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -330,45 +405,24 @@ function AdminDashboard() {
             </button>
 
             {adminMenuOpen && (
-              <div className="absolute right-0 top-11 w-56 bg-[#0d0d0d] border border-white/10 rounded-xl shadow-xl z-40 p-2 flex flex-col gap-1">
-                <Link
-                  to="/admin/courses"
-                  onClick={() => setAdminMenuOpen(false)}
-                  className="text-xs px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-colors"
-                >
-                  Gérer les cours
-                </Link>
-                <Link
-                  to="/admin/rewards"
-                  onClick={() => setAdminMenuOpen(false)}
-                  className="text-xs px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-colors"
-                >
-                  Gérer les récompenses
-                </Link>
-                <Link
-                  to="/admin/notifications"
-                  onClick={() => setAdminMenuOpen(false)}
-                  className="text-xs px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-colors"
-                >
-                  Notifications
-                </Link>
-                <Link
-                  to="/admin/odoo"
-                  onClick={() => setAdminMenuOpen(false)}
-                  className="text-xs px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-colors"
-                >
-                  Liaison Odoo
-                </Link>
-                <Link
-                  to="/admin/challenge"
-                  onClick={() => setAdminMenuOpen(false)}
-                  className="text-xs px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-colors"
-                >
-                  Défi
-                </Link>
+              <div
+                className="absolute right-0 top-11 w-56 rounded-xl shadow-xl z-40 p-2 flex flex-col gap-1"
+                style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
+              >
+                {NAV_LINKS.map((link) => (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    onClick={() => setAdminMenuOpen(false)}
+                    className="text-xs px-3 py-2.5 rounded-lg transition-colors hover:bg-[var(--surface-strong)]"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
                 <button
                   onClick={handleDownloadReport}
-                  className="text-xs px-3 py-2.5 rounded-lg font-medium flex items-center gap-1.5"
+                  className="text-xs px-3 py-2.5 rounded-lg font-medium flex items-center gap-1.5 mt-1"
                   style={{ backgroundColor: ACCENT, color: '#fff' }}
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
@@ -385,29 +439,10 @@ function AdminDashboard() {
 
         <div className="flex flex-col gap-3">
           {commercials.length === 0 && (
-            <p className="text-white/30 text-sm text-center mt-10">Aucun commercial pour l'instant</p>
+            <p className="text-sm text-center mt-10" style={{ color: 'var(--text-muted)' }}>Aucun commercial pour l'instant</p>
           )}
-          {commercials.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => setSelected(c)}
-              className="bg-white/5 border border-white/10 rounded-2xl p-3 sm:p-4 hover:border-orange-400/50 transition-all text-left flex items-center gap-3 sm:gap-4"
-            >
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm font-semibold shrink-0" style={{ backgroundColor: ACCENT, color: '#fff' }}>
-                {c.nom?.charAt(0).toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-white font-medium text-sm sm:text-base truncate">{c.nom}</p>
-                <div className="flex items-center gap-3 mt-1 flex-wrap">
-                  {['appel', 'rdv', 'devis', 'commande'].map((type) => (
-                    <span key={type} className="flex items-center gap-1 text-[11px] text-white/50">
-                      <Icon name={type} size={11} style={{ color: 'var(--text-muted)' }} />
-                      {c[`today_${type}`]}/{c[`target_${type}`]}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </button>
+          {commercials.map((c, i) => (
+            <CommercialRow key={c.id} c={c} index={i} onSelect={setSelected} />
           ))}
         </div>
       </div>
@@ -419,6 +454,8 @@ function AdminDashboard() {
           onQuotaUpdated={loadCommercials}
         />
       )}
+
+      <style>{`@keyframes riseIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }`}</style>
     </div>
   );
 }
