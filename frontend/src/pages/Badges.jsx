@@ -173,7 +173,16 @@ function Badges() {
   const catValue = getValue(displayedCat);
 
   return (
-    <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
+    <div className="min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12 relative overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
+      <div
+        className="absolute -top-24 -right-32 w-[36rem] h-[36rem] rounded-full pointer-events-none"
+        style={{ background: `radial-gradient(circle, ${ACCENT}20, transparent 70%)`, filter: 'blur(6px)' }}
+      />
+      <div
+        className="absolute -bottom-40 -left-32 w-[40rem] h-[40rem] rounded-full pointer-events-none"
+        style={{ background: `radial-gradient(circle, ${ACCENT}16, transparent 70%)`, filter: 'blur(6px)' }}
+      />
+
       {newlyUnlocked.length > 0 && (
         <BadgeUnlockModal
           badge={newlyUnlocked[currentUnlockIndex]}
@@ -183,14 +192,14 @@ function Badges() {
         />
       )}
 
-      <div className="max-w-6xl mx-auto flex flex-col gap-6">
+      <div className="max-w-6xl mx-auto flex flex-col gap-6 relative z-10">
 
         <div>
-          <h1 className="text-lg sm:text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>Badges</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>Badges</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Ta collection de trophées, débloqués au fil de tes activités</p>
         </div>
 
-        <div className="rounded-2xl p-5 sm:p-6 grid grid-cols-1 lg:grid-cols-2 gap-6" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="rounded-2xl p-5 sm:p-6 grid grid-cols-1 lg:grid-cols-2 gap-6" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
           <div>
             <p className="text-sm font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Ta progression</p>
             <div className="grid grid-cols-2 gap-4">
@@ -249,7 +258,7 @@ function Badges() {
                   className="flex flex-col items-start gap-2 p-3.5 rounded-2xl text-left transition-all duration-200 hover:scale-[1.02] active:scale-95"
                   style={active
                     ? { backgroundColor: `${ACCENT}17`, border: `1.5px solid ${ACCENT}`, boxShadow: `0 2px 14px ${ACCENT}33` }
-                    : { backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
+                    : { backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
                 >
                   <div className="flex items-center justify-between w-full">
                     <div
@@ -274,7 +283,7 @@ function Badges() {
             })}
           </div>
 
-          <div ref={gridSectionRef} className="rounded-2xl p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div ref={gridSectionRef} className="rounded-2xl p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
             <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-4">
               {catBadges.map((b) => (
                 <button key={b.id} onClick={() => setInfoBadge(b)} className="transition-transform hover:scale-105">

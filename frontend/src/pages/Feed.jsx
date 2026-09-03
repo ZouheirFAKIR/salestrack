@@ -7,6 +7,7 @@ import { Icon } from '../data/icons';
 import EmptyState from '../components/EmptyState';
 import CoinIcon from '../components/CoinIcon';
 import goldTrophy from '../assets/trophy.png';
+
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const PAGE_SIZE = 15;
@@ -91,7 +92,7 @@ function LikeButton({ postId, initialLiked, initialCount }) {
   return (
     <button
       onClick={toggleLike}
-      className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-colors hover:bg-white/5"
+      className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-colors hover:bg-[var(--surface-strong)]"
       style={{ color: liked ? '#f43f5e' : 'var(--text-secondary)' }}
     >
       <svg width="17" height="17" viewBox="0 0 24 24" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -169,7 +170,7 @@ function CommentsSection({ postId, initialCount, currentUserId }) {
     <div>
       <button
         onClick={toggleOpen}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-colors hover:bg-white/5"
+        className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-colors hover:bg-[var(--surface-strong)]"
         style={{ color: 'var(--text-secondary)' }}
       >
         <CommentIcon />
@@ -246,16 +247,16 @@ function RedemptionCard({ item, index, currentUserId }) {
 
   return (
     <div
-      className="bg-[#0d0d0d] border border-white/8 rounded-2xl overflow-hidden transition-all hover:border-white/[0.14] p-4"
-      style={{ animation: `slideIn 0.35s ease ${index * 0.04}s both` }}
+      className="rounded-2xl overflow-hidden transition-all p-4"
+      style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', animation: `slideIn 0.35s ease ${index * 0.04}s both` }}
     >
       <div className="flex items-center gap-3 mb-3">
         <Avatar nom={item.commercial_nom} photoUrl={item.commercial_photo_url} size={40} />
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-white text-sm">{item.commercial_nom}</p>
-          <p className="text-xs text-white/35">{new Date(item.date_activite).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+          <p className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>{item.commercial_nom}</p>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{new Date(item.date_activite).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
         </div>
-        <div className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center shrink-0">
+        <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: 'var(--surface-strong)' }}>
           <Icon name="gift" size={15} style={{ color: 'var(--text-primary)' }} />
         </div>
       </div>
@@ -265,10 +266,11 @@ function RedemptionCard({ item, index, currentUserId }) {
           <img
             src={item.image_url}
             alt=""
-            className="w-14 h-14 rounded-xl object-cover shrink-0 border border-white/10"
+            className="w-14 h-14 rounded-xl object-cover shrink-0"
+            style={{ border: '1px solid var(--border)' }}
           />
         ) : (
-          <div className="w-14 h-14 rounded-xl bg-black/40 flex items-center justify-center text-xl shrink-0 border border-white/10">🎁</div>
+          <div className="w-14 h-14 rounded-xl flex items-center justify-center text-xl shrink-0" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>🎁</div>
         )}
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
@@ -395,24 +397,27 @@ function ActivityCard({ activity, index, currentUserId, onUpdate, onDelete }) {
 
   return (
     <div
-      className="bg-[#0d0d0d] border border-white/8 rounded-2xl overflow-hidden transition-all hover:border-white/[0.14]"
-      style={{ animation: `slideIn 0.35s ease ${index * 0.04}s both` }}
+      className="rounded-2xl overflow-hidden transition-all"
+      style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', animation: `slideIn 0.35s ease ${index * 0.04}s both` }}
     >
       {lightbox && <ImageLightbox src={activity.image_url} onClose={() => setLightbox(false)} />}
 
       <div className="p-4 flex items-center gap-3">
         <Avatar nom={activity.commercial_nom} photoUrl={activity.commercial_photo_url} size={40} />
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-white text-sm">{activity.commercial_nom}{isOwn && <span className="text-white/30 font-normal"> (toi)</span>}</p>
-          <p className="text-xs text-white/35">{new Date(activity.date_activite).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+          <p className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>
+            {activity.commercial_nom}{isOwn && <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> (toi)</span>}
+          </p>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{new Date(activity.date_activite).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
         </div>
-        <div className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center shrink-0">
-          <Icon name={activity.type} size={15} style={{ color: 'var(--text-primary)' }} />
+        <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: `${ACCENT}15` }}>
+          <Icon name={activity.type} size={15} style={{ color: ACCENT }} />
         </div>
         {isOwn && (
           <button
             onClick={() => setConfirmDelete(true)}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-white/30 hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0"
+            className="w-9 h-9 rounded-full flex items-center justify-center transition-colors shrink-0 hover:bg-red-500/10 hover:text-red-500"
+            style={{ color: 'var(--text-muted)' }}
             aria-label="Supprimer"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -425,8 +430,8 @@ function ActivityCard({ activity, index, currentUserId, onUpdate, onDelete }) {
       </div>
 
       {confirmDelete && (
-        <div className="px-4 pb-3 flex items-center gap-2 animate-[fadeIn_0.2s_ease] bg-red-500/5 py-3">
-          <p className="text-xs text-white/70 flex-1">
+        <div className="px-4 pb-3 flex items-center gap-2 animate-[fadeIn_0.2s_ease] py-3" style={{ backgroundColor: 'rgba(239,68,68,0.06)' }}>
+          <p className="text-xs flex-1" style={{ color: 'var(--text-secondary)' }}>
             Supprimer {Number(activity.nombre) > 1 ? `ces ${activity.nombre} activités` : 'cette activité'} ?
           </p>
           <button
@@ -439,7 +444,8 @@ function ActivityCard({ activity, index, currentUserId, onUpdate, onDelete }) {
           </button>
           <button
             onClick={() => setConfirmDelete(false)}
-            className="text-xs px-3 py-1.5 rounded-lg text-white/60 border border-white/15 hover:text-white transition-colors"
+            className="text-xs px-3 py-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
           >
             Annuler
           </button>
@@ -455,24 +461,24 @@ function ActivityCard({ activity, index, currentUserId, onUpdate, onDelete }) {
         </div>
 
         {(activity.sens || activity.statut) && (
-          <div className="flex gap-5 mb-3 pb-3 border-b border-white/6">
+          <div className="flex gap-5 mb-3 pb-3" style={{ borderBottom: '1px solid var(--border)' }}>
             {activity.sens && (
               <div>
-                <p className="text-[11px] text-white/35 uppercase tracking-wide">Sens</p>
-                <p className="text-sm font-medium text-white/90">{activity.sens === 'sortant' ? 'Sortant' : 'Entrant'}</p>
+                <p className="text-[11px] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Sens</p>
+                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{activity.sens === 'sortant' ? 'Sortant' : 'Entrant'}</p>
               </div>
             )}
             {activity.statut && (
               <div>
-                <p className="text-[11px] text-white/35 uppercase tracking-wide">Statut</p>
-                <p className="text-sm font-medium text-white/90">{statutLabels[activity.statut]}</p>
+                <p className="text-[11px] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Statut</p>
+                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{statutLabels[activity.statut]}</p>
               </div>
             )}
           </div>
         )}
 
         {!editing && activity.description && (
-          <p className="text-sm text-white/65 leading-relaxed whitespace-pre-wrap mb-3">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap mb-3" style={{ color: 'var(--text-secondary)' }}>
             {displayText}
             {isLongText && (
               <button onClick={() => setExpanded((e) => !e)} className="ml-1 text-sm font-medium" style={{ color: ACCENT }}>
@@ -505,13 +511,13 @@ function ActivityCard({ activity, index, currentUserId, onUpdate, onDelete }) {
           />
 
           {imageLoading && (
-            <div className="mt-3 h-40 rounded-xl bg-black border border-white/10 flex items-center justify-center">
+            <div className="mt-3 h-40 rounded-xl bg-black flex items-center justify-center" style={{ border: '1px solid var(--border)' }}>
               <Spinner size={22} color={ACCENT} />
             </div>
           )}
 
           {!imageLoading && imageUrl && (
-            <div className="relative mt-3 rounded-xl overflow-hidden bg-black border border-white/10">
+            <div className="relative mt-3 rounded-xl overflow-hidden bg-black" style={{ border: '1px solid var(--border)' }}>
               <img src={imageUrl} alt="" className="w-full max-h-72 object-contain" />
               <button
                 onClick={() => setImageUrl('')}
@@ -525,7 +531,10 @@ function ActivityCard({ activity, index, currentUserId, onUpdate, onDelete }) {
           {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
 
           <div className="flex items-center gap-2 mt-3">
-            <label className="text-xs text-white/70 px-3 py-2 rounded-lg border border-white/10 cursor-pointer hover:bg-white/5 transition-colors flex items-center gap-1.5">
+            <label
+              className="text-xs px-3 py-2 rounded-lg cursor-pointer transition-colors flex items-center gap-1.5 hover:bg-[var(--surface-strong)]"
+              style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+            >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
               </svg>
@@ -535,7 +544,8 @@ function ActivityCard({ activity, index, currentUserId, onUpdate, onDelete }) {
             <div className="ml-auto flex gap-2">
               <button
                 onClick={() => { setEditing(false); setDescription(activity.description || ''); setImageUrl(activity.image_url || ''); setError(''); }}
-                className="text-xs px-3 py-2 rounded-lg text-white/50 border border-white/10 hover:text-white transition-colors"
+                className="text-xs px-3 py-2 rounded-lg transition-colors"
+                style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
               >
                 Annuler
               </button>
@@ -564,7 +574,7 @@ function ActivityCard({ activity, index, currentUserId, onUpdate, onDelete }) {
         <div className="px-2 py-1 flex" style={{ borderTop: '1px solid var(--border)' }}>
           <button
             onClick={() => setEditing(true)}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs transition-colors hover:bg-white/5"
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs transition-colors hover:bg-[var(--surface-strong)]"
             style={{ color: 'var(--text-secondary)' }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -598,7 +608,7 @@ function Pager({ currentPage, totalPages, onChange }) {
       <button
         onClick={() => onChange(Math.max(1, currentPage - 1))}
         disabled={currentPage === 1}
-        className="w-9 h-9 rounded-lg flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:enabled:bg-white/5"
+        className="w-9 h-9 rounded-lg flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:enabled:bg-[var(--surface-strong)]"
         style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
         aria-label="Page précédente"
       >
@@ -627,7 +637,7 @@ function Pager({ currentPage, totalPages, onChange }) {
       <button
         onClick={() => onChange(Math.min(totalPages, currentPage + 1))}
         disabled={currentPage === totalPages}
-        className="w-9 h-9 rounded-lg flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:enabled:bg-white/5"
+        className="w-9 h-9 rounded-lg flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:enabled:bg-[var(--surface-strong)]"
         style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
         aria-label="Page suivante"
       >
@@ -721,10 +731,10 @@ function Feed() {
 
   if (!token) {
     return (
-      <div className="bg-black min-h-screen flex flex-col items-center justify-center p-6 text-center">
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center" style={{ backgroundColor: 'var(--bg)' }}>
         <span className="text-4xl mb-4">🔒</span>
-        <h1 className="text-xl font-semibold text-white mb-2">Connecte-toi pour voir le feed</h1>
-        <p className="text-white/40 text-sm mb-6">L'activité de l'équipe apparaîtra ici</p>
+        <h1 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Connecte-toi pour voir le feed</h1>
+        <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>L'activité de l'équipe apparaîtra ici</p>
         <a href="/login" className="text-white px-5 py-2.5 rounded-lg font-medium" style={{ backgroundColor: ACCENT }}>
           Se connecter
         </a>
@@ -733,14 +743,28 @@ function Feed() {
   }
 
   const typeLabels = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
+  const maxWeekCount = Math.max(...Object.values(feedStats.weekCounts), 1);
 
   return (
-    <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
-      <div className="max-w-5xl mx-auto">
-        <h1 className="text-xl font-semibold text-white mb-1">Feed</h1>
-        <p className="text-white/40 text-sm mb-5">L'activité de toute l'équipe, en direct</p>
+    <div className="min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12 relative overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
+      <div
+        className="absolute -top-24 -right-32 w-[36rem] h-[36rem] rounded-full pointer-events-none"
+        style={{ background: `radial-gradient(circle, ${ACCENT}20, transparent 70%)`, filter: 'blur(6px)' }}
+      />
+      <div
+        className="absolute -bottom-40 -left-32 w-[40rem] h-[40rem] rounded-full pointer-events-none"
+        style={{ background: `radial-gradient(circle, ${ACCENT}16, transparent 70%)`, filter: 'blur(6px)' }}
+      />
+      <div
+        className="absolute top-1/3 -right-20 w-72 h-72 rounded-full pointer-events-none hidden xl:block"
+        style={{ background: `radial-gradient(circle, ${ACCENT}12, transparent 70%)`, filter: 'blur(6px)' }}
+      />
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6 items-start">
+      <div className="max-w-7xl mx-auto relative z-10">
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight mb-1" style={{ color: 'var(--text-primary)' }}>Feed</h1>
+        <p className="text-sm mb-5" style={{ color: 'var(--text-secondary)' }}>L'activité de toute l'équipe, en direct</p>
+
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8 items-start">
 
           <div>
             <div className="relative mb-4">
@@ -752,7 +776,7 @@ function Feed() {
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Rechercher une activité, une personne, une récompense..."
                 className="w-full text-sm pl-10 pr-4 py-3 rounded-2xl outline-none transition-colors focus:border-orange-500/60"
-                style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-primary)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
               />
             </div>
 
@@ -809,30 +833,51 @@ function Feed() {
           </div>
 
           <aside className="hidden lg:flex flex-col gap-4 sticky top-6">
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-              <p className="text-white/40 text-[11px] uppercase tracking-wide mb-1">Mon activité — cette semaine</p>
-              <p className="text-2xl font-semibold text-white mb-3">{feedStats.weekTotal} <span className="text-sm text-white/40 font-normal">activités</span></p>
-              <div className="flex flex-col gap-2.5">
-                {Object.keys(typeLabels).map((type) => (
-                  <div key={type} className="flex items-center gap-2.5">
-                    <Icon name={type} size={15} style={{ color: 'var(--text-secondary)' }} className="shrink-0" />
-                    <span className="text-xs text-white/60 flex-1">{typeLabels[type]}</span>
-                    <span className="text-xs font-semibold text-white">{feedStats.weekCounts[type] || 0}</span>
-                  </div>
-                ))}
+            <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+              <p className="text-[11px] uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Mon activité — cette semaine</p>
+              <p className="text-2xl font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+                {feedStats.weekTotal} <span className="text-sm font-normal" style={{ color: 'var(--text-muted)' }}>activités</span>
+              </p>
+              <div className="flex flex-col gap-3">
+                {Object.keys(typeLabels).map((type) => {
+                  const val = feedStats.weekCounts[type] || 0;
+                  const percent = Math.max(Math.round((val / maxWeekCount) * 100), val > 0 ? 6 : 0);
+                  return (
+                    <div key={type}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Icon name={type} size={13} style={{ color: ACCENT }} className="shrink-0" />
+                        <span className="text-xs flex-1" style={{ color: 'var(--text-secondary)' }}>{typeLabels[type]}</span>
+                        <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{val}</span>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface-strong)' }}>
+                        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${percent}%`, backgroundColor: ACCENT }} />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-              <p className="text-white/40 text-[11px] uppercase tracking-wide mb-1">Mon total</p>
-              <p className="text-2xl font-semibold text-white">{feedStats.myTotal} <span className="text-sm text-white/40 font-normal">activités</span></p>
-              <p className="text-[11px] text-white/30 mt-1">depuis le début</p>
+                        <div className="rounded-2xl p-4 flex items-center gap-4" style={{ backgroundColor: ACCENT }}>
+              <div className="flex-1">
+                <p className="text-[11px] uppercase tracking-wide mb-1" style={{ color: 'rgba(255,255,255,0.75)' }}>Mon total</p>
+                <p className="text-2xl font-semibold" style={{ color: '#fff' }}>{feedStats.myTotal}</p>
+                <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.7)' }}>activités depuis le début</p>
+              </div>
+              <span className="text-3xl">🔥</span>
+            </div>
+
+            <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+              <p className="text-[11px] uppercase tracking-wide mb-3" style={{ color: 'var(--text-muted)' }}>Astuce</p>
+              <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                Ajoute une photo ou une note à tes activités pour qu'elles se démarquent dans le feed de l'équipe.
+              </p>
             </div>
 
             <a
               href="/nouvelle-activite"
-              className="text-center text-white text-sm font-medium py-3 rounded-2xl transition-all hover:brightness-110"
-              style={{ backgroundColor: ACCENT }}
+              className="text-center text-sm font-medium py-3 rounded-2xl transition-all hover:brightness-105 flex items-center justify-center gap-2"
+              style={{ backgroundColor: 'var(--surface)', border: `1.5px solid ${ACCENT}`, color: ACCENT, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
             >
               + Nouvelle activité
             </a>
@@ -844,4 +889,4 @@ function Feed() {
   );
 }
 
-export default Feed;
+export default Feed; 

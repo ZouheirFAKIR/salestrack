@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { apiFetch } from '../utils/api';
 import PageLoader from '../components/PageLoader';
@@ -14,16 +14,37 @@ function ScoreRing({ percent, size = 96 }) {
   return (
     <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="7" />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--border)" strokeWidth="7" />
         <circle
           cx={size / 2} cy={size / 2} r={r} fill="none" stroke={ACCENT} strokeWidth="7"
           strokeDasharray={`${(percent / 100) * circumference} ${circumference}`}
           strokeLinecap="round"
         />
       </svg>
-      <span className="absolute text-xl font-semibold text-white">{percent}%</span>
+      <span className="absolute text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>{percent}%</span>
     </div>
   );
+}
+
+function getYoutubeEmbedUrl(url) {
+  if (!url) return null;
+
+  let listId = null;
+  try {
+    const parsed = new URL(url);
+    listId = parsed.searchParams.get('list');
+  } catch (err) {
+    const listMatch = url.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+    listId = listMatch ? listMatch[1] : null;
+  }
+
+  const videoMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  const videoId = videoMatch ? videoMatch[1] : null;
+
+  if (listId && videoId) return `https://www.youtube.com/embed/${videoId}?list=${listId}`;
+  if (listId) return `https://www.youtube.com/embed/videoseries?list=${listId}`;
+  if (videoId) return `https://www.youtube.com/embed/${videoId}`;
+  return null;
 }
 
 function renderCourseContent(text) {
@@ -168,13 +189,29 @@ function CourseDetail() {
   const totalQuestions = course.questions?.length || 0;
 
   return (
-    <div className={`bg-black text-white flex flex-col ${step === 'reading' ? 'min-h-[calc(100vh-64px)]' : 'h-[calc(100dvh-64px)] overflow-hidden'}`}>
+    <div
+      className={`flex flex-col relative overflow-hidden ${step === 'reading' ? 'min-h-[calc(100vh-64px)]' : 'h-[calc(100dvh-64px)] overflow-hidden'}`}
+      style={{ backgroundColor: 'var(--bg)' }}
+    >
+      {step !== 'result' && (
+        <>
+          <div
+            className="absolute -top-24 -right-32 w-[36rem] h-[36rem] rounded-full pointer-events-none"
+            style={{ background: `radial-gradient(circle, ${ACCENT}20, transparent 70%)`, filter: 'blur(6px)' }}
+          />
+          <div
+            className="absolute -bottom-40 -left-32 w-[40rem] h-[40rem] rounded-full pointer-events-none"
+            style={{ background: `radial-gradient(circle, ${ACCENT}16, transparent 70%)`, filter: 'blur(6px)' }}
+          />
+        </>
+      )}
 
       {step === 'reading' && (
-        <div className="max-w-5xl w-full mx-auto flex-1 flex flex-col gap-4 p-4 sm:p-6">
+        <div className="max-w-7xl w-full mx-auto flex-1 flex flex-col gap-4 p-4 sm:p-6 relative z-10">
           <Link
             to="/courses"
-            className="text-white/40 text-xs hover:text-white transition-colors inline-flex items-center gap-1.5 shrink-0"
+            className="text-xs transition-colors inline-flex items-center gap-1.5 shrink-0 hover:opacity-70"
+            style={{ color: 'var(--text-muted)' }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
@@ -182,8 +219,11 @@ function CourseDetail() {
             Retour aux formations
           </Link>
 
-          <div className="flex flex-col sm:flex-row gap-4 bg-white/5 border border-white/10 rounded-2xl p-4 shrink-0">
-            <div className="w-full sm:w-48 aspect-video rounded-xl overflow-hidden bg-black shrink-0">
+          <div
+            className="flex flex-col sm:flex-row gap-4 rounded-2xl p-4 shrink-0"
+            style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+          >
+            <div className="w-full sm:w-52 aspect-video rounded-xl overflow-hidden shrink-0" style={{ backgroundColor: 'var(--surface-strong)' }}>
               {course.banner_url ? (
                 <img
                   src={course.banner_url}
@@ -192,29 +232,53 @@ function CourseDetail() {
                   onError={(e) => { e.target.style.display = 'none'; }}
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-2xl text-white/15">🎓</div>
+                <div className="w-full h-full flex items-center justify-center text-2xl" style={{ color: 'var(--text-muted)' }}>
+                  {course.content_type === 'video' ? '🎬' : '🎓'}
+                </div>
               )}
             </div>
             <div className="flex-1 flex flex-col justify-center min-w-0">
-              <span className="text-[11px] font-semibold text-orange-400 mb-1.5">Formation Yealead</span>
-              <h1 className="text-lg sm:text-xl font-bold text-white leading-tight">{course.title}</h1>
-              {course.description && <p className="text-white/50 text-sm mt-1.5">{course.description}</p>}
+              <span className="text-[11px] font-semibold mb-1.5" style={{ color: ACCENT }}>Formation Yealead</span>
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight leading-tight" style={{ color: 'var(--text-primary)' }}>{course.title}</h1>
+              {course.description && <p className="text-sm mt-1.5" style={{ color: 'var(--text-secondary)' }}>{course.description}</p>}
               {course.duration_minutes && (
-                <span className="text-[11px] font-medium text-white/50 bg-white/5 border border-white/10 px-2.5 py-1 rounded-full w-fit mt-3">
+                <span
+                  className="text-[11px] font-medium px-2.5 py-1 rounded-full w-fit mt-3"
+                  style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+                >
                   {course.duration_minutes} min de lecture
                 </span>
               )}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_240px] gap-4 items-start">
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-7">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4 items-start">
+            <div
+              className="rounded-2xl p-5 sm:p-8"
+              style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+            >
+              {course.content_type === 'video' && course.content_url && getYoutubeEmbedUrl(course.content_url) && (
+                <div className="relative w-full mb-6 rounded-xl overflow-hidden" style={{ paddingTop: '56.25%' }}>
+                  <iframe
+                    src={getYoutubeEmbedUrl(course.content_url)}
+                    title={course.title}
+                    className="absolute inset-0 w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              )}
+
               {course.content_text ? (
                 <div>
                   {contentBlocks.map((block, i) => {
                     if (block.type === 'heading') {
                       return (
-                        <h2 key={i} data-heading-id={i} className="text-white font-semibold text-base sm:text-lg mt-7 mb-3 first:mt-0 pb-2 border-b border-white/10 scroll-mt-6">
+                        <h2
+                          key={i} data-heading-id={i}
+                          className="font-semibold text-base sm:text-lg mt-8 mb-3 first:mt-0 pb-2 scroll-mt-6"
+                          style={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border)' }}
+                        >
                           {block.text}
                         </h2>
                       );
@@ -223,7 +287,7 @@ function CourseDetail() {
                       return (
                         <ul key={i} className="flex flex-col gap-2 mb-4">
                           {block.items.map((item, ii) => (
-                            <li key={ii} className="flex items-start gap-2.5 text-sm text-white/70 leading-relaxed">
+                            <li key={ii} className="flex items-start gap-2.5 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                               <span className="w-1.5 h-1.5 rounded-full mt-2 shrink-0" style={{ backgroundColor: ACCENT }} />
                               {item}
                             </li>
@@ -232,15 +296,15 @@ function CourseDetail() {
                       );
                     }
                     return (
-                      <p key={i} className="text-sm text-white/70 leading-relaxed mb-4">
+                      <p key={i} className="text-sm leading-relaxed mb-4" style={{ color: 'var(--text-secondary)' }}>
                         {block.text}
                       </p>
                     );
                   })}
                 </div>
-              ) : (
-                <p className="text-white/30 text-sm text-center py-10">Aucun contenu disponible pour ce cours.</p>
-              )}
+              ) : course.content_type !== 'video' ? (
+                <p className="text-sm text-center py-10" style={{ color: 'var(--text-muted)' }}>Aucun contenu disponible pour ce cours.</p>
+              ) : null}
 
               {course.completed ? (
                 <div className="mt-6 p-4 rounded-xl text-center" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
@@ -254,8 +318,8 @@ function CourseDetail() {
               ) : (
                 <button
                   onClick={() => setStep('quiz')}
-                  className="w-full text-white py-3 rounded-xl font-semibold text-sm transition-all hover:brightness-110 active:scale-[0.99] shadow-lg cursor-pointer flex items-center justify-center gap-2 mt-6"
-                  style={{ backgroundColor: ACCENT }}
+                  className="w-full text-white py-3.5 rounded-xl font-semibold text-sm transition-all hover:brightness-110 active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2 mt-6"
+                  style={{ backgroundColor: ACCENT, boxShadow: `0 4px 20px ${ACCENT}40` }}
                 >
                   <span>J'ai terminé la lecture, passer au quiz</span>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -266,10 +330,13 @@ function CourseDetail() {
             </div>
 
             {headings.length > 0 && (
-              <aside className="bg-white/5 border border-white/10 rounded-2xl p-5 lg:sticky lg:top-6">
-                <p className="text-[11px] uppercase tracking-wide mb-4" style={{ color: 'var(--text-muted)' }}>Sommaire</p>
+              <aside
+                className="rounded-2xl p-5 lg:sticky lg:top-6"
+                style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+              >
+                <p className="text-[11px] uppercase tracking-wide mb-4 font-medium" style={{ color: 'var(--text-muted)' }}>Sommaire</p>
                 <nav className="relative flex flex-col gap-5">
-                  <div className="absolute left-[5px] top-1.5 bottom-1.5 w-px bg-white/10" />
+                  <div className="absolute left-[5px] top-1.5 bottom-1.5 w-px" style={{ backgroundColor: 'var(--border)' }} />
                   {headings.map((h) => {
                     const isActive = activeHeadingIndex === h.index;
                     const isPast = h.index < activeHeadingIndex;
@@ -282,7 +349,7 @@ function CourseDetail() {
                         <span
                           className="w-2.5 h-2.5 rounded-full shrink-0 mt-1 transition-all"
                           style={{
-                            backgroundColor: isActive || isPast ? ACCENT : '#1a1a1a',
+                            backgroundColor: isActive || isPast ? ACCENT : 'var(--surface-strong)',
                             border: isActive || isPast ? 'none' : '1px solid var(--border)',
                             boxShadow: isActive ? `0 0 0 4px ${ACCENT}33` : 'none',
                           }}
@@ -304,13 +371,14 @@ function CourseDetail() {
       )}
 
       {step === 'quiz' && (
-        <div className="max-w-3xl w-full mx-auto flex-1 flex flex-col min-h-0 gap-4 p-4 sm:p-6">
+        <div className="max-w-4xl w-full mx-auto flex-1 flex flex-col min-h-0 gap-4 p-4 sm:p-6 relative z-10">
           <div className="shrink-0">
             <div className="flex items-center justify-between mb-2">
-              <h1 className="text-base sm:text-lg font-bold text-white">Quiz — {course.title}</h1>
+              <h1 className="text-base sm:text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Quiz — {course.title}</h1>
               <button
                 onClick={handleRestart}
-                className="text-xs px-2.5 py-1 rounded-lg border border-white/15 text-white/60 hover:text-white transition-all cursor-pointer shrink-0"
+                className="text-xs px-2.5 py-1 rounded-lg transition-all cursor-pointer shrink-0"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
               >
                 Recommencer
               </button>
@@ -320,11 +388,11 @@ function CourseDetail() {
                 <div
                   key={q.id}
                   className="h-1.5 flex-1 rounded-full transition-colors"
-                  style={{ backgroundColor: answers[q.id] ? ACCENT : 'rgba(255,255,255,0.1)' }}
+                  style={{ backgroundColor: answers[q.id] ? ACCENT : 'var(--border)' }}
                 />
               ))}
             </div>
-            <p className="text-[11px] text-white/40 mt-1.5">
+            <p className="text-[11px] mt-1.5" style={{ color: 'var(--text-muted)' }}>
               {revealed ? 'Correction de tes réponses' : `${answeredCount} / ${totalQuestions} questions répondues`}
             </p>
           </div>
@@ -337,12 +405,19 @@ function CourseDetail() {
               const qResult = answerResults[q.id];
 
               return (
-                <div key={q.id} className="bg-[#0f0f0f] border border-white/10 rounded-2xl p-5 transition-all">
+                <div
+                  key={q.id}
+                  className="rounded-2xl p-5 transition-all"
+                  style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+                >
                   <div className="flex items-start justify-between gap-3 mb-4">
-                    <p className="text-white font-medium text-sm">
-                      <span className="text-white/40 mr-1.5">{qi + 1}.</span> {q.question}
+                    <p className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>
+                      <span style={{ color: 'var(--text-muted)' }} className="mr-1.5">{qi + 1}.</span> {q.question}
                     </p>
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-white/5 text-white/40 border border-white/10 shrink-0">
+                    <span
+                      className="text-[10px] px-2 py-0.5 rounded shrink-0"
+                      style={{ backgroundColor: 'var(--surface-strong)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                    >
                       {q.points} pts
                     </span>
                   </div>
@@ -353,21 +428,30 @@ function CourseDetail() {
                       const isCorrect = !!qResult && qResult.correctOptionId === opt.id;
                       const showFeedback = isAnswered && !!qResult && revealed;
 
-                      let optionStyle = 'bg-black/60 border-white/10 text-white/80 hover:border-white/30 cursor-pointer';
+                      let bg = 'var(--surface-strong)';
+                      let border = 'var(--border)';
+                      let color = 'var(--text-primary)';
+                      let opacity = 1;
+                      let fontWeight = 400;
+                      let cursor = 'pointer';
 
                       if (!revealed && isAnswered) {
-                        optionStyle = isChosen
-                          ? 'bg-white/10 border-white/30 text-white/80 cursor-default'
-                          : 'bg-black/30 border-white/5 text-white/25 cursor-default opacity-40';
+                        cursor = 'default';
+                        if (!isChosen) { opacity = 0.4; }
                       } else if (showFeedback) {
+                        cursor = 'default';
                         if (isChosen) {
-                          optionStyle = isCorrect
-                            ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 font-medium cursor-default ring-1 ring-emerald-500'
-                            : 'bg-rose-950/60 border-rose-500 text-rose-300 font-medium cursor-default ring-1 ring-rose-500';
+                          bg = isCorrect ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)';
+                          border = isCorrect ? '#22c55e' : '#ef4444';
+                          color = isCorrect ? '#16a34a' : '#dc2626';
+                          fontWeight = 500;
                         } else if (isCorrect) {
-                          optionStyle = 'bg-emerald-950/30 border-emerald-500/70 text-emerald-400 font-medium cursor-default';
+                          bg = 'rgba(34,197,94,0.06)';
+                          border = 'rgba(34,197,94,0.5)';
+                          color = '#16a34a';
+                          fontWeight = 500;
                         } else {
-                          optionStyle = 'bg-black/30 border-white/5 text-white/25 cursor-default opacity-40';
+                          opacity = 0.4;
                         }
                       }
 
@@ -376,10 +460,11 @@ function CourseDetail() {
                           key={opt.id}
                           disabled={isAnswered}
                           onClick={() => handleSelectAnswer(q.id, opt.id)}
-                          className={`w-full text-left p-3.5 rounded-xl text-xs sm:text-sm border transition-all flex items-center justify-between gap-2 ${optionStyle}`}
+                          className="w-full text-left p-3.5 rounded-xl text-xs sm:text-sm border transition-all flex items-center justify-between gap-2"
+                          style={{ backgroundColor: bg, borderColor: border, color, opacity, fontWeight, cursor }}
                         >
                           <span>{opt.option_text}</span>
-                          {isChosen && isChecking && <Spinner size={13} color="#fff" />}
+                          {isChosen && isChecking && <Spinner size={13} color={ACCENT} />}
                           {showFeedback && (
                             <span className="shrink-0 text-xs font-semibold">
                               {isChosen && isCorrect && '✓ Correct'}
@@ -396,14 +481,14 @@ function CourseDetail() {
             })}
           </div>
 
-          {error && <p className="text-red-400 text-xs text-center shrink-0">{error}</p>}
+          {error && <p className="text-red-500 text-xs text-center shrink-0">{error}</p>}
 
           {!revealed ? (
             <button
               onClick={handleSubmit}
               disabled={!allAnswered || submitting}
-              className="shrink-0 w-full text-white py-3.5 rounded-xl font-semibold text-sm transition-all hover:brightness-110 active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-lg"
-              style={{ backgroundColor: ACCENT }}
+              className="shrink-0 w-full text-white py-3.5 rounded-xl font-semibold text-sm transition-all hover:brightness-110 active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
+              style={{ backgroundColor: ACCENT, boxShadow: `0 4px 20px ${ACCENT}40` }}
             >
               {submitting && <Spinner size={15} color="#fff" />}
               {submitting ? 'Validation...' : 'Valider mes réponses'}
@@ -411,8 +496,8 @@ function CourseDetail() {
           ) : (
             <button
               onClick={() => setStep('result')}
-              className="shrink-0 w-full text-white py-3.5 rounded-xl font-semibold text-sm transition-all hover:brightness-110 active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer shadow-lg"
-              style={{ backgroundColor: ACCENT }}
+              className="shrink-0 w-full text-white py-3.5 rounded-xl font-semibold text-sm transition-all hover:brightness-110 active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
+              style={{ backgroundColor: ACCENT, boxShadow: `0 4px 20px ${ACCENT}40` }}
             >
               Voir mon résultat
             </button>
@@ -421,26 +506,27 @@ function CourseDetail() {
       )}
 
       {step === 'result' && result && (
-        <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
+        <div className="flex-1 flex flex-col items-center justify-center text-center p-6 relative z-10">
           <Confetti show={result.percent >= 70} />
           <ScoreRing percent={result.percent} size={110} />
-          <h2 className="text-xl sm:text-2xl font-bold text-white mb-1 mt-5">
+          <h2 className="text-xl sm:text-2xl font-bold mb-1 mt-5" style={{ color: 'var(--text-primary)' }}>
             {result.percent >= 70 ? 'Félicitations !' : 'Score insuffisant'}
           </h2>
-          <p className="text-white/50 text-sm mb-8">
+          <p className="text-sm mb-8" style={{ color: 'var(--text-secondary)' }}>
             Tu as obtenu {result.score} / {result.maxScore} points.
           </p>
           <div className="flex items-center justify-center gap-3">
             <button
               onClick={handleRestart}
-              className="text-xs px-5 py-2.5 rounded-xl text-white/80 border border-white/15 hover:text-white transition-all cursor-pointer"
+              className="text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer"
+              style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
             >
               Recommencer
             </button>
             <Link
               to="/courses"
-              className="text-xs px-5 py-2.5 rounded-xl text-white font-semibold transition-all hover:brightness-110 shadow-lg"
-              style={{ backgroundColor: ACCENT }}
+              className="text-xs px-5 py-2.5 rounded-xl text-white font-semibold transition-all hover:brightness-110"
+              style={{ backgroundColor: ACCENT, boxShadow: `0 4px 20px ${ACCENT}40` }}
             >
               Retour aux formations
             </Link>

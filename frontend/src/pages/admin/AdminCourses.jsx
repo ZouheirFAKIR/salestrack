@@ -7,7 +7,7 @@ import Spinner from '../../components/Spinner';
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-function CourseFields({ values, onChange }) {
+function CourseFields({ values, onChange, mode }) {
   const [bannerLoading, setBannerLoading] = useState(false);
 
     const handleBannerFile = async (e) => {
@@ -44,12 +44,20 @@ function CourseFields({ values, onChange }) {
           <img src={values.bannerUrl} alt="Aperçu bannière" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
         </div>
       )}
-      <textarea
-        value={values.contentText} onChange={(e) => onChange('contentText', e.target.value)}
-        placeholder="Contenu du cours (texte complet, comme un article)"
-        rows={8}
-        className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 sm:col-span-2"
-      />
+      {mode === 'video' ? (
+        <input
+          value={values.videoUrl || ''} onChange={(e) => onChange('videoUrl', e.target.value)}
+          placeholder="Lien vidéo ou playlist YouTube — ex: .../watch?v=XXX ou .../playlist?list=XXX"
+          className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 sm:col-span-2"
+        />
+      ) : (
+        <textarea
+          value={values.contentText} onChange={(e) => onChange('contentText', e.target.value)}
+          placeholder="Contenu du cours (texte complet, comme un article)"
+          rows={8}
+          className="p-2.5 rounded-lg bg-black border border-white/10 text-white text-sm outline-none focus:border-orange-500/60 sm:col-span-2"
+        />
+      )}
       <input
         value={values.duration} onChange={(e) => onChange('duration', e.target.value)}
         placeholder="Durée estimée (minutes)" type="number"
@@ -162,7 +170,8 @@ function QuestionEditorForm({ initial, onSubmit, onCancel, saving }) {
 
 // Formulaire unique : infos du cours + questions, tout avant de créer.
 function NewCourseForm({ onCreated }) {
-  const [values, setValues] = useState({ title: '', description: '', bannerUrl: '', contentText: '', duration: '' });
+  const [courseType, setCourseType] = useState('text');
+  const [values, setValues] = useState({ title: '', description: '', bannerUrl: '', contentText: '', duration: '', videoUrl: '' });
   const [questions, setQuestions] = useState([]);
   const [addingQuestion, setAddingQuestion] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
@@ -193,8 +202,11 @@ function NewCourseForm({ onCreated }) {
       const res = await apiFetch(`${API_URL}/api/admin/courses`, {
         method: 'POST',
         body: JSON.stringify({
-          title: values.title, description: values.description, content_type: 'text',
-          content_text: values.contentText, banner_url: values.bannerUrl || null,
+          title: values.title, description: values.description,
+          content_type: courseType,
+          content_url: courseType === 'video' ? (values.videoUrl.trim() || null) : null,
+          content_text: courseType === 'text' ? values.contentText : null,
+          banner_url: values.bannerUrl || null,
           duration_minutes: values.duration ? Number(values.duration) : null,
         }),
       });
@@ -215,7 +227,7 @@ function NewCourseForm({ onCreated }) {
         )
       );
 
-      setValues({ title: '', description: '', bannerUrl: '', contentText: '', duration: '' });
+      setValues({ title: '', description: '', bannerUrl: '', contentText: '', duration: '', videoUrl: '' });
       setQuestions([]);
       onCreated();
     } catch (err) {
@@ -227,8 +239,26 @@ function NewCourseForm({ onCreated }) {
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-5">
       <p className="text-sm font-semibold text-white mb-3">Nouveau cours</p>
+
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => setCourseType('text')}
+          className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-all"
+          style={courseType === 'text' ? { backgroundColor: ACCENT, color: '#fff' } : { backgroundColor: 'black', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}
+        >
+          📄 Article à lire
+        </button>
+        <button
+          onClick={() => setCourseType('video')}
+          className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-all"
+          style={courseType === 'video' ? { backgroundColor: ACCENT, color: '#fff' } : { backgroundColor: 'black', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}
+        >
+          🎬 Vidéo YouTube
+        </button>
+      </div>
+
       {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
-      <CourseFields values={values} onChange={handleChange} />
+      <CourseFields values={values} onChange={handleChange} mode={courseType} />
 
       <div className="mt-4">
         <p className="text-xs font-medium text-white/60 mb-2">Questions du quiz ({questions.length})</p>
@@ -290,12 +320,14 @@ function NewCourseForm({ onCreated }) {
 }
 
 function EditCourseForm({ course, onSaved, onCancel }) {
+  const [courseType, setCourseType] = useState(course.content_type === 'video' ? 'video' : 'text');
   const [values, setValues] = useState({
     title: course.title || '',
     description: course.description || '',
     bannerUrl: course.banner_url || '',
     contentText: course.content_text || '',
     duration: course.duration_minutes || '',
+    videoUrl: course.content_type === 'video' ? (course.content_url || '') : '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -311,7 +343,10 @@ function EditCourseForm({ course, onSaved, onCancel }) {
         method: 'PUT',
         body: JSON.stringify({
           title: values.title, description: values.description,
-          content_text: values.contentText, banner_url: values.bannerUrl || null,
+          content_type: courseType,
+          content_url: courseType === 'video' ? (values.videoUrl.trim() || null) : null,
+          content_text: courseType === 'text' ? values.contentText : null,
+          banner_url: values.bannerUrl || null,
           duration_minutes: values.duration ? Number(values.duration) : null,
         }),
       });
@@ -330,8 +365,26 @@ function EditCourseForm({ course, onSaved, onCancel }) {
   return (
     <div className="bg-black/40 border border-white/10 rounded-xl p-4 mb-3">
       <p className="text-xs font-medium text-white/60 mb-2">Modifier le cours</p>
+
+      <div className="flex gap-2 mb-3">
+        <button
+          onClick={() => setCourseType('text')}
+          className="flex-1 py-2 rounded-lg text-xs font-medium transition-all"
+          style={courseType === 'text' ? { backgroundColor: ACCENT, color: '#fff' } : { backgroundColor: 'black', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}
+        >
+          📄 Article à lire
+        </button>
+        <button
+          onClick={() => setCourseType('video')}
+          className="flex-1 py-2 rounded-lg text-xs font-medium transition-all"
+          style={courseType === 'video' ? { backgroundColor: ACCENT, color: '#fff' } : { backgroundColor: 'black', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}
+        >
+          🎬 Vidéo YouTube
+        </button>
+      </div>
+
       {error && <p className="text-red-400 text-xs mb-2">{error}</p>}
-      <CourseFields values={values} onChange={handleChange} />
+      <CourseFields values={values} onChange={handleChange} mode={courseType} />
       <div className="flex items-center gap-2 mt-3">
         <button
           onClick={handleSave}

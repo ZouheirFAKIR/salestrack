@@ -369,7 +369,12 @@ router.get('/stats', authMiddleware, async (req, res) => {
 router.get('/leaderboard', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT u.id, u.nom, u.photo_url, COALESCE(COUNT(a.id), 0) as total
+      `SELECT u.id, u.nom, u.photo_url,
+         COALESCE(COUNT(a.id), 0) as total,
+         COUNT(a.id) FILTER (WHERE a.type = 'appel') as appel,
+         COUNT(a.id) FILTER (WHERE a.type = 'rdv') as rdv,
+         COUNT(a.id) FILTER (WHERE a.type = 'devis') as devis,
+         COUNT(a.id) FILTER (WHERE a.type = 'commande') as commande
        FROM users u
        LEFT JOIN activities a ON a.commercial_id = u.id
          AND DATE(a.date_activite) = CURRENT_DATE

@@ -1,7 +1,4 @@
 import { useEffect, useState } from 'react';
-import LineChart from '../components/LineChart';
-import MultiLineChart from '../components/MultiLineChart';
-import ActivityMultiChart from '../components/ActivityMultiChart';
 import OdooRangeCard from '../components/OdooRangeCard';
 import OdooActivitiesCard from '../components/OdooActivitiesCard';
 import OdooActivitiesChartCard from '../components/OdooActivitiesChartCard';
@@ -14,11 +11,6 @@ import bronzeTrophy from '../assets/Bronze_Trophie.png';
 
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-function parseLocalDate(dateStr) {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return new Date(year, month - 1, day);
-}
 
 function AnimatedNumber({ value }) {
   const [display, setDisplay] = useState(0);
@@ -35,32 +27,6 @@ function AnimatedNumber({ value }) {
   return <>{display}</>;
 }
 
-function ChartCard({ title, data, target, total, labelKey, formatLabel }) {
-  return (
-    <div className="rounded-xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-      <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>{title}</p>
-      <p className="text-xl sm:text-2xl font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
-        {total} activités
-      </p>
-      <LineChart data={data} target={target} labelKey={labelKey} formatLabel={formatLabel} />
-    </div>
-  );
-}
-
-function MultiChartCard({ title, data, keys = ['appel', 'rdv', 'devis', 'commande'], labelKey, formatLabel }) {
-  const grandTotal = data.reduce((sum, d) => sum + keys.reduce((s, k) => s + Number(d[k] || 0), 0), 0);
-
-  return (
-    <div className="rounded-xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-      <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>{title}</p>
-      <p className="text-xl sm:text-2xl font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
-        {grandTotal} activités
-      </p>
-      <ActivityMultiChart data={data} keys={keys} labelKey={labelKey} formatLabel={formatLabel} />
-    </div>
-  );
-}
-
 const RANK_STYLES = {
   1: { icon: goldTrophy },
   2: { icon: silverTrophy },
@@ -71,8 +37,8 @@ function Leaderboard({ entries, currentUserId }) {
   if (!entries || entries.length === 0) return null;
 
   return (
-    <div className="rounded-xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-      <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>Classement du jour</p>
+    <div className="rounded-2xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+      <p className="text-sm font-medium mb-4" style={{ color: 'var(--text-primary)' }}>Classement du jour</p>
       <div className="flex flex-col gap-2">
         {entries.map((e, i) => {
           const rank = i + 1;
@@ -81,7 +47,7 @@ function Leaderboard({ entries, currentUserId }) {
           return (
             <div
               key={e.id}
-              className="flex items-center gap-3 rounded-lg p-2.5 transition-colors"
+              className="flex items-center gap-3 rounded-xl p-2.5 transition-colors"
               style={{
                 backgroundColor: isMe ? `${ACCENT}14` : 'var(--surface-strong)',
                 border: isMe ? `1px solid ${ACCENT}55` : '1px solid transparent',
@@ -108,9 +74,24 @@ function Leaderboard({ entries, currentUserId }) {
                   {e.nom?.charAt(0).toUpperCase()}
                 </div>
               )}
-              <p className="flex-1 min-w-0 text-sm font-medium truncate" style={{ color: isMe ? ACCENT : 'var(--text-primary)' }}>
-                {e.nom}{isMe && ' (toi)'}
-              </p>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate" style={{ color: isMe ? ACCENT : 'var(--text-primary)' }}>
+                  {e.nom}{isMe && ' (toi)'}
+                </p>
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  {[
+                    { key: 'appel', icon: 'appel', v: e.appel },
+                    { key: 'rdv', icon: 'rdv', v: e.rdv },
+                    { key: 'devis', icon: 'devis', v: e.devis },
+                    { key: 'commande', icon: 'commande', v: e.commande },
+                  ].map((t) => (
+                    <span key={t.key} className="flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                      <Icon name={t.icon} size={11} />
+                      <span className="text-[11px]">{t.v}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
               <p className="text-sm font-semibold shrink-0" style={{ color: 'var(--text-primary)' }}>
                 {e.total} <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>act.</span>
               </p>
@@ -124,12 +105,6 @@ function Leaderboard({ entries, currentUserId }) {
 
 function Dashboard() {
   const [stats, setStats] = useState([]);
-  const [daily, setDaily] = useState([]);
-  const [odooDaily, setOdooDaily] = useState([]);
-  const [odooLinked, setOdooLinked] = useState(true);
-  const [weekly, setWeekly] = useState([]);
-  const [monthly, setMonthly] = useState([]);
-  const [yearly, setYearly] = useState([]);
   const [typeQuotas, setTypeQuotas] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -145,35 +120,14 @@ function Dashboard() {
     if (!token) { setLoading(false); return; }
     Promise.all([
       apiFetch(`${API_URL}/api/activities/stats/today`).then(r => r.json()),
-      apiFetch(`${API_URL}/api/activities/daily`).then(r => r.json()),
-      apiFetch(`${API_URL}/api/activities/weekly`).then(r => r.json()),
-      apiFetch(`${API_URL}/api/activities/monthly`).then(r => r.json()),
-      apiFetch(`${API_URL}/api/activities/yearly`).then(r => r.json()),
       apiFetch(`${API_URL}/api/activities/my-type-quotas`).then(r => r.json()),
       apiFetch(`${API_URL}/api/activities/leaderboard`).then(r => r.json()),
-    ]).then(([statsData, dailyData, weeklyData, monthlyData, yearlyData, quotasData, leaderboardData]) => {
+    ]).then(([statsData, quotasData, leaderboardData]) => {
       setStats(statsData);
-      setDaily(dailyData);
-      setWeekly(weeklyData);
-      setMonthly(monthlyData);
-      setYearly(yearlyData);
       setTypeQuotas(quotasData);
       setLeaderboard(leaderboardData);
       setLoading(false);
     });
-
-    if (user?.id) {
-      apiFetch(`${API_URL}/api/odoo/daily/${user.id}?days=30`)
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.linked) {
-            setOdooDaily(data.daily);
-          } else {
-            setOdooLinked(false);
-          }
-        })
-        .catch(() => setOdooLinked(false));
-    }
   }, [token]);
 
   const getStat = (type) => stats.find((s) => s.type === type) || { total: 0 };
@@ -193,73 +147,94 @@ function Dashboard() {
     );
   }
 
-  const dailyTarget = typeQuotas ? Object.values(typeQuotas.quotas).reduce((sum, v) => sum + Number(v), 0) : 0;
-  const weeklyTarget = dailyTarget * 7;
-  const monthlyTarget = dailyTarget * 30;
-  const yearlyTarget = dailyTarget * 365;
-
-  const sumTotal = (arr) => arr.reduce((sum, d) => sum + Number(d.total), 0);
+  const todayStr = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
-    <div className="p-4 sm:p-6 pb-12" style={{ backgroundColor: 'var(--bg)' }}>
-      <div className="max-w-5xl mx-auto flex flex-col gap-5">
-        <div>
-          <h1 className="text-lg sm:text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>Salut {prenom} 👋</h1>
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Voici ton activité récente</p>
+    <div className="p-4 sm:p-6 pb-12 relative overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
+      <div
+        className="absolute -top-24 -right-24 w-80 h-80 rounded-full pointer-events-none"
+        style={{ background: `radial-gradient(circle, ${ACCENT}20, transparent 70%)`, filter: 'blur(6px)' }}
+      />
+      <div
+        className="absolute -bottom-32 -left-20 w-96 h-96 rounded-full pointer-events-none"
+        style={{ background: `radial-gradient(circle, ${ACCENT}16, transparent 70%)`, filter: 'blur(6px)' }}
+      />
+      <svg className="absolute top-32 right-8 pointer-events-none hidden lg:block" width="120" height="120" viewBox="0 0 120 120">
+        <circle cx="60" cy="60" r="52" stroke={ACCENT} strokeOpacity="0.16" strokeWidth="2" fill="none" />
+        <circle cx="60" cy="60" r="30" stroke={ACCENT} strokeOpacity="0.12" strokeWidth="2" fill="none" />
+      </svg>
+      <div className="absolute bottom-1/4 left-6 w-2.5 h-2.5 rounded-full pointer-events-none hidden lg:block" style={{ backgroundColor: `${ACCENT}30` }} />
+
+      <div className="max-w-6xl mx-auto flex flex-col gap-4 relative z-10">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>Salut {prenom} 👋</h1>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Voici ton activité récente</p>
+          </div>
+          <span className="text-xs px-3 py-1.5 rounded-full capitalize font-medium self-start sm:self-auto" style={{ backgroundColor: `${ACCENT}17`, color: ACCENT }}>
+            {todayStr}
+          </span>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-        <div className="rounded-xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>Objectifs du jour</p>
-          <div className="grid grid-cols-2 gap-3">
-            {allTypes.map((type, i) => {
-              const s = getStat(type);
-              const current = Number(s.total);
-              const target = typeQuotas?.quotas[type] || 5;
-              const percent = Math.min(Math.round((current / target) * 100), 100);
-              const circumference = 2 * Math.PI * 26;
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+          <div className="rounded-2xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+            <p className="text-sm font-medium mb-4" style={{ color: 'var(--text-primary)' }}>Objectifs du jour</p>
+            <div className="grid grid-cols-2 gap-3">
+              {allTypes.map((type, i) => {
+                const s = getStat(type);
+                const current = Number(s.total);
+                const target = typeQuotas?.quotas[type] || 5;
+                const percent = Math.min(Math.round((current / target) * 100), 100);
+                const circumference = 2 * Math.PI * 26;
 
-              const ringColor =
-                percent >= 100 ? '#22c55e' :
-                percent >= 75 ? '#86efac' :
-                percent >= 25 ? ACCENT :
-                '#ef4444';
-              const displayPercent = Math.max(percent, 4);
+                const ringColor =
+                  percent >= 100 ? '#22c55e' :
+                  percent >= 75 ? '#86efac' :
+                  percent >= 25 ? '#f97316' :
+                  '#ef4444';
+                const displayPercent = Math.max(percent, 4);
 
-              return (
-                <div
-                  key={type}
-                  className="rounded-xl p-3 flex flex-col items-center text-center hover:border-orange-400/40 transition-all"
-                  style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)', animation: `popIn 0.4s ease ${i * 0.06}s both` }}
-                >
-                  <div className="relative w-16 h-16 mb-2">
-                    <svg viewBox="0 0 64 64" className="w-16 h-16 -rotate-90">
-                      <circle cx="32" cy="32" r="26" stroke="var(--border)" strokeWidth="5" fill="none" />
-                      <circle
-                        cx="32" cy="32" r="26" stroke={ringColor} strokeWidth="5" fill="none" strokeLinecap="round"
-                        strokeDasharray={circumference}
-                        strokeDashoffset={circumference - (displayPercent / 100) * circumference}
-                        style={{ transition: 'stroke-dashoffset 0.8s ease, stroke 0.4s ease' }}
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Icon name={type} size={18} style={{ color: 'var(--text-primary)' }} />
+                return (
+                  <div
+                    key={type}
+                    className="rounded-xl p-3 flex flex-col items-center text-center"
+                    style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)', animation: `popIn 0.4s ease ${i * 0.06}s both` }}
+                  >
+                    <div className="relative w-16 h-16 mb-2">
+                      <svg viewBox="0 0 64 64" className="w-16 h-16 -rotate-90">
+                        <circle cx="32" cy="32" r="26" stroke="var(--border)" strokeWidth="5" fill="none" />
+                        <circle
+                          cx="32" cy="32" r="26" stroke={ringColor} strokeWidth="5" fill="none" strokeLinecap="round"
+                          strokeDasharray={circumference}
+                          strokeDashoffset={circumference - (displayPercent / 100) * circumference}
+                          style={{ transition: 'stroke-dashoffset 0.8s ease, stroke 0.4s ease' }}
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Icon name={type} size={18} style={{ color: ACCENT }} />
+                      </div>
                     </div>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}><AnimatedNumber value={current} />/{target}</p>
+                    <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{labels[type]}</p>
                   </div>
-                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}><AnimatedNumber value={current} />/{target}</p>
-                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{labels[type]}</p>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+          </div>
+
+          <Leaderboard entries={leaderboard} currentUserId={user?.id} />
+        </div>
+
+        <div>
+          <p className="text-sm font-medium mb-3 mt-2" style={{ color: 'var(--text-primary)' }}>Données Odoo</p>
+          <div className="flex flex-col gap-4">
+            <OdooRangeCard commercialId={user?.id} />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+              <OdooActivitiesCard commercialId={user?.id} />
+              <OdooActivitiesChartCard commercialId={user?.id} />
+            </div>
           </div>
         </div>
-
-        <Leaderboard entries={leaderboard} currentUserId={user?.id} />
-        </div>
-
-        <OdooRangeCard commercialId={user?.id} />
-        <OdooActivitiesCard commercialId={user?.id} />
-        <OdooActivitiesChartCard commercialId={user?.id} />
       </div>
 
       <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>

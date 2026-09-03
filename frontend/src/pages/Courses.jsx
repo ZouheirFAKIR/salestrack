@@ -26,9 +26,9 @@ function Courses() {
 
   if (!token) {
     return (
-      <div className="bg-black min-h-screen flex flex-col items-center justify-center p-6 text-center">
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center" style={{ backgroundColor: 'var(--bg)' }}>
         <span className="text-4xl mb-4">🔒</span>
-        <h1 className="text-xl font-semibold text-white mb-2">Connecte-toi pour voir les cours</h1>
+        <h1 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Connecte-toi pour voir les cours</h1>
         <a href="/login" className="text-white px-5 py-2.5 rounded-lg font-medium mt-2" style={{ backgroundColor: ACCENT }}>
           Se connecter
         </a>
@@ -42,35 +42,55 @@ function Courses() {
   const progressPercent = courses.length > 0 ? Math.round((completedCount / courses.length) * 100) : 0;
 
   return (
-    <div className="bg-black min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12">
-      <div className="max-w-6xl mx-auto flex flex-col gap-6">
+    <div className="min-h-[calc(100vh-64px)] p-4 sm:p-6 pb-12 relative overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
+      <div
+        className="absolute -top-24 -right-32 w-[36rem] h-[36rem] rounded-full pointer-events-none"
+        style={{ background: `radial-gradient(circle, ${ACCENT}20, transparent 70%)`, filter: 'blur(6px)' }}
+      />
+      <div
+        className="absolute -bottom-40 -left-32 w-[40rem] h-[40rem] rounded-full pointer-events-none"
+        style={{ background: `radial-gradient(circle, ${ACCENT}16, transparent 70%)`, filter: 'blur(6px)' }}
+      />
+      <svg className="absolute top-24 right-10 pointer-events-none hidden xl:block" width="120" height="120" viewBox="0 0 120 120">
+        <circle cx="60" cy="60" r="52" stroke={ACCENT} strokeOpacity="0.16" strokeWidth="2" fill="none" />
+        <circle cx="60" cy="60" r="30" stroke={ACCENT} strokeOpacity="0.12" strokeWidth="2" fill="none" />
+      </svg>
+
+      <div className="max-w-7xl mx-auto flex flex-col gap-6 relative z-10">
 
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
-            <h1 className="text-xl sm:text-2xl font-semibold text-white">Formation</h1>
-            <p className="text-white/40 text-sm mt-1">Suis les cours et gagne des points d'apprentissage</p>
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>Formation</h1>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Suis les cours et gagne des points d'apprentissage</p>
           </div>
 
-          <div className="flex items-center gap-4 bg-white/5 border border-white/10 rounded-2xl px-5 py-3 shrink-0">
+          <div
+            className="flex items-center gap-4 rounded-2xl px-5 py-3 shrink-0"
+            style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+          >
             <div>
-              <p className="text-white/40 text-[11px] uppercase tracking-wide">Points gagnés</p>
-              <p className="text-xl font-semibold" style={{ color: ACCENT }}>{totalScore}<span className="text-white/30 text-sm font-normal"> / {totalMax}</span></p>
+              <p className="text-[11px] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Points gagnés</p>
+              <p className="text-xl font-semibold" style={{ color: ACCENT }}>
+                {totalScore}<span className="text-sm font-normal" style={{ color: 'var(--text-muted)' }}> / {totalMax}</span>
+              </p>
             </div>
-            <div className="w-px h-9 bg-white/10" />
+            <div className="w-px h-9" style={{ backgroundColor: 'var(--border)' }} />
             <div>
-              <p className="text-white/40 text-[11px] uppercase tracking-wide">Complétés</p>
-              <p className="text-xl font-semibold text-white">{completedCount}<span className="text-white/30 text-sm font-normal"> / {courses.length}</span></p>
+              <p className="text-[11px] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Complétés</p>
+              <p className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+                {completedCount}<span className="text-sm font-normal" style={{ color: 'var(--text-muted)' }}> / {courses.length}</span>
+              </p>
             </div>
             <div className="w-11 h-11 rounded-full shrink-0 relative flex items-center justify-center">
               <svg width="44" height="44" className="-rotate-90">
-                <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="4" />
+                <circle cx="22" cy="22" r="18" fill="none" stroke="var(--border)" strokeWidth="4" />
                 <circle
                   cx="22" cy="22" r="18" fill="none" stroke={ACCENT} strokeWidth="4"
                   strokeDasharray={`${(progressPercent / 100) * 113} 113`}
                   strokeLinecap="round"
                 />
               </svg>
-              <span className="absolute text-[10px] font-semibold text-white">{progressPercent}%</span>
+              <span className="absolute text-[10px] font-semibold" style={{ color: 'var(--text-primary)' }}>{progressPercent}%</span>
             </div>
           </div>
         </div>
@@ -88,10 +108,15 @@ function Courses() {
             <Link
               key={course.id}
               to={`/courses/${course.id}`}
-              className="group bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-orange-400/50 hover:-translate-y-0.5 transition-all duration-200 flex flex-col"
-              style={{ animation: `fadeIn 0.4s ease ${i * 0.05}s both` }}
+              className="group rounded-2xl overflow-hidden hover:-translate-y-0.5 transition-all duration-200 flex flex-col"
+              style={{
+                backgroundColor: 'var(--surface)',
+                border: '1px solid var(--border)',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                animation: `fadeIn 0.4s ease ${i * 0.05}s both`,
+              }}
             >
-              <div className="relative aspect-video bg-black/40 overflow-hidden">
+              <div className="relative aspect-video overflow-hidden" style={{ backgroundColor: 'var(--surface-strong)' }}>
                 {course.banner_url ? (
                   <img
                     src={course.banner_url}
@@ -100,7 +125,7 @@ function Courses() {
                     onError={(e) => { e.target.style.display = 'none'; }}
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-3xl text-white/15">🎓</div>
+                  <div className="w-full h-full flex items-center justify-center text-3xl" style={{ color: 'var(--text-muted)' }}>🎓</div>
                 )}
                 {course.completed && (
                   <span
@@ -113,14 +138,14 @@ function Courses() {
               </div>
 
               <div className="p-4 flex-1 flex flex-col">
-                <p className="text-white font-medium leading-snug">{course.title}</p>
-                <p className="text-white/40 text-sm mt-1 line-clamp-2 flex-1">{course.description}</p>
+                <p className="font-medium leading-snug" style={{ color: 'var(--text-primary)' }}>{course.title}</p>
+                <p className="text-sm mt-1 line-clamp-2 flex-1" style={{ color: 'var(--text-secondary)' }}>{course.description}</p>
                 {course.completed ? (
                   <p className="text-xs mt-3 font-medium" style={{ color: ACCENT }}>
                     Score : {course.best_score} / {course.max_score} points
                   </p>
                 ) : (
-                  <p className="text-xs mt-3 text-white/30">Pas encore commencé</p>
+                  <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>Pas encore commencé</p>
                 )}
               </div>
             </Link>

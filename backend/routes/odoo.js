@@ -6,7 +6,7 @@ const adminMiddleware = require('../middleware/adminMiddleware');
 const odoo = require('../utils/odooClient');
 const { toMoroccoDate } = odoo;
 
-const CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const cache = new Map();
 
 function getCached(key) {
@@ -261,16 +261,28 @@ router.get('/activities-daily/:commercialId', authMiddleware, async (req, res) =
       return res.json({ linked: false, daily: [], categories: [] });
     }
 
-    const allTimeRaw = await odoo.execute(
+    const endDate = new Date(`${endStr}T00:00:00Z`);
+    const startDate = new Date(endDate);
+    startDate.setUTCDate(startDate.getUTCDate() - (days - 1));
+    const startStr = startDate.toISOString().slice(0, 10);
+
+    const rangeStart = new Date(endDate);
+    rangeStart.setUTCDate(rangeStart.getUTCDate() - 180);
+
+    const raw = await odoo.execute(
       'mail.activity',
       'search_read',
-      [[['user_id', '=', odooUserId]]],
-      { fields: ['activity_type_id', 'active', 'activity_cancel'], context: { active_test: false } }
+      [[
+        ['user_id', '=', odooUserId],
+        ['date_deadline', '>=', rangeStart.toISOString().slice(0, 10)],
+        ['date_deadline', '<=', endStr],
+      ]],
+      { fields: ['activity_type_id', 'date_deadline', 'active', 'activity_cancel'], context: { active_test: false } }
     );
-    const allTimeRecords = allTimeRaw.filter((r) => !(r.active === false && r.activity_cancel));
+    const records = raw.filter((r) => !(r.active === false && r.activity_cancel));
 
     const allTimeCount = {};
-    allTimeRecords.forEach((r) => {
+    records.forEach((r) => {
       const label = r.activity_type_id ? r.activity_type_id[1] : 'Autre';
       allTimeCount[label] = (allTimeCount[label] || 0) + 1;
     });
@@ -283,22 +295,7 @@ router.get('/activities-daily/:commercialId', authMiddleware, async (req, res) =
     const categorySlugs = {};
     allCategories.forEach((label) => { categorySlugs[label] = slugify(label); });
 
-    const endDate = new Date(`${endStr}T00:00:00Z`);
-    const startDate = new Date(endDate);
-    startDate.setUTCDate(startDate.getUTCDate() - (days - 1));
-    const startStr = startDate.toISOString().slice(0, 10);
-
-    const weekRaw = await odoo.execute(
-      'mail.activity',
-      'search_read',
-      [[
-        ['user_id', '=', odooUserId],
-        ['date_deadline', '>=', startStr],
-        ['date_deadline', '<=', endStr],
-      ]],
-      { fields: ['activity_type_id', 'date_deadline', 'active', 'activity_cancel'], context: { active_test: false } }
-    );
-    const weekRecords = weekRaw.filter((r) => !(r.active === false && r.activity_cancel));
+    const weekRecords = records.filter((r) => r.date_deadline >= startStr && r.date_deadline <= endStr);
 
     const dayMap = {};
     for (let i = 0; i < days; i++) {

@@ -14,6 +14,13 @@ import CoinIcon from '../components/CoinIcon';
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+const TYPE_COLORS = {
+  appel: '#f86635',
+  rdv: '#f86635',
+  devis: '#f86635',
+  commande: '#f86635',
+};
+
 function NouvelleActivite() {
   const navigate = useNavigate();
   const [type, setType] = useState(null);
@@ -216,7 +223,7 @@ function NouvelleActivite() {
   const totalObjectif = Object.values(typeQuotas).reduce((sum, v) => sum + Number(v), 0);
 
   const objectifsCard = (
-    <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+    <div className="rounded-2xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
       <div className="flex items-center gap-3 mb-4">
         <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold" style={{ backgroundColor: ACCENT, color: '#fff' }}>
           {prenom.charAt(0).toUpperCase()}
@@ -233,21 +240,22 @@ function NouvelleActivite() {
           const target = typeQuotas[t.key] || 5;
           const percent = Math.min(Math.round((current / target) * 100), 100);
           const circumference = 2 * Math.PI * 22;
+          const typeColor = TYPE_COLORS[t.key];
           const ringColor =
             percent >= 100 ? '#22c55e' :
             percent >= 75 ? '#86efac' :
-            percent >= 25 ? ACCENT :
+            percent >= 25 ? '#f97316' :
             '#ef4444';
           const displayPercent = Math.max(percent, 4);
 
           return (
             <div
               key={t.key}
-              className="rounded-xl p-2.5 flex flex-col items-center text-center"
+              className="rounded-xl p-3 flex flex-col items-center text-center"
               style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}
             >
-              <div className="relative w-14 h-14 mb-1.5">
-                <svg viewBox="0 0 56 56" className="w-14 h-14 -rotate-90">
+              <div className="relative w-12 h-12 mb-1.5">
+                <svg viewBox="0 0 56 56" className="w-12 h-12 -rotate-90">
                   <circle cx="28" cy="28" r="22" stroke="var(--border)" strokeWidth="4" fill="none" />
                   <circle
                     cx="28" cy="28" r="22" stroke={ringColor} strokeWidth="4" fill="none" strokeLinecap="round"
@@ -257,7 +265,7 @@ function NouvelleActivite() {
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <Icon name={t.key} size={15} style={{ color: 'var(--text-primary)' }} />
+                  <Icon name={t.key} size={15} style={{ color: typeColor }} />
                 </div>
               </div>
               <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{current}/{target}</p>
@@ -267,7 +275,7 @@ function NouvelleActivite() {
         })}
       </div>
 
-      <p className="text-[11px] mt-3 pt-3 flex items-center gap-1" style={{ color: ACCENT, borderTop: '1px solid var(--border)' }}>
+      <p className="text-[11px] mt-4 pt-3 flex items-center gap-1.5" style={{ color: ACCENT, borderTop: '1px solid var(--border)' }}>
         <CoinIcon size={12} />
         +5 points en complétant tous les objectifs
       </p>
@@ -277,7 +285,34 @@ function NouvelleActivite() {
   if (pageLoading) return <PageLoader />;
 
   return (
-    <div className="min-h-[calc(100vh-64px)] p-4 sm:p-6 flex items-center justify-center" style={{ backgroundColor: 'var(--bg)' }}>
+    <div className="min-h-[calc(100vh-64px)] p-4 sm:p-6 relative overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
+      <div
+        className="absolute -top-24 -right-24 w-80 h-80 rounded-full pointer-events-none"
+        style={{ background: `radial-gradient(circle, ${ACCENT}22, transparent 70%)`, filter: 'blur(6px)' }}
+      />
+      <div
+        className="absolute -bottom-32 -left-20 w-96 h-96 rounded-full pointer-events-none"
+        style={{ background: `radial-gradient(circle, ${ACCENT}18, transparent 70%)`, filter: 'blur(6px)' }}
+      />
+      <div
+        className="absolute top-1/3 -left-16 w-56 h-56 rounded-full pointer-events-none hidden lg:block"
+        style={{ background: `radial-gradient(circle, ${ACCENT}14, transparent 70%)`, filter: 'blur(6px)' }}
+      />
+      <div
+        className="absolute bottom-10 -right-10 w-64 h-64 rounded-full pointer-events-none hidden lg:block"
+        style={{ background: `radial-gradient(circle, #1a1a1a12, transparent 70%)`, filter: 'blur(6px)' }}
+      />
+
+      <svg className="absolute top-24 right-6 pointer-events-none hidden lg:block" width="130" height="130" viewBox="0 0 130 130">
+        <circle cx="65" cy="65" r="56" stroke={ACCENT} strokeOpacity="0.18" strokeWidth="2" fill="none" />
+        <circle cx="65" cy="65" r="34" stroke={ACCENT} strokeOpacity="0.14" strokeWidth="2" fill="none" />
+      </svg>
+      <svg className="absolute bottom-28 left-8 pointer-events-none hidden lg:block" width="70" height="70" viewBox="0 0 70 70">
+        <rect x="6" y="6" width="58" height="58" rx="16" stroke="#1a1a1a" strokeOpacity="0.12" strokeWidth="2" fill="none" transform="rotate(12 35 35)" />
+      </svg>
+      <div className="absolute top-1/2 left-4 w-2.5 h-2.5 rounded-full pointer-events-none hidden lg:block" style={{ backgroundColor: `${ACCENT}35` }} />
+      <div className="absolute top-16 left-24 w-2 h-2 rounded-full pointer-events-none hidden lg:block" style={{ backgroundColor: '#1a1a1a20' }} />
+      <div className="absolute bottom-1/4 right-8 w-3 h-3 rounded-full pointer-events-none hidden lg:block" style={{ backgroundColor: `${ACCENT}30` }} />
       <Confetti show={showConfetti} />
       {showSuccess && <SuccessModal onClose={() => setShowSuccess(false)} />}
       {completedType && (
@@ -303,179 +338,200 @@ function NouvelleActivite() {
         />
       )}
 
-      <div className="max-w-4xl w-full grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className="max-w-6xl mx-auto relative z-10">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>Nouvelle activité</h1>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Sélectionne un type puis confirme</p>
+          </div>
 
-        <div className="lg:col-span-2 flex flex-col gap-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h1 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Nouvelle activité</h1>
-              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Sélectionne un type puis confirme</p>
-            </div>
-
-            <div className="flex items-center gap-3 sm:gap-4 rounded-2xl px-4 sm:px-5 py-2.5 sm:py-3" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
-              <div>
-                <p className="text-[10px] sm:text-[11px] uppercase tracking-wide mb-0.5" style={{ color: 'var(--text-secondary)' }}>Aujourd'hui</p>
-                <p className="text-sm sm:text-base font-medium capitalize" style={{ color: 'var(--text-primary)' }}>{getDateParts().jourComplet}</p>
-                <p className="text-[10px] sm:text-[11px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>{getDateParts().annee}</p>
-              </div>
-              <div
-                className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex flex-col items-center justify-center shrink-0"
-                style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}
-              >
-                <span className="text-sm sm:text-base font-semibold leading-none" style={{ color: '#fff' }}>{getDateParts().jourNum}</span>
-                <span className="text-[8px] sm:text-[9px] uppercase mt-0.5" style={{ color: 'rgba(255,255,255,0.8)' }}>{getDateParts().moisAbrev}</span>
-              </div>
-            </div>
-
+          <div className="flex items-center gap-2.5">
             {combo > 0 && (
-              <span className="text-xs px-3 py-1 rounded-full animate-bounce shrink-0 self-start sm:self-auto" style={{ backgroundColor: ACCENT, boxShadow: `0 0 20px ${ACCENT}80`, color: '#fff' }}>
+              <span className="text-xs px-2.5 py-1 rounded-full shrink-0 font-medium" style={{ backgroundColor: `${ACCENT}17`, color: ACCENT }}>
                 Combo x{combo} 🔥
               </span>
             )}
-          </div>
-
-          <div className="lg:hidden">{objectifsCard}</div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {activityTypes.map((t) => {
-              const isActive = type === t.key;
-              return (
-                <button
-                  key={t.key}
-                  onClick={() => handleTypeClick(t)}
-                  className="p-3 rounded-xl border transition-all duration-150 active:scale-95 hover:scale-[1.03] flex flex-col items-center"
-                  style={isActive
-                    ? { backgroundColor: ACCENT, borderColor: ACCENT, boxShadow: `0 0 20px ${ACCENT}55` }
-                    : { backgroundColor: 'var(--surface-strong)', borderColor: 'var(--border)' }}
-                >
-                  <Icon name={t.key} size={22} className="mb-1" style={{ color: isActive ? '#fff' : 'var(--text-primary)' }} />
-                  <span className="text-xs" style={{ color: isActive ? '#fff' : 'var(--text-primary)' }}>{t.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="p-4 sm:p-5 rounded-2xl flex-1 flex flex-col justify-center min-h-40" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            {!type && (
-              <EmptyState
-                icon="👆"
-                title="Choisis un type ci-dessus"
-                subtitle="Appel, rendez-vous, devis ou commande — sélectionne pour continuer."
-              />
-            )}
-
-            {type === 'appel' && (
-              <div className="animate-[fadeIn_0.2s_ease]">
-                <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>Détail de l'appel</p>
-                <div className="grid grid-cols-2 gap-2 mb-4">
-                  {['sortant', 'entrant'].map((s) => (
-                    <button key={s} onClick={() => setSens(s)} className="p-2.5 rounded-lg text-sm border transition-all active:scale-95"
-                      style={sens === s ? { backgroundColor: ACCENT, borderColor: ACCENT, color: '#fff', fontWeight: 500 } : { backgroundColor: 'var(--surface-strong)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-                      {s === 'sortant' ? 'Sortant' : 'Entrant'}
-                    </button>
-                  ))}
-                  {['repond', 'ne_repond_pas'].map((s) => (
-                    <button key={s} onClick={() => setStatut(s)} className="p-2.5 rounded-lg text-sm border transition-all active:scale-95"
-                      style={statut === s ? { backgroundColor: ACCENT, borderColor: ACCENT, color: '#fff', fontWeight: 500 } : { backgroundColor: 'var(--surface-strong)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-                      {s === 'repond' ? 'Répond' : 'Ne répond pas'}
-                    </button>
-                  ))}
-                </div>
+            <div className="flex items-center gap-2.5 rounded-xl px-3 py-2" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+              <div className="text-right">
+                <p className="text-[9px] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>{getDateParts().annee}</p>
+                <p className="text-xs font-medium capitalize" style={{ color: 'var(--text-primary)' }}>{getDateParts().jourComplet}</p>
               </div>
-            )}
-
-            {type === 'rdv' && (
-              <div className="animate-[fadeIn_0.2s_ease]">
-                <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>Détail du rendez-vous</p>
-                <div className="grid grid-cols-2 gap-2 mb-4">
-                  {['present', 'absent'].map((s) => (
-                    <button key={s} onClick={() => setStatut(s)} className="p-2.5 rounded-lg text-sm border transition-all active:scale-95"
-                      style={statut === s ? { backgroundColor: ACCENT, borderColor: ACCENT, color: '#fff', fontWeight: 500 } : { backgroundColor: 'var(--surface-strong)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-                      {s === 'present' ? 'Présent' : 'Absent'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {(type === 'devis' || type === 'commande') && (
-              <div className="animate-[fadeIn_0.2s_ease] text-center mb-2">
-                <Icon name={type} size={28} className="mx-auto mb-2" style={{ color: 'var(--text-secondary)' }} />
-                <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{labels[type]}</p>
-              </div>
-            )}
-
-            {type && (
-              <div className="animate-[fadeIn_0.2s_ease]">
-                <p className="text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>Nombre</p>
-                <div className="flex items-center gap-3 mb-4">
-                  <button
-                    onClick={() => setNombre((n) => Math.max(1, n - 1))}
-                    className="w-9 h-9 rounded-lg border text-lg flex items-center justify-center active:scale-95 transition-all"
-                    style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                  >
-                    −
-                  </button>
-                  <input
-                    type="number"
-                    min="1"
-                    max="1000"
-                    value={nombre}
-                    onChange={(e) => setNombre(Math.max(1, Math.min(1000, parseInt(e.target.value) || 1)))}
-                    className="w-16 text-center p-2 rounded-lg border outline-none focus:border-orange-500"
-                    style={{ backgroundColor: 'var(--surface-strong)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                  />
-                  <button
-                    onClick={() => setNombre((n) => Math.min(1000, n + 1))}
-                    className="w-9 h-9 rounded-lg border text-lg flex items-center justify-center active:scale-95 transition-all"
-                    style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                  >
-                    +
-                  </button>
-                </div>
-
-                <button
-                  onClick={handleSubmit}
-                  disabled={!canSubmit() || submitting}
-                  className={`w-full p-2.5 rounded-lg font-medium transition-all active:scale-95 flex items-center justify-center gap-2 ${shake ? 'animate-[shake_0.4s_ease]' : ''}`}
-                  style={{
-                    backgroundColor: canSubmit() ? ACCENT : 'var(--border)',
-                    boxShadow: canSubmit() ? `0 4px 20px ${ACCENT}40` : 'none',
-                    cursor: canSubmit() ? 'pointer' : 'not-allowed',
-                    color: canSubmit() ? '#fff' : 'var(--text-muted)',
-                  }}
-                >
-                  {submitting && <Spinner size={15} color="#fff" />}
-                  {submitting ? 'Enregistrement...' : `Enregistrer ${nombre > 1 ? `(${nombre})` : ''}`}
-                </button>
-              </div>
-            )}
-          </div>
-
-          {message && <p className="text-sm font-medium animate-[fadeIn_0.2s_ease]" style={{ color: ACCENT }}>{message}</p>}
-        </div>
-
-        <div className="lg:col-span-1 flex flex-col gap-3">
-          <div className="hidden lg:block">{objectifsCard}</div>
-
-          {points !== null && (
-            <div className="rounded-2xl p-4 flex items-center justify-between" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <div>
-                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Solde de points</p>
-                <p className="text-xl font-semibold flex items-center gap-1.5 mt-0.5" style={{ color: ACCENT }}>
-                  <CoinIcon size={16} />
-                  {points}
-                </p>
+              <div
+                className="w-9 h-9 rounded-lg flex flex-col items-center justify-center shrink-0"
+                style={{ backgroundColor: ACCENT }}
+              >
+                <span className="text-sm font-semibold leading-none" style={{ color: '#fff' }}>{getDateParts().jourNum}</span>
+                <span className="text-[8px] uppercase mt-0.5" style={{ color: 'rgba(255,255,255,0.85)' }}>{getDateParts().moisAbrev}</span>
               </div>
             </div>
-          )}
-
-          <div className="rounded-2xl p-4 text-center" style={{ background: `linear-gradient(135deg, ${ACCENT}, #d6491f)` }}>
-            <p className="text-xl mb-1">🔥</p>
-            <p className="text-xs font-medium" style={{ color: '#fff' }}>Reste actif chaque jour</p>
           </div>
         </div>
 
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2 flex flex-col gap-3">
+            <div className="lg:hidden">{objectifsCard}</div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {activityTypes.map((t) => {
+                const isActive = type === t.key;
+                const color = TYPE_COLORS[t.key];
+                const current = getStat(t.key);
+                const target = typeQuotas[t.key] || 5;
+                const percent = Math.min(Math.round((current / target) * 100), 100);
+                const barColor =
+                  percent >= 100 ? '#22c55e' :
+                  percent >= 75 ? '#86efac' :
+                  percent >= 25 ? '#f97316' :
+                  '#ef4444';
+
+                return (
+                  <button
+                    key={t.key}
+                    onClick={() => handleTypeClick(t)}
+                    className="p-3 rounded-2xl border transition-all duration-150 active:scale-95 flex flex-col items-center"
+                    style={isActive
+                      ? { backgroundColor: color, borderColor: color, boxShadow: `0 4px 14px ${color}40` }
+                      : { backgroundColor: 'var(--surface)', borderColor: `${color}30`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+                  >
+                    <div
+                      className="w-9 h-9 rounded-lg flex items-center justify-center mb-1.5"
+                      style={{ backgroundColor: isActive ? 'rgba(255,255,255,0.22)' : `${color}15` }}
+                    >
+                      <Icon name={t.key} size={17} style={{ color: isActive ? '#fff' : color }} />
+                    </div>
+                    <span className="text-sm font-medium mb-2" style={{ color: isActive ? '#fff' : 'var(--text-primary)' }}>{t.label}</span>
+                    <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: isActive ? 'rgba(255,255,255,0.3)' : 'var(--border)' }}>
+                      <div
+                        className="h-full rounded-full transition-all duration-500 ease-out"
+                        style={{ width: `${Math.max(percent, 18)}%`, backgroundColor: barColor }}
+                      />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="p-4 sm:p-5 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+              {!type && (
+                <EmptyState
+                  icon="👆"
+                  title="Choisis un type ci-dessus"
+                  subtitle="Appel, rendez-vous, devis ou commande — sélectionne pour continuer."
+                />
+              )}
+
+              {type === 'appel' && (
+                <div className="animate-[fadeIn_0.2s_ease]">
+                  <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>Détail de l'appel</p>
+                  <div className="grid grid-cols-2 gap-2 mb-4">
+                    {['sortant', 'entrant'].map((s) => (
+                      <button key={s} onClick={() => setSens(s)} className="p-2.5 rounded-lg text-sm border transition-all active:scale-95"
+                        style={sens === s ? { backgroundColor: ACCENT, borderColor: ACCENT, color: '#fff', fontWeight: 500 } : { backgroundColor: 'var(--surface-strong)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                        {s === 'sortant' ? 'Sortant' : 'Entrant'}
+                      </button>
+                    ))}
+                    {['repond', 'ne_repond_pas'].map((s) => (
+                      <button key={s} onClick={() => setStatut(s)} className="p-2.5 rounded-lg text-sm border transition-all active:scale-95"
+                        style={statut === s ? { backgroundColor: ACCENT, borderColor: ACCENT, color: '#fff', fontWeight: 500 } : { backgroundColor: 'var(--surface-strong)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                        {s === 'repond' ? 'Répond' : 'Ne répond pas'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {type === 'rdv' && (
+                <div className="animate-[fadeIn_0.2s_ease]">
+                  <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>Détail du rendez-vous</p>
+                  <div className="grid grid-cols-2 gap-2 mb-4">
+                    {['present', 'absent'].map((s) => (
+                      <button key={s} onClick={() => setStatut(s)} className="p-2.5 rounded-lg text-sm border transition-all active:scale-95"
+                        style={statut === s ? { backgroundColor: ACCENT, borderColor: ACCENT, color: '#fff', fontWeight: 500 } : { backgroundColor: 'var(--surface-strong)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                        {s === 'present' ? 'Présent' : 'Absent'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {(type === 'devis' || type === 'commande') && (
+                <div className="animate-[fadeIn_0.2s_ease] text-center mb-2">
+                  <Icon name={type} size={28} className="mx-auto mb-2" style={{ color: 'var(--text-secondary)' }} />
+                  <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{labels[type]}</p>
+                </div>
+              )}
+
+              {type && (
+                <div className="animate-[fadeIn_0.2s_ease]">
+                  <p className="text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>Nombre</p>
+                  <div className="flex items-center gap-3 mb-4">
+                    <button
+                      onClick={() => setNombre((n) => Math.max(1, n - 1))}
+                      className="w-9 h-9 rounded-lg border text-lg flex items-center justify-center active:scale-95 transition-all"
+                      style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                    >
+                      −
+                    </button>
+                    <input
+                      type="number"
+                      min="1"
+                      max="1000"
+                      value={nombre}
+                      onChange={(e) => setNombre(Math.max(1, Math.min(1000, parseInt(e.target.value) || 1)))}
+                      className="w-16 text-center p-2 rounded-lg border outline-none focus:border-orange-500"
+                      style={{ backgroundColor: 'var(--surface-strong)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                    />
+                    <button
+                      onClick={() => setNombre((n) => Math.min(1000, n + 1))}
+                      className="w-9 h-9 rounded-lg border text-lg flex items-center justify-center active:scale-95 transition-all"
+                      style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={handleSubmit}
+                    disabled={!canSubmit() || submitting}
+                    className={`w-full p-2.5 rounded-lg font-medium transition-all active:scale-95 flex items-center justify-center gap-2 ${shake ? 'animate-[shake_0.4s_ease]' : ''}`}
+                    style={{
+                      backgroundColor: canSubmit() ? ACCENT : 'var(--border)',
+                      boxShadow: canSubmit() ? `0 4px 20px ${ACCENT}40` : 'none',
+                      cursor: canSubmit() ? 'pointer' : 'not-allowed',
+                      color: canSubmit() ? '#fff' : 'var(--text-muted)',
+                    }}
+                  >
+                    {submitting && <Spinner size={15} color="#fff" />}
+                    {submitting ? 'Enregistrement...' : `Enregistrer ${nombre > 1 ? `(${nombre})` : ''}`}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {message && <p className="text-sm font-medium animate-[fadeIn_0.2s_ease]" style={{ color: ACCENT }}>{message}</p>}
+          </div>
+
+          <div className="lg:col-span-1 flex flex-col gap-3">
+            <div className="hidden lg:block">{objectifsCard}</div>
+
+            <div className="rounded-2xl p-4 flex items-center gap-4" style={{ backgroundColor: ACCENT }}>
+              {points !== null && (
+                <div className="flex-1 flex items-center gap-2">
+                  <CoinIcon size={18} />
+                  <div>
+                    <p className="text-lg font-semibold leading-none" style={{ color: '#fff' }}>{points}</p>
+                    <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.75)' }}>Points</p>
+                  </div>
+                </div>
+              )}
+              <div className="w-px h-8" style={{ backgroundColor: 'rgba(255,255,255,0.3)' }} />
+              <div className="flex-1 flex items-center gap-2">
+                <span className="text-lg leading-none">🔥</span>
+                <p className="text-xs font-medium" style={{ color: '#fff' }}>Actif chaque jour</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <style>{`
