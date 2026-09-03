@@ -50,9 +50,9 @@ function Login() {
 
         {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
 
-        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
+        <input type="email" name="email" autoComplete="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
           className="w-full p-3 rounded-lg border border-black/15 mb-3 outline-none focus:border-orange-500 transition-colors" />
-        <input type="password" placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)}
+        <input type="password" name="password" autoComplete="current-password" placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)}
           className="w-full p-3 rounded-lg border border-black/15 mb-4 outline-none focus:border-orange-500 transition-colors" />
         <button
           type="submit"
