@@ -27,7 +27,7 @@ router.get('/commercials', authMiddleware, adminMiddleware, async (req, res) => 
   try {
     const result = await pool.query(
       `SELECT id, nom, email, odoo_user_id FROM users
-       WHERE role != 'admin' OR role IS NULL
+       WHERE (role != 'admin' OR role IS NULL) AND hidden = FALSE
        ORDER BY nom ASC`
     );
     res.json(result.rows);

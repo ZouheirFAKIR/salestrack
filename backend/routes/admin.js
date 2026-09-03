@@ -196,7 +196,7 @@ router.get('/commercials', async (req, res) => {
         FROM type_quotas
         GROUP BY commercial_id
       ) tq ON tq.commercial_id = u.id
-      WHERE u.role != 'admin' OR u.role IS NULL
+      WHERE (u.role != 'admin' OR u.role IS NULL) AND u.hidden = FALSE
       GROUP BY u.id, tq.appel, tq.rdv, tq.devis, tq.commande
       ORDER BY u.nom ASC
     `);

@@ -17,7 +17,7 @@ router.get('/daily-winner', verifyCronSecret, async (req, res) => {
        FROM activities a
        JOIN users u ON u.id = a.commercial_id
        WHERE DATE(a.date_activite) = CURRENT_DATE
-         AND (u.role != 'admin' OR u.role IS NULL)
+         AND (u.role != 'admin' OR u.role IS NULL) AND u.hidden = FALSE
        GROUP BY a.commercial_id
        ORDER BY total DESC
        LIMIT 1`

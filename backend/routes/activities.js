@@ -378,7 +378,7 @@ router.get('/leaderboard', authMiddleware, async (req, res) => {
        FROM users u
        LEFT JOIN activities a ON a.commercial_id = u.id
          AND DATE(a.date_activite) = CURRENT_DATE
-       WHERE u.role != 'admin' OR u.role IS NULL
+       WHERE (u.role != 'admin' OR u.role IS NULL) AND u.hidden = FALSE
        GROUP BY u.id, u.nom, u.photo_url
        ORDER BY total DESC
        LIMIT 20`
@@ -743,7 +743,7 @@ router.get('/race', authMiddleware, async (req, res) => {
        FROM users u
        LEFT JOIN activities a ON a.commercial_id = u.id
          AND a.date_activite >= $1 AND a.date_activite <= NOW()
-       WHERE u.role != 'admin' OR u.role IS NULL
+       WHERE (u.role != 'admin' OR u.role IS NULL) AND u.hidden = FALSE
        GROUP BY u.id
        ORDER BY total DESC`,
       [challenge.created_at]

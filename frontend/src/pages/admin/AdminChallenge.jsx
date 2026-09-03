@@ -84,10 +84,11 @@ function AdminChallenge() {
     }
   };
 
-  const handleEnd = async () => {
-    if (!activeChallenge?.id) return;
-    if (!window.confirm('Terminer ce défi maintenant ?')) return;
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
 
+  const confirmEnd = async () => {
+    if (!activeChallenge?.id) return;
+    setShowEndConfirm(false);
     setEnding(true);
     try {
       const res = await apiFetch(`${API_URL}/api/admin/challenge/${activeChallenge.id}/end`, {
@@ -157,7 +158,7 @@ function AdminChallenge() {
               </div>
 
               <button
-                onClick={handleEnd}
+                onClick={() => setShowEndConfirm(true)}
                 disabled={ending}
                 className="mt-6 text-sm px-4 py-2.5 rounded-lg transition-colors disabled:opacity-60 flex items-center gap-2 hover:bg-red-500/10"
                 style={{ border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444' }}
@@ -285,6 +286,35 @@ function AdminChallenge() {
           </form>
         )}
       </div>
+
+      {showEndConfirm && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setShowEndConfirm(false)}>
+          <div
+            className="rounded-2xl p-5 max-w-xs w-full"
+            style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Terminer ce défi ?</p>
+            <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>Cette action est immédiate et ne peut pas être annulée.</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowEndConfirm(false)}
+                className="flex-1 text-xs px-3 py-2 rounded-lg transition-colors hover:bg-[var(--surface-strong)]"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={confirmEnd}
+                className="flex-1 text-xs px-3 py-2 rounded-lg text-white font-medium"
+                style={{ backgroundColor: '#ef4444' }}
+              >
+                Confirmer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
