@@ -33,6 +33,8 @@ export default class RaceScene extends Phaser.Scene {
   drawScene() {
     const w = this.scale.width;
     const h = this.scale.height;
+    this.uiScale = Phaser.Math.Clamp(w / 800, 0.55, 1);
+    this.headerH = 60 * this.uiScale;
     this.trackH = h - this.headerH;
 
     this.bg.clear();
@@ -71,8 +73,9 @@ export default class RaceScene extends Phaser.Scene {
   }
 
   xForProgress(progress) {
-    const trackLeft = 46;
-    const trackRight = this.scale.width - 46;
+    const margin = 46 * this.uiScale;
+    const trackLeft = margin;
+    const trackRight = this.scale.width - margin;
     return trackLeft + (Math.min(Math.max(progress, 0), 100) / 100) * (trackRight - trackLeft);
   }
 
@@ -105,18 +108,22 @@ export default class RaceScene extends Phaser.Scene {
     const y = this.laneY(car.laneIndex, car.total);
     const x = this.xForProgress(car.progress);
     car.sprite.setPosition(x, y);
-    car.nameTag.setPosition(x, y - 32);
-    car.nameBg.setPosition(x, y - 32);
+    car.sprite.setScale(this.uiScale);
+    car.nameTag.setPosition(x, y - 32 * this.uiScale);
+    car.nameTag.setFontSize(Math.round(12 * this.uiScale));
+    car.nameBg.setPosition(x, y - 32 * this.uiScale);
   }
 
   drawNameTag(car, name, reached) {
+    car.nameTag.setFontSize(Math.round(12 * this.uiScale));
     car.nameTag.setText(name + (reached ? ' 🏆' : ''));
-    const w = car.nameTag.width + 20;
+    const w = car.nameTag.width + 16 * this.uiScale;
+    const hh = 10 * this.uiScale;
     car.nameBg.clear();
     car.nameBg.fillStyle(0xffffff, 1);
-    car.nameBg.lineStyle(2, reached ? 0xffd700 : car.color, 1);
-    car.nameBg.fillRoundedRect(-w / 2, -10, w, 20, 10);
-    car.nameBg.strokeRoundedRect(-w / 2, -10, w, 20, 10);
+    car.nameBg.lineStyle(Math.max(1.5, 2 * this.uiScale), reached ? 0xffd700 : car.color, 1);
+    car.nameBg.fillRoundedRect(-w / 2, -hh, w, hh * 2, hh);
+    car.nameBg.strokeRoundedRect(-w / 2, -hh, w, hh * 2, hh);
   }
 
   updateRunners(runners) {
@@ -139,7 +146,7 @@ export default class RaceScene extends Phaser.Scene {
         const nameBg = this.add.graphics();
         const nameTag = this.add.text(0, 0, r.nom, {
           fontFamily: 'Arial',
-          fontSize: '12px',
+          fontSize: `${Math.round(12 * (this.uiScale || 1))}px`,
           fontStyle: 'bold',
           color: '#1a202c',
         }).setOrigin(0.5);
@@ -166,7 +173,7 @@ export default class RaceScene extends Phaser.Scene {
       const newX = this.xForProgress(r.progress);
 
       this.tweens.add({ targets: car.sprite, x: newX, y, duration: 900, ease: 'Sine.easeOut' });
-      this.tweens.add({ targets: [car.nameTag, car.nameBg], x: newX, y: y - 32, duration: 900, ease: 'Sine.easeOut' });
+      this.tweens.add({ targets: [car.nameTag, car.nameBg], x: newX, y: y - 32 * this.uiScale, duration: 900, ease: 'Sine.easeOut' });
 
       car.progress = r.progress;
 
