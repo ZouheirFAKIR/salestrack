@@ -18,6 +18,7 @@ function PhaserRaceGame({ runners }) {
       transparent: true,
       width: Math.max(rect.width, 300),
       height: Math.max(rect.height, 300),
+      resolution: Math.min(window.devicePixelRatio || 1, 2),
       scale: {
         mode: Phaser.Scale.RESIZE,
       },
