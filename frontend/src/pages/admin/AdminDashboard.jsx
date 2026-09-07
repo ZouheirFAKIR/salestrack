@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../../utils/api';
 import { Icon } from '../../data/icons';
+import { TYPE_COLORS } from '../../data/typeColors';
 import PageLoader from '../../components/PageLoader';
 import Spinner from '../../components/Spinner';
 import LineChart from '../../components/LineChart';
@@ -297,7 +298,7 @@ function CommercialRow({ c, onSelect, index }) {
           return (
             <div key={type}>
               <div className="flex items-center gap-1.5 mb-1">
-                <Icon name={type} size={11} style={{ color: 'var(--text-muted)' }} />
+                <Icon name={type} size={11} style={{ color: TYPE_COLORS[type] }} />
                 <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{current}/{target}</span>
               </div>
               <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface-strong)' }}>

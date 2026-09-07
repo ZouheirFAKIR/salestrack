@@ -381,4 +381,81 @@ router.get('/activities/:commercialId', authMiddleware, async (req, res) => {
   }
 });
 
+
+router.get('/pipeline/:commercialId', authMiddleware, async (req, res) => {
+  const { commercialId } = req.params;
+
+  try {
+    const userResult = await pool.query('SELECT odoo_user_id FROM users WHERE id = $1', [commercialId]);
+    const odooUserId = userResult.rows[0]?.odoo_user_id;
+
+    if (!odooUserId) {
+      return res.json({ linked: false, total: 0, byStage: [], withActivity: 0, withoutActivity: 0, withoutActivityList: [] });
+    }
+
+    const leads = await odoo.execute(
+      'crm.lead',
+      'search_read',
+      [[
+        ['user_id', '=', odooUserId],
+        ['type', '=', 'opportunity'],
+        ['active', '=', true],
+      ]],
+      { fields: ['name', 'stage_id', 'activity_state'] }
+    );
+
+    const stages = await odoo.execute(
+      'crm.stage',
+      'search_read',
+      [[]],
+      { fields: ['id', 'name', 'sequence'] }
+    );
+
+    const stageMap = {};
+    stages.forEach((s) => { stageMap[s.id] = { id: s.id, name: s.name, sequence: s.sequence, count: 0 }; });
+
+    let withActivity = 0;
+    const withoutActivityList = [];
+    leads.forEach((l) => {
+      const stageId = l.stage_id ? l.stage_id[0] : null;
+      if (stageId && stageMap[stageId]) stageMap[stageId].count++;
+      if (l.activity_state) {
+        withActivity++;
+      } else {
+        withoutActivityList.push({ id: l.id, name: l.name, stage: l.stage_id ? l.stage_id[1] : null });
+      }
+    });
+
+    const total = leads.length;
+    const withoutActivity = total - withActivity;
+
+    const byStage = Object.values(stageMap)
+      .filter((s) => s.count > 0)
+      .sort((a, b) => a.sequence - b.sequence)
+      .map((s) => ({
+        id: s.id,
+        name: s.name,
+        count: s.count,
+        percent: total > 0 ? Math.round((s.count / total) * 100) : 0,
+      }));
+
+    res.json({
+      linked: true,
+      total,
+      byStage,
+      withActivity,
+      withoutActivity,
+      withoutActivityList,
+      withActivityPercent: total > 0 ? Math.round((withActivity / total) * 100) : 0,
+      withoutActivityPercent: total > 0 ? Math.round((withoutActivity / total) * 100) : 0,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur de connexion à Odoo' });
+  }
+});
+
+module.exports = router;
+
+
 module.exports = router;

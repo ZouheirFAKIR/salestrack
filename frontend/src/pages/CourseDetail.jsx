@@ -4,6 +4,7 @@ import { apiFetch } from '../utils/api';
 import PageLoader from '../components/PageLoader';
 import Spinner from '../components/Spinner';
 import Confetti from '../components/Confetti';
+import { downloadCertificate } from '../utils/generateCertificate';
 
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -328,6 +329,22 @@ function CourseDetail() {
                   <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
                     Contacte un admin si tu souhaites la repasser.
                   </p>
+                  {course.max_score > 0 && course.best_score / course.max_score >= 0.7 && (
+                    <button
+                      onClick={() => {
+                        const u = JSON.parse(localStorage.getItem('user') || 'null');
+                        downloadCertificate({
+                          userName: u?.nom || 'Commercial',
+                          courseTitle: course.title,
+                          date: new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
+                        });
+                      }}
+                      className="mt-3 text-xs px-5 py-2.5 rounded-xl text-white font-semibold transition-all hover:brightness-110 inline-flex items-center gap-2"
+                      style={{ backgroundColor: ACCENT, boxShadow: `0 4px 20px ${ACCENT}40` }}
+                    >
+                      🏆 Télécharger mon attestation
+                    </button>
+                  )}
                 </div>
               ) : (
                 <button
@@ -563,6 +580,22 @@ function CourseDetail() {
           <p className="text-sm mb-8" style={{ color: 'var(--text-secondary)' }}>
             Tu as obtenu {result.score} / {result.maxScore} points.
           </p>
+          {result.percent >= 70 && (
+            <button
+              onClick={() => {
+                const u = JSON.parse(localStorage.getItem('user') || 'null');
+                downloadCertificate({
+                  userName: u?.nom || 'Commercial',
+                  courseTitle: course.title,
+                  date: new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
+                });
+              }}
+              className="mb-5 text-xs px-5 py-2.5 rounded-xl text-white font-semibold transition-all hover:brightness-110 inline-flex items-center gap-2"
+              style={{ backgroundColor: ACCENT, boxShadow: `0 4px 20px ${ACCENT}40` }}
+            >
+              🏆 Télécharger mon attestation
+            </button>
+          )}
           <div className="flex items-center justify-center gap-3">
             <button
               onClick={handleRestart}

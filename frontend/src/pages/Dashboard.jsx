@@ -2,9 +2,12 @@ import { useEffect, useState } from 'react';
 import OdooRangeCard from '../components/OdooRangeCard';
 import OdooActivitiesCard from '../components/OdooActivitiesCard';
 import OdooActivitiesChartCard from '../components/OdooActivitiesChartCard';
+import OdooPipelineCard from '../components/OdooPipelineCard';
 import PageLoader from '../components/PageLoader';
+import CommercialDetail from '../components/CommercialDetail';
 import { apiFetch } from '../utils/api';
 import { Icon } from '../data/icons';
+import { TYPE_COLORS } from '../data/typeColors';
 import goldTrophy from '../assets/trophy.png';
 import silverTrophy from '../assets/2sd_Trophie.png';
 import bronzeTrophy from '../assets/Bronze_Trophie.png';
@@ -33,7 +36,7 @@ const RANK_STYLES = {
   3: { icon: bronzeTrophy },
 };
 
-function Leaderboard({ entries, currentUserId }) {
+function Leaderboard({ entries, currentUserId, onSelectUser }) {
   if (!entries || entries.length === 0) return null;
 
   return (
@@ -47,10 +50,12 @@ function Leaderboard({ entries, currentUserId }) {
           return (
             <div
               key={e.id}
+              onClick={() => onSelectUser(e)}
               className="flex items-center gap-3 rounded-xl p-2.5 transition-colors"
               style={{
                 backgroundColor: isMe ? `${ACCENT}14` : 'var(--surface-strong)',
                 border: isMe ? `1px solid ${ACCENT}55` : '1px solid transparent',
+                cursor: 'pointer',
               }}
             >
               {rankStyle ? (
@@ -108,6 +113,7 @@ function Dashboard() {
   const [typeQuotas, setTypeQuotas] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedCommercial, setSelectedCommercial] = useState(null);
 
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -187,18 +193,14 @@ function Dashboard() {
                 const percent = Math.min(Math.round((current / target) * 100), 100);
                 const circumference = 2 * Math.PI * 26;
 
-                const ringColor =
-                  percent >= 100 ? '#22c55e' :
-                  percent >= 75 ? '#86efac' :
-                  percent >= 25 ? '#f97316' :
-                  '#ef4444';
+                const ringColor = TYPE_COLORS[type];
                 const displayPercent = Math.max(percent, 4);
 
                 return (
                   <div
                     key={type}
                     className="rounded-xl p-3 flex flex-col items-center text-center"
-                    style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)', animation: `popIn 0.4s ease ${i * 0.06}s both` }}
+                    style={{ backgroundColor: 'var(--surface-strong)', border: `1px solid ${TYPE_COLORS[type]}30`, borderTop: `2.5px solid ${TYPE_COLORS[type]}`, animation: `popIn 0.4s ease ${i * 0.06}s both` }}
                   >
                     <div className="relative w-16 h-16 mb-2">
                       <svg viewBox="0 0 64 64" className="w-16 h-16 -rotate-90">
@@ -211,7 +213,7 @@ function Dashboard() {
                         />
                       </svg>
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <Icon name={type} size={18} style={{ color: ACCENT }} />
+                        <Icon name={type} size={18} style={{ color: TYPE_COLORS[type] }} />
                       </div>
                     </div>
                     <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}><AnimatedNumber value={current} />/{target}</p>
@@ -222,7 +224,11 @@ function Dashboard() {
             </div>
           </div>
 
-          <Leaderboard entries={leaderboard} currentUserId={user?.id} />
+          <Leaderboard
+            entries={leaderboard}
+            currentUserId={user?.id}
+            onSelectUser={setSelectedCommercial}
+          />
         </div>
 
         <div>
@@ -233,9 +239,18 @@ function Dashboard() {
               <OdooActivitiesCard commercialId={user?.id} />
               <OdooActivitiesChartCard commercialId={user?.id} />
             </div>
+            <OdooPipelineCard commercialId={user?.id} />
           </div>
         </div>
       </div>
+
+      {selectedCommercial && (
+        <CommercialDetail
+          commercial={selectedCommercial}
+          onClose={() => setSelectedCommercial(null)}
+          onQuotaUpdated={() => {}}
+        />
+      )}
 
       <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>
     </div>

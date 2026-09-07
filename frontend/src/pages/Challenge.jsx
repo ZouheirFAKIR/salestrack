@@ -1,7 +1,9 @@
 import { useEffect, useState, useRef } from 'react';
 import PageLoader from '../components/PageLoader';
-import Spinner from '../components/Spinner';
 import PhaserRaceGame from '../components/PhaserRaceGame';
+import PhaserMountainGame from '../components/PhaserMountainGame';
+import PhaserRocketGame from '../components/PhaserRocketGame';
+import PhaserOceanGame from '../components/PhaserOceanGame';
 import CountdownClock from '../components/CountdownClock';
 import Confetti from '../components/Confetti';
 import { Icon } from '../data/icons';
@@ -10,6 +12,12 @@ import { apiFetch } from '../utils/api';
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const TYPE_LABELS = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
+const GAME_LABELS = {
+  race: { emoji: '🏎️', label: 'Course' },
+  mountain: { emoji: '⛰️', label: 'Montagne' },
+  rocket: { emoji: '🚀', label: 'Fusée' },
+  ocean: { emoji: '🤿', label: 'Océan' },
+};
 
 function WinnerModal({ winnerNom, title, onClose }) {
   return (
@@ -33,6 +41,13 @@ function WinnerModal({ winnerNom, title, onClose }) {
       </div>
     </div>
   );
+}
+
+function GameRenderer({ gameType, runners }) {
+  if (gameType === 'mountain') return <PhaserMountainGame runners={runners} />;
+  if (gameType === 'rocket') return <PhaserRocketGame runners={runners} />;
+  if (gameType === 'ocean') return <PhaserOceanGame runners={runners} />;
+  return <PhaserRaceGame runners={runners} />;
 }
 
 function Challenge() {
@@ -83,6 +98,8 @@ function Challenge() {
 
   if (loading) return <PageLoader />;
 
+  const challenges = data?.challenges || [];
+
   return (
     <div className="max-w-6xl mx-auto p-4 sm:p-6 flex flex-col gap-6">
       <Confetti show={showConfetti} />
@@ -95,37 +112,51 @@ function Challenge() {
       )}
       <div>
         <h1 className="text-lg font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Défi</h1>
-        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Le sprint collectif du moment</p>
+        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Les sprints collectifs du moment</p>
       </div>
 
-      {data?.active ? (
-        <div className="rounded-2xl p-4 sm:p-5 flex flex-col" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', height: '70vh', minHeight: 480 }}>
-          <div className="flex items-center justify-between mb-1 flex-wrap gap-2 shrink-0">
-            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{data.title}</p>
-            <CountdownClock deadline={data.deadline} />
-          </div>
+      {challenges.length > 0 ? (
+        <div className="flex flex-col gap-6">
+          {challenges.map((c) => {
+            const info = GAME_LABELS[c.gameType] || GAME_LABELS.race;
+            return (
+              <div
+                key={c.id}
+                className="rounded-2xl p-4 sm:p-5 flex flex-col"
+                style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', height: 520 }}
+              >
+                <div className="flex items-center justify-between mb-1 flex-wrap gap-2 shrink-0">
+                  <p className="text-sm font-semibold flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
+                    <span>{info.emoji}</span>
+                    {c.title}
+                  </p>
+                  <CountdownClock deadline={c.deadline} />
+                </div>
 
-          <div className="flex flex-wrap gap-2 mb-4 shrink-0">
-            {['appel', 'rdv', 'devis', 'commande'].map((type) => {
-              const target = data.targets?.[type] || 0;
-              if (target <= 0) return null;
-              return (
-                <span
-                  key={type}
-                  className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full"
-                  style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
-                >
-                  <Icon name={type} size={13} style={{ color: ACCENT }} />
-                  <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{target}</span>
-                  {TYPE_LABELS[type]}
-                </span>
-              );
-            })}
-          </div>
+                <div className="flex flex-wrap gap-2 mb-4 shrink-0">
+                  {['appel', 'rdv', 'devis', 'commande'].map((type) => {
+                    const target = c.targets?.[type] || 0;
+                    if (target <= 0) return null;
+                    return (
+                      <span
+                        key={type}
+                        className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full"
+                        style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+                      >
+                        <Icon name={type} size={13} style={{ color: ACCENT }} />
+                        <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{target}</span>
+                        {TYPE_LABELS[type]}
+                      </span>
+                    );
+                  })}
+                </div>
 
-          <div className="flex-1 min-h-0">
-            <PhaserRaceGame runners={data.runners} />
-          </div>
+                <div className="flex-1 min-h-0">
+                  <GameRenderer gameType={c.gameType} runners={c.runners} />
+                </div>
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div className="rounded-2xl p-8 text-center" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>

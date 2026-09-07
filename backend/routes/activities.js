@@ -2,7 +2,76 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const authMiddleware = require('../middleware/authMiddleware');
+const odoo = require('../utils/odooClient');
+const { toMoroccoDate } = odoo;
 const crypto = require('crypto');
+
+router.get('/tv-display', async (req, res) => {
+  try {
+    const usersResult = await pool.query(`
+      SELECT u.id, u.nom, u.photo_url, u.odoo_user_id,
+        COALESCE(MAX(tq.devis), 3) as target_devis,
+        COALESCE(MAX(tq.commande), 1) as target_commande
+      FROM users u
+      LEFT JOIN (
+        SELECT commercial_id,
+          MAX(daily_target) FILTER (WHERE type = 'devis') as devis,
+          MAX(daily_target) FILTER (WHERE type = 'commande') as commande
+        FROM type_quotas
+        GROUP BY commercial_id
+      ) tq ON tq.commercial_id = u.id
+      WHERE u.hidden = FALSE AND u.odoo_user_id IS NOT NULL
+      GROUP BY u.id
+      ORDER BY u.nom ASC
+    `);
+    const users = usersResult.rows;
+
+    if (users.length === 0) return res.json([]);
+
+    const now = new Date();
+    const todayStr = toMoroccoDate(now.toISOString());
+    const prevDay = new Date(now); prevDay.setUTCDate(prevDay.getUTCDate() - 1);
+    const nextDay = new Date(now); nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+    const odooUserIds = users.map((u) => u.odoo_user_id);
+
+    const orders = await odoo.execute(
+      'sale.order',
+      'search_read',
+      [[
+        ['user_id', 'in', odooUserIds],
+        ['create_date', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
+        ['create_date', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
+      ]],
+      { fields: ['user_id', 'state', 'amount_total', 'create_date'] }
+    );
+
+    const ordersToday = orders.filter((o) => toMoroccoDate(o.create_date) === todayStr);
+
+    const result = users.map((u) => {
+      const userOrders = ordersToday.filter((o) => o.user_id && o.user_id[0] === u.odoo_user_id);
+      const devis = userOrders.filter((o) => ['draft', 'sent'].includes(o.state)).length;
+      const commandesList = userOrders.filter((o) => ['sale', 'done'].includes(o.state));
+      const commandes = commandesList.length;
+      const chiffreAffaires = Math.round(commandesList.reduce((sum, o) => sum + o.amount_total, 0) * 100) / 100;
+
+      return {
+        id: u.id,
+        nom: u.nom,
+        photo_url: u.photo_url,
+        devis,
+        commandes,
+        chiffreAffaires,
+        targetDevis: Number(u.target_devis),
+        targetCommande: Number(u.target_commande),
+      };
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur de connexion à Odoo' });
+  }
+});
 
 router.post('/', authMiddleware, async (req, res) => {
   const { type, sens, statut, description } = req.body;
@@ -369,7 +438,7 @@ router.get('/stats', authMiddleware, async (req, res) => {
 router.get('/leaderboard', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT u.id, u.nom, u.photo_url,
+      `SELECT u.id, u.nom, u.email, u.photo_url,
          COALESCE(COUNT(a.id), 0) as total,
          COUNT(a.id) FILTER (WHERE a.type = 'appel') as appel,
          COUNT(a.id) FILTER (WHERE a.type = 'rdv') as rdv,
@@ -379,7 +448,7 @@ router.get('/leaderboard', authMiddleware, async (req, res) => {
        LEFT JOIN activities a ON a.commercial_id = u.id
          AND DATE(a.date_activite) = CURRENT_DATE
        WHERE (u.role != 'admin' OR u.role IS NULL) AND u.hidden = FALSE
-       GROUP BY u.id, u.nom, u.photo_url
+       GROUP BY u.id, u.nom, u.email, u.photo_url
        ORDER BY total DESC
        LIMIT 20`
     );
@@ -699,86 +768,81 @@ router.get('/challenges-history', authMiddleware, async (req, res) => {
 
 router.get('/race', authMiddleware, async (req, res) => {
   try {
-    const challengeResult = await pool.query(
+    const challengesResult = await pool.query(
       `SELECT c.*, u.nom as winner_nom FROM challenges c
        LEFT JOIN users u ON u.id = c.winner_id
        WHERE c.ended = FALSE
-       ORDER BY c.created_at DESC LIMIT 1`
+       ORDER BY c.created_at DESC`
     );
-    const challenge = challengeResult.rows[0];
 
-    if (!challenge) {
-      const lastResult = await pool.query(
-        `SELECT c.*, u.nom as winner_nom, u.photo_url as winner_photo_url FROM challenges c
-         LEFT JOIN users u ON u.id = c.winner_id
-         WHERE c.ended = TRUE
-         ORDER BY c.created_at DESC LIMIT 1`
+    const challenges = await Promise.all(challengesResult.rows.map(async (challenge) => {
+      const result = await pool.query(
+        `SELECT u.id, u.nom, u.photo_url,
+           COUNT(a.id) as total,
+           COUNT(a.id) FILTER (WHERE a.type = 'appel') as appel,
+           COUNT(a.id) FILTER (WHERE a.type = 'rdv') as rdv,
+           COUNT(a.id) FILTER (WHERE a.type = 'devis') as devis,
+           COUNT(a.id) FILTER (WHERE a.type = 'commande') as commande
+         FROM users u
+         LEFT JOIN activities a ON a.commercial_id = u.id
+           AND a.date_activite >= $1 AND a.date_activite <= NOW()
+         WHERE (u.role != 'admin' OR u.role IS NULL) AND u.hidden = FALSE
+         GROUP BY u.id
+         ORDER BY total DESC`,
+        [challenge.created_at]
       );
-      const last = lastResult.rows[0];
 
-      if (!last) return res.json({ active: false, runners: [], last: null });
-
-      return res.json({
-        active: false,
-        runners: [],
-        last: {
-          title: last.title,
-          target: last.target,
-          deadline: last.deadline,
-          winnerId: last.winner_id,
-          winnerNom: last.winner_nom,
-          winnerPhotoUrl: last.winner_photo_url,
-          createdAt: last.created_at,
+      const runners = result.rows.map((r) => ({
+        id: r.id,
+        nom: r.nom,
+        photo_url: r.photo_url,
+        total: Number(r.total),
+        breakdown: {
+          appel: Number(r.appel),
+          rdv: Number(r.rdv),
+          devis: Number(r.devis),
+          commande: Number(r.commande),
         },
-      });
-    }
+        progress: Math.min(Math.round((Number(r.total) / challenge.target) * 100), 100),
+        isWinner: r.id === challenge.winner_id,
+      }));
 
-    const result = await pool.query(
-      `SELECT u.id, u.nom, u.photo_url,
-         COUNT(a.id) as total,
-         COUNT(a.id) FILTER (WHERE a.type = 'appel') as appel,
-         COUNT(a.id) FILTER (WHERE a.type = 'rdv') as rdv,
-         COUNT(a.id) FILTER (WHERE a.type = 'devis') as devis,
-         COUNT(a.id) FILTER (WHERE a.type = 'commande') as commande
-       FROM users u
-       LEFT JOIN activities a ON a.commercial_id = u.id
-         AND a.date_activite >= $1 AND a.date_activite <= NOW()
-       WHERE (u.role != 'admin' OR u.role IS NULL) AND u.hidden = FALSE
-       GROUP BY u.id
-       ORDER BY total DESC`,
-      [challenge.created_at]
-    );
-
-    const runners = result.rows.map((r) => ({
-      id: r.id,
-      nom: r.nom,
-      photo_url: r.photo_url,
-      total: Number(r.total),
-      breakdown: {
-        appel: Number(r.appel),
-        rdv: Number(r.rdv),
-        devis: Number(r.devis),
-        commande: Number(r.commande),
-      },
-      progress: Math.min(Math.round((Number(r.total) / challenge.target) * 100), 100),
-      isWinner: r.id === challenge.winner_id,
+      return {
+        id: challenge.id,
+        gameType: challenge.game_type,
+        title: challenge.title,
+        target: challenge.target,
+        targets: {
+          appel: challenge.target_appel,
+          rdv: challenge.target_rdv,
+          devis: challenge.target_devis,
+          commande: challenge.target_commande,
+        },
+        deadline: challenge.deadline,
+        winnerId: challenge.winner_id,
+        winnerNom: challenge.winner_nom,
+        runners,
+      };
     }));
 
-    res.json({
-      active: true,
-      title: challenge.title,
-      target: challenge.target,
-      targets: {
-        appel: challenge.target_appel,
-        rdv: challenge.target_rdv,
-        devis: challenge.target_devis,
-        commande: challenge.target_commande,
-      },
-      deadline: challenge.deadline,
-      winnerId: challenge.winner_id,
-      winnerNom: challenge.winner_nom,
-      runners,
-    });
+    const lastResult = await pool.query(
+      `SELECT c.*, u.nom as winner_nom, u.photo_url as winner_photo_url FROM challenges c
+       LEFT JOIN users u ON u.id = c.winner_id
+       WHERE c.ended = TRUE
+       ORDER BY c.created_at DESC LIMIT 1`
+    );
+    const lastRow = lastResult.rows[0];
+    const last = lastRow ? {
+      title: lastRow.title,
+      target: lastRow.target,
+      deadline: lastRow.deadline,
+      winnerId: lastRow.winner_id,
+      winnerNom: lastRow.winner_nom,
+      winnerPhotoUrl: lastRow.winner_photo_url,
+      createdAt: lastRow.created_at,
+    } : null;
+
+    res.json({ active: challenges.length > 0, challenges, last });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur' });

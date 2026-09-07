@@ -4,23 +4,25 @@ const cache = new Map();
 const CACHE_TTL = 30000; // 30 secondes
 
 export async function apiFetch(url, options = {}) {
+  const { skipCache, ...fetchOptions } = options;
   const token = localStorage.getItem('token');
-  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+  const headers = { 'Content-Type': 'application/json', ...(fetchOptions.headers || {}) };
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const method = (options.method || 'GET').toUpperCase();
+  const method = (fetchOptions.method || 'GET').toUpperCase();
   const isGet = method === 'GET';
 
   // Si on a déjà cette donnée en mémoire depuis moins de 30s, on la renvoie
-  // directement, sans repasser par le serveur.
-  if (isGet) {
+  // directement, sans repasser par le serveur. (sauf si skipCache est demandé,
+  // pour les données qui doivent toujours être fraîches, comme le chat)
+  if (isGet && !skipCache) {
     const cached = cache.get(url);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       return { ok: true, status: 200, json: async () => cached.data };
     }
   }
 
-  const res = await fetch(url, { ...options, headers });
+  const res = await fetch(url, { ...fetchOptions, headers });
 
   if (res.status === 401) {
     localStorage.removeItem('token');
@@ -29,7 +31,7 @@ export async function apiFetch(url, options = {}) {
     return res;
   }
 
-  if (isGet && res.ok) {
+  if (isGet && res.ok && !skipCache) {
     // On sauvegarde la réponse pour la prochaine fois.
     res.clone().json().then((data) => {
       cache.set(url, { data, timestamp: Date.now() });

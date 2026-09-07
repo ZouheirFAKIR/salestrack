@@ -8,6 +8,7 @@ import Challenge from './pages/Challenge';
 import Feed from './pages/Feed';
 import Profile from './pages/Profile';
 import Badges from './pages/Badges';
+import MyCertificates from './pages/MyCertificates';
 import Rewards from './pages/Rewards';
 import Courses from './pages/Courses';
 import CourseDetail from './pages/CourseDetail';
@@ -19,10 +20,13 @@ import AdminOdooMapping from './pages/admin/AdminOdooMapping';
 import AdminChallenge from './pages/admin/AdminChallenge';
 import AdminRoute from './components/AdminRoute';
 import Login from './pages/Login';
+import TvDisplay from './pages/TvDisplay';
 import Signup from './pages/Signup';
 import TargetModal from './components/TargetModal';
 import SuccessModal from './components/SuccessModal';
 import AmbientBackground from './components/AmbientBackground';
+import ChatWidget from './components/ChatWidget';
+import ChallengeNotifier from './components/ChallengeNotifier';
 import { apiFetch } from './utils/api';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -79,6 +83,8 @@ function AppLayout({ children }) {
         <main className="flex-1 pb-6">{children}</main>
         <Footer />
       </div>
+      <ChatWidget />
+      <ChallengeNotifier />
     </div>
   );
 }
@@ -90,12 +96,14 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/tv" element={<TvDisplay />} />
         <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />
         <Route path="/nouvelle-activite" element={<AppLayout><NouvelleActivite /></AppLayout>} />
         <Route path="/challenge" element={<AppLayout><Challenge /></AppLayout>} />
         <Route path="/feed" element={<AppLayout><Feed /></AppLayout>} />
         <Route path="/profile" element={<AppLayout><Profile /></AppLayout>} />
         <Route path="/badges" element={<AppLayout><Badges /></AppLayout>} />
+        <Route path="/certificates" element={<AppLayout><MyCertificates /></AppLayout>} />
         <Route path="/rewards" element={<AppLayout><Rewards /></AppLayout>} />
         <Route path="/courses" element={<AppLayout><Courses /></AppLayout>} />
         <Route path="/courses/:id" element={<AppLayout><CourseDetail /></AppLayout>} />

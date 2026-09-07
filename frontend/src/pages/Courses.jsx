@@ -47,6 +47,7 @@ function Courses() {
   const totalMax = courses.reduce((sum, c) => sum + (c.max_score || 0), 0);
   const completedCount = courses.filter((c) => c.completed).length;
   const progressPercent = courses.length > 0 ? Math.round((completedCount / courses.length) * 100) : 0;
+  const certificatesCount = courses.filter((c) => c.completed && c.max_score > 0 && c.best_score / c.max_score >= 0.7).length;
 
   const filteredCourses = filter === 'all' ? courses : courses.filter((c) => (c.content_type || 'text') === filter);
 
@@ -103,6 +104,27 @@ function Courses() {
             </div>
           </div>
         </div>
+
+        <Link
+          to="/certificates"
+          className="flex items-center gap-4 rounded-2xl px-5 py-4 transition-all hover:-translate-y-0.5"
+          style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+        >
+          <div className="w-11 h-11 rounded-full flex items-center justify-center text-xl shrink-0" style={{ backgroundColor: `${ACCENT}18` }}>
+            🏆
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Mes certificats</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              {certificatesCount > 0
+                ? `${certificatesCount} attestation${certificatesCount > 1 ? 's' : ''} obtenue${certificatesCount > 1 ? 's' : ''}`
+                : 'Termine une formation avec au moins 70% pour en obtenir une'}
+            </p>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-muted)' }}>
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </Link>
 
         {courses.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap">

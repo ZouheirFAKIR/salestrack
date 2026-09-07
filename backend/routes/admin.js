@@ -271,6 +271,38 @@ router.get('/commercials/:id', async (req, res) => {
   }
 });
 
+// Activités d'un commercial pour UN type précis, sur une semaine donnée (offset=0 = semaine en cours, -1 = semaine précédente, etc.)
+router.get('/commercials/:id/activity-week', async (req, res) => {
+  const { id } = req.params;
+  const type = ['appel', 'rdv', 'devis', 'commande'].includes(req.query.type) ? req.query.type : 'appel';
+  const offset = parseInt(req.query.offset, 10) || 0;
+
+  try {
+    const result = await pool.query(
+      `SELECT TO_CHAR(d, 'YYYY-MM-DD') as jour, COALESCE(COUNT(a.id), 0) as total
+       FROM generate_series(
+         (CURRENT_DATE + ($3 * INTERVAL '7 days')) - INTERVAL '6 days',
+         CURRENT_DATE + ($3 * INTERVAL '7 days'),
+         INTERVAL '1 day'
+       ) d
+       LEFT JOIN activities a ON DATE(a.date_activite) = d AND a.commercial_id = $1 AND a.type = $2
+       GROUP BY d ORDER BY d ASC`,
+      [id, type, offset]
+    );
+
+    res.json({
+      type,
+      offset,
+      start: result.rows[0]?.jour || null,
+      end: result.rows[result.rows.length - 1]?.jour || null,
+      daily: result.rows,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 // Définir/modifier le quota d'un commercial (legacy, non utilisé par l'UI actuelle)
 router.put('/commercials/:id/quota', async (req, res) => {
   const { daily_target } = req.body;
@@ -559,65 +591,64 @@ router.post('/notifications/redemptions/mark-seen', async (req, res) => {
 
 router.get('/challenge', async (req, res) => {
   try {
-    const challengeResult = await pool.query(
+    const challengesResult = await pool.query(
       `SELECT c.*, u.nom as winner_nom FROM challenges c
        LEFT JOIN users u ON u.id = c.winner_id
        WHERE c.ended = FALSE
-       ORDER BY c.created_at DESC LIMIT 1`
-    );
-    const challenge = challengeResult.rows[0];
-
-    if (!challenge) {
-      return res.json({ active: false, runners: [] });
-    }
-
-    const runnersResult = await pool.query(
-      `SELECT u.id, u.nom, u.photo_url,
-         COUNT(a.id) as total,
-         COUNT(a.id) FILTER (WHERE a.type = 'appel') as appel,
-         COUNT(a.id) FILTER (WHERE a.type = 'rdv') as rdv,
-         COUNT(a.id) FILTER (WHERE a.type = 'devis') as devis,
-         COUNT(a.id) FILTER (WHERE a.type = 'commande') as commande
-       FROM users u
-       LEFT JOIN activities a ON a.commercial_id = u.id
-         AND a.date_activite >= $1 AND a.date_activite <= NOW()
-       WHERE u.role != 'admin' OR u.role IS NULL
-       GROUP BY u.id
-       ORDER BY total DESC`,
-      [challenge.created_at]
+       ORDER BY c.created_at DESC`
     );
 
-    const runners = runnersResult.rows.map((r) => ({
-      id: r.id,
-      nom: r.nom,
-      photo_url: r.photo_url,
-      total: Number(r.total),
-      breakdown: {
-        appel: Number(r.appel),
-        rdv: Number(r.rdv),
-        devis: Number(r.devis),
-        commande: Number(r.commande),
-      },
-      progress: Math.min(Math.round((Number(r.total) / challenge.target) * 100), 100),
-      isWinner: r.id === challenge.winner_id,
+    const challenges = await Promise.all(challengesResult.rows.map(async (challenge) => {
+      const runnersResult = await pool.query(
+        `SELECT u.id, u.nom, u.photo_url,
+           COUNT(a.id) as total,
+           COUNT(a.id) FILTER (WHERE a.type = 'appel') as appel,
+           COUNT(a.id) FILTER (WHERE a.type = 'rdv') as rdv,
+           COUNT(a.id) FILTER (WHERE a.type = 'devis') as devis,
+           COUNT(a.id) FILTER (WHERE a.type = 'commande') as commande
+         FROM users u
+         LEFT JOIN activities a ON a.commercial_id = u.id
+           AND a.date_activite >= $1 AND a.date_activite <= NOW()
+         WHERE (u.role != 'admin' OR u.role IS NULL) AND u.hidden = FALSE
+         GROUP BY u.id
+         ORDER BY total DESC`,
+        [challenge.created_at]
+      );
+
+      const runners = runnersResult.rows.map((r) => ({
+        id: r.id,
+        nom: r.nom,
+        photo_url: r.photo_url,
+        total: Number(r.total),
+        breakdown: {
+          appel: Number(r.appel),
+          rdv: Number(r.rdv),
+          devis: Number(r.devis),
+          commande: Number(r.commande),
+        },
+        progress: Math.min(Math.round((Number(r.total) / challenge.target) * 100), 100),
+        isWinner: r.id === challenge.winner_id,
+      }));
+
+      return {
+        id: challenge.id,
+        gameType: challenge.game_type,
+        title: challenge.title,
+        target: challenge.target,
+        targets: {
+          appel: challenge.target_appel,
+          rdv: challenge.target_rdv,
+          devis: challenge.target_devis,
+          commande: challenge.target_commande,
+        },
+        deadline: challenge.deadline,
+        winnerId: challenge.winner_id,
+        winnerNom: challenge.winner_nom,
+        runners,
+      };
     }));
 
-    res.json({
-      active: true,
-      id: challenge.id,
-      title: challenge.title,
-      target: challenge.target,
-      targets: {
-        appel: challenge.target_appel,
-        rdv: challenge.target_rdv,
-        devis: challenge.target_devis,
-        commande: challenge.target_commande,
-      },
-      deadline: challenge.deadline,
-      winnerId: challenge.winner_id,
-      winnerNom: challenge.winner_nom,
-      runners,
-    });
+    res.json({ challenges });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -625,7 +656,7 @@ router.get('/challenge', async (req, res) => {
 });
 
 router.post('/challenge', async (req, res) => {
-  const { title, deadline } = req.body;
+  const { title, deadline, gameType } = req.body;
   const targetAppel = parseInt(req.body.targetAppel, 10) || 0;
   const targetRdv = parseInt(req.body.targetRdv, 10) || 0;
   const targetDevis = parseInt(req.body.targetDevis, 10) || 0;
@@ -638,11 +669,18 @@ router.post('/challenge', async (req, res) => {
 
   try {
     const result = await pool.query(
-      `INSERT INTO challenges (title, target, target_appel, target_rdv, target_devis, target_commande, deadline, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [title, target, targetAppel, targetRdv, targetDevis, targetCommande, deadline, req.userId]
+      `INSERT INTO challenges (title, target, target_appel, target_rdv, target_devis, target_commande, deadline, created_by, game_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [title, target, targetAppel, targetRdv, targetDevis, targetCommande, deadline, req.userId, ['mountain', 'rocket', 'ocean'].includes(gameType) ? gameType : 'race']
     );
-    res.status(201).json(result.rows[0]);
+    const challenge = result.rows[0];
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('new_challenge', { title: challenge.title, gameType: challenge.game_type });
+    }
+
+    res.status(201).json(challenge);
   } catch (err) {
     if (err.code === '23505') {
       return res.status(400).json({ error: 'Un défi est déjà en cours — termine-le avant d\'en créer un nouveau' });

@@ -21,6 +21,12 @@ function Navbar() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unseenCount, setUnseenCount] = useState(0);
+  const [chatConversations, setChatConversations] = useState([]);
+  const [chatUnread, setChatUnread] = useState(0);
+  const [activeChallenges, setActiveChallenges] = useState([]);
+  const [seenChallengeIds, setSeenChallengeIds] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('seenChallengeIds') || '[]'); } catch { return []; }
+  });
 
   const handleDismiss = (id, e) => {
     e.stopPropagation();
@@ -39,16 +45,73 @@ function Navbar() {
       .catch(() => {});
   };
 
+  const loadChatNotifications = () => {
+    apiFetch(`${API_URL}/api/messages/conversations`, { skipCache: true })
+      .then((r) => r.json())
+      .then((data) => {
+        const withUnread = Array.isArray(data) ? data.filter((c) => Number(c.unread_count) > 0) : [];
+        setChatConversations(withUnread);
+        setChatUnread(withUnread.reduce((sum, c) => sum + Number(c.unread_count), 0));
+      })
+      .catch(() => {});
+  };
+
   useEffect(() => {
     loadNotifications();
   }, [location.pathname]);
 
+  useEffect(() => {
+    loadChatNotifications();
+    const interval = setInterval(loadChatNotifications, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadActiveChallenges = () => {
+    apiFetch(`${API_URL}/api/activities/race`, { skipCache: true })
+      .then((r) => r.json())
+      .then((data) => setActiveChallenges(Array.isArray(data.challenges) ? data.challenges : []))
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    loadActiveChallenges();
+    const interval = setInterval(loadActiveChallenges, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleChallengeClick = () => {
+    navigate('/challenge');
+    setNotifOpen(false);
+  };
+
+  const markChallengesSeen = () => {
+    if (activeChallenges.length === 0) return;
+    const ids = activeChallenges.map((c) => c.id);
+    localStorage.setItem('seenChallengeIds', JSON.stringify(ids));
+    setSeenChallengeIds(ids);
+  };
+
+  useEffect(() => {
+    if (location.pathname === '/challenge') markChallengesSeen();
+  }, [location.pathname, activeChallenges]);
+
+  const unseenChallengesCount = activeChallenges.filter((c) => !seenChallengeIds.includes(c.id)).length;
+
+  const handleOpenChatFromNotif = (conv, e) => {
+    e.stopPropagation();
+    window.dispatchEvent(new CustomEvent('open-chat', { detail: conv }));
+    setNotifOpen(false);
+  };
+
   const handleNotifClick = () => {
     setNotifOpen((v) => !v);
-    if (!notifOpen && unseenCount > 0) {
-      apiFetch(`${API_URL}/api/admin/notifications/redemptions/mark-seen`, { method: 'POST' })
-        .then(() => setUnseenCount(0))
-        .catch(() => {});
+    if (!notifOpen) {
+      if (unseenCount > 0) {
+        apiFetch(`${API_URL}/api/admin/notifications/redemptions/mark-seen`, { method: 'POST' })
+          .then(() => setUnseenCount(0))
+          .catch(() => {});
+      }
+      markChallengesSeen();
     }
   };
 
@@ -168,64 +231,124 @@ function Navbar() {
             )}
           </button>
 
-          {isAdmin && (
-            <div className="relative">
-              <button
-                onClick={handleNotifClick}
-                className="w-9 h-9 rounded-full border border-white/15 flex items-center justify-center text-white/70 hover:text-white transition-colors relative"
-                aria-label="Notifications"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                </svg>
-                {unseenCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
-                    {unseenCount > 9 ? '9+' : unseenCount}
-                  </span>
-                )}
-              </button>
+          <div className="relative">
+            <button
+              onClick={handleNotifClick}
+              className="w-9 h-9 rounded-full border border-white/15 flex items-center justify-center text-white/70 hover:text-white transition-colors relative"
+              aria-label="Notifications"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+              {(Number(unseenCount) + Number(chatUnread) + unseenChallengesCount) > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                  {(Number(unseenCount) + Number(chatUnread) + unseenChallengesCount) > 9 ? '9+' : Number(unseenCount) + Number(chatUnread) + unseenChallengesCount}
+                </span>
+              )}
+            </button>
 
-              {notifOpen && (
-                <div className="fixed sm:absolute left-3 right-3 sm:left-auto sm:right-0 top-14 sm:top-11 w-auto sm:w-72 max-h-96 overflow-y-auto bg-[#0d0d0d] border border-white/10 rounded-xl shadow-xl z-40 p-2">
-                  <div className="flex items-center justify-between px-2 py-1.5">
-                    <p className="text-[11px] text-white/40 uppercase tracking-wide">Échanges récents</p>
-                    <Link to="/admin/notifications" onClick={() => setNotifOpen(false)} className="text-[11px] font-medium" style={{ color: ACCENT }}>
-                      Voir tout
-                    </Link>
-                  </div>
-                  {notifications.length === 0 ? (
-                    <p className="text-xs text-white/30 text-center py-4">Aucune notification</p>
-                  ) : (
-                    notifications.map((n) => (
-                      <div key={n.id} className={`flex items-center gap-2 p-2 rounded-lg group ${!n.seen_by_admin ? 'bg-orange-500/5' : ''}`}>
-                        {n.commercial_photo_url ? (
-                          <img src={n.commercial_photo_url} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+            {notifOpen && (
+              <div className="fixed sm:absolute left-3 right-3 sm:left-auto sm:right-0 top-14 sm:top-11 w-auto sm:w-72 max-h-96 overflow-y-auto bg-[#0d0d0d] border border-white/10 rounded-xl shadow-xl z-40 p-2">
+                {activeChallenges.length > 0 && (
+                  <>
+                    <div className="px-2 py-1.5">
+                      <p className="text-[11px] text-white/40 uppercase tracking-wide">Défis actifs</p>
+                    </div>
+                    {activeChallenges.map((c) => (
+                      <button
+                        key={`challenge-${c.id}`}
+                        onClick={handleChallengeClick}
+                        className="w-full flex items-center gap-2 p-2 rounded-lg bg-orange-500/5 text-left"
+                      >
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0" style={{ backgroundColor: `${ACCENT}25` }}>
+                          🏆
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs text-white/80 truncate">{c.title}</p>
+                          <p className="text-[10px] text-white/40">Défi en cours — participer</p>
+                        </div>
+                      </button>
+                    ))}
+                  </>
+                )}
+
+                {chatConversations.length > 0 && (
+                  <>
+                    <div className="px-2 py-1.5">
+                      <p className="text-[11px] text-white/40 uppercase tracking-wide">Messages</p>
+                    </div>
+                    {chatConversations.map((c) => (
+                      <button
+                        key={`chat-${c.id}`}
+                        onClick={(e) => handleOpenChatFromNotif(c, e)}
+                        className="w-full flex items-center gap-2 p-2 rounded-lg bg-orange-500/5 text-left"
+                      >
+                        {c.photo_url ? (
+                          <img src={c.photo_url} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
                         ) : (
                           <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0" style={{ backgroundColor: ACCENT }}>
-                            {n.commercial_nom?.charAt(0).toUpperCase()}
+                            {c.nom?.charAt(0).toUpperCase()}
                           </div>
                         )}
                         <div className="min-w-0 flex-1">
                           <p className="text-xs text-white/80 truncate">
-                            <span className="font-medium">{n.commercial_nom}</span> a échangé {n.quantity > 1 ? `${n.quantity} × ` : ''}{n.title}
+                            <span className="font-medium">{c.nom === 'Badr Ben Laswad' ? 'Admin' : c.nom}</span> — {c.last_message}
                           </p>
-                          <p className="text-[10px] text-white/40">{new Date(n.redeemed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
                         </div>
-                        <button
-                          onClick={(e) => handleDismiss(n.id, e)}
-                          className="text-white/20 hover:text-white/60 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity px-1"
-                          aria-label="Masquer"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+                        <span className="text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center shrink-0" style={{ backgroundColor: ACCENT, color: '#fff' }}>
+                          {Number(c.unread_count)}
+                        </span>
+                      </button>
+                    ))}
+                  </>
+                )}
+
+                {isAdmin && (
+                  <>
+                    <div className="flex items-center justify-between px-2 py-1.5 mt-1">
+                      <p className="text-[11px] text-white/40 uppercase tracking-wide">Échanges récents</p>
+                      <Link to="/admin/notifications" onClick={() => setNotifOpen(false)} className="text-[11px] font-medium" style={{ color: ACCENT }}>
+                        Voir tout
+                      </Link>
+                    </div>
+                    {notifications.length === 0 ? (
+                      <p className="text-xs text-white/30 text-center py-4">Aucune notification</p>
+                    ) : (
+                      notifications.map((n) => (
+                        <div key={n.id} className={`flex items-center gap-2 p-2 rounded-lg group ${!n.seen_by_admin ? 'bg-orange-500/5' : ''}`}>
+                          {n.commercial_photo_url ? (
+                            <img src={n.commercial_photo_url} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0" style={{ backgroundColor: ACCENT }}>
+                              {n.commercial_nom?.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs text-white/80 truncate">
+                              <span className="font-medium">{n.commercial_nom}</span> a échangé {n.quantity > 1 ? `${n.quantity} × ` : ''}{n.title}
+                            </p>
+                            <p className="text-[10px] text-white/40">{new Date(n.redeemed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                          </div>
+                          <button
+                            onClick={(e) => handleDismiss(n.id, e)}
+                            className="text-white/20 hover:text-white/60 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity px-1"
+                            aria-label="Masquer"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </>
+                )}
+
+                {chatConversations.length === 0 && !isAdmin && (
+                  <p className="text-xs text-white/30 text-center py-4">Aucune notification</p>
+                )}
+              </div>
+            )}
+          </div>
 
           {user && points !== null && (
             <Link

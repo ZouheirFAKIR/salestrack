@@ -1,6 +1,6 @@
 const ACCENT = '#f86635';
 
-function LineChart({ data, target, labelKey = 'jour', formatLabel }) {
+function LineChart({ data, target, labelKey = 'jour', formatLabel, color = ACCENT }) {
   if (!data || data.length === 0) return null;
 
   const width = 600;
@@ -28,9 +28,9 @@ function LineChart({ data, target, labelKey = 'jour', formatLabel }) {
     <div className="w-full" style={{ height: '200px' }}>
       <svg viewBox={`0 0 ${width} ${height + 30}`} className="w-full h-full" preserveAspectRatio="xMidYMid meet">
         <defs>
-          <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={ACCENT} stopOpacity="0.4" />
-            <stop offset="100%" stopColor={ACCENT} stopOpacity="0" />
+          <linearGradient id={`areaGradient-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.4" />
+            <stop offset="100%" stopColor={color} stopOpacity="0" />
           </linearGradient>
         </defs>
 
@@ -56,16 +56,16 @@ function LineChart({ data, target, labelKey = 'jour', formatLabel }) {
           </g>
         )}
 
-        <path d={areaPath} fill="url(#areaGradient)" />
+        <path d={areaPath} fill={`url(#areaGradient-${color.replace('#', '')})`} />
         <path
-          d={linePath} fill="none" stroke={ACCENT} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+          d={linePath} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
           style={{ strokeDasharray: 1000, strokeDashoffset: 1000, animation: 'drawLine 1s ease forwards' }}
         />
 
         {points.map((p, i) => (
           <g key={i} className="group">
             <circle cx={p.x} cy={p.y} r="10" fill="transparent" className="cursor-pointer" />
-            <circle cx={p.x} cy={p.y} r="4" fill={ACCENT} stroke="var(--bg)" strokeWidth="2" style={{ animation: `popIn 0.3s ease ${0.6 + i * 0.05}s both` }} />
+            <circle cx={p.x} cy={p.y} r="4" fill={color} stroke="var(--bg)" strokeWidth="2" style={{ animation: `popIn 0.3s ease ${0.6 + i * 0.05}s both` }} />
             <text x={p.x} y={p.y - 14} textAnchor="middle" fontSize="11" fill="var(--text-primary)" className="opacity-0 group-hover:opacity-100 transition-opacity">{p.total}</text>
             <text x={p.x} y={height + 22} textAnchor="middle" fontSize="10" fill="var(--text-secondary)">{getLabel(data[i][labelKey])}</text>
           </g>
