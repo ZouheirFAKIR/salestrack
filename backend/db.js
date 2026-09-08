@@ -1,5 +1,10 @@
 const { Pool } = require('pg');
 
+const dbUrl = process.env.DATABASE_URL || '';
+console.log('[diagnostic] DATABASE_URL longueur:', dbUrl.length);
+console.log('[diagnostic] DATABASE_URL début:', dbUrl.slice(0, 15));
+console.log('[diagnostic] DATABASE_URL fin:', dbUrl.slice(-30));
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },

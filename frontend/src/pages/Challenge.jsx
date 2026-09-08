@@ -8,6 +8,7 @@ import CountdownClock from '../components/CountdownClock';
 import Confetti from '../components/Confetti';
 import { Icon } from '../data/icons';
 import { apiFetch } from '../utils/api';
+import { buildCertificateDataUrl, downloadCertificate } from '../utils/generateCertificate';
 
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -50,12 +51,45 @@ function GameRenderer({ gameType, runners }) {
   return <PhaserRaceGame runners={runners} />;
 }
 
+function ChallengeCertificateCard({ challenge, userName }) {
+  const [imgUrl, setImgUrl] = useState(null);
+  const date = new Date(challenge.ended_at || challenge.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const reason = 'pour avoir remporté le défi';
+
+  useEffect(() => {
+    buildCertificateDataUrl({ userName, courseTitle: challenge.title, date, reason }).then(setImgUrl);
+  }, [challenge.title]);
+
+  return (
+    <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+      <div className="aspect-[1400/990] flex items-center justify-center" style={{ backgroundColor: 'var(--surface-strong)' }}>
+        {imgUrl ? (
+          <img src={imgUrl} alt={challenge.title} className="w-full h-full object-contain" />
+        ) : (
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Génération...</p>
+        )}
+      </div>
+      <div className="p-3">
+        <p className="text-xs font-medium truncate mb-2" style={{ color: 'var(--text-primary)' }}>🏆 {challenge.title}</p>
+        <button
+          onClick={() => downloadCertificate({ userName, courseTitle: challenge.title, date, reason })}
+          className="w-full text-xs px-3 py-2 rounded-lg text-white font-medium transition-all hover:brightness-110"
+          style={{ backgroundColor: ACCENT }}
+        >
+          Télécharger
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function Challenge() {
   const [data, setData] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showConfetti, setShowConfetti] = useState(false);
   const [winnerModal, setWinnerModal] = useState(null);
+  const [showCertificates, setShowCertificates] = useState(false);
   const prevActiveRef = useRef(null);
 
   const loadHistory = () => {
@@ -99,6 +133,8 @@ function Challenge() {
   if (loading) return <PageLoader />;
 
   const challenges = data?.challenges || [];
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const wonChallenges = history.filter((h) => h.winner_id === user?.id);
 
   return (
     <div className="max-w-6xl mx-auto p-4 sm:p-6 flex flex-col gap-6">
@@ -110,10 +146,41 @@ function Challenge() {
           onClose={() => setWinnerModal(null)}
         />
       )}
-      <div>
-        <h1 className="text-lg font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Défi</h1>
-        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Les sprints collectifs du moment</p>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-lg font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Défi</h1>
+          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Les sprints collectifs du moment</p>
+        </div>
+        {wonChallenges.length > 0 && (
+          <button
+            onClick={() => setShowCertificates(true)}
+            className="text-sm px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-all hover:brightness-110"
+            style={{ backgroundColor: ACCENT, color: '#fff' }}
+          >
+            🏆 Mes certificats ({wonChallenges.length})
+          </button>
+        )}
       </div>
+
+      {showCertificates && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50" onClick={() => setShowCertificates(false)}>
+          <div
+            className="rounded-2xl p-5 max-w-3xl w-full max-h-[85vh] overflow-y-auto"
+            style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Mes certificats</p>
+              <button onClick={() => setShowCertificates(false)} className="text-2xl leading-none" style={{ color: 'var(--text-muted)' }}>×</button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {wonChallenges.map((h) => (
+                <ChallengeCertificateCard key={h.id} challenge={h} userName={user?.nom || 'Commercial'} />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {challenges.length > 0 ? (
         <div className="flex flex-col gap-6">

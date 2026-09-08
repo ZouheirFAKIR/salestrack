@@ -10,11 +10,18 @@ router.get('/tv-display', async (req, res) => {
   try {
     const usersResult = await pool.query(`
       SELECT u.id, u.nom, u.photo_url, u.odoo_user_id,
+        COUNT(a.id) FILTER (WHERE DATE(a.date_activite) = CURRENT_DATE AND a.type = 'appel') as today_appel,
+        COUNT(a.id) FILTER (WHERE DATE(a.date_activite) = CURRENT_DATE AND a.type = 'rdv') as today_rdv,
+        COALESCE(MAX(tq.appel), 80) as target_appel,
+        COALESCE(MAX(tq.rdv), 2) as target_rdv,
         COALESCE(MAX(tq.devis), 3) as target_devis,
         COALESCE(MAX(tq.commande), 1) as target_commande
       FROM users u
+      LEFT JOIN activities a ON a.commercial_id = u.id
       LEFT JOIN (
         SELECT commercial_id,
+          MAX(daily_target) FILTER (WHERE type = 'appel') as appel,
+          MAX(daily_target) FILTER (WHERE type = 'rdv') as rdv,
           MAX(daily_target) FILTER (WHERE type = 'devis') as devis,
           MAX(daily_target) FILTER (WHERE type = 'commande') as commande
         FROM type_quotas
@@ -29,7 +36,7 @@ router.get('/tv-display', async (req, res) => {
     if (users.length === 0) return res.json([]);
 
     const now = new Date();
-    const todayStr = toMoroccoDate(now.toISOString());
+    const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Casablanca' }).format(now);
     const prevDay = new Date(now); prevDay.setUTCDate(prevDay.getUTCDate() - 1);
     const nextDay = new Date(now); nextDay.setUTCDate(nextDay.getUTCDate() + 1);
     const odooUserIds = users.map((u) => u.odoo_user_id);
@@ -58,6 +65,10 @@ router.get('/tv-display', async (req, res) => {
         id: u.id,
         nom: u.nom,
         photo_url: u.photo_url,
+        todayAppel: Number(u.today_appel),
+        todayRdv: Number(u.today_rdv),
+        targetAppel: Number(u.target_appel),
+        targetRdv: Number(u.target_rdv),
         devis,
         commandes,
         chiffreAffaires,
@@ -744,10 +755,6 @@ router.get('/my-type-quotas', authMiddleware, async (req, res) => {
   }
 });
 
-
-
-
-
 router.get('/challenges-history', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
@@ -848,6 +855,5 @@ router.get('/race', authMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
-
 
 module.exports = router;

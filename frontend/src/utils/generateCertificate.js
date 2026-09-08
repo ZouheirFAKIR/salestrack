@@ -1,6 +1,6 @@
 import yealeadLogo from '../assets/yealead.png';
 
-export function buildCertificateDataUrl({ userName, courseTitle, date }) {
+export function buildCertificateDataUrl({ userName, courseTitle, date, reason = 'pour avoir complété avec succès la formation' }) {
   return new Promise((resolve) => {
     const canvas = document.createElement('canvas');
     const width = 1400;
@@ -81,7 +81,7 @@ export function buildCertificateDataUrl({ userName, courseTitle, date }) {
 
       ctx.fillStyle = '#8a7a72';
       ctx.font = '18px Arial';
-      ctx.fillText('pour avoir complété avec succès la formation', centerX, 540);
+      ctx.fillText(reason, centerX, 540);
 
       ctx.fillStyle = '#1a1a1a';
       ctx.font = '700 32px Arial';
@@ -127,8 +127,8 @@ export function buildCertificateDataUrl({ userName, courseTitle, date }) {
   });
 }
 
-export async function downloadCertificate({ userName, courseTitle, date }) {
-  const dataUrl = await buildCertificateDataUrl({ userName, courseTitle, date });
+export async function downloadCertificate({ userName, courseTitle, date, reason }) {
+  const dataUrl = await buildCertificateDataUrl({ userName, courseTitle, date, reason });
   const link = document.createElement('a');
   link.download = `Attestation_${courseTitle.replace(/[^a-z0-9]/gi, '_')}.png`;
   link.href = dataUrl;
