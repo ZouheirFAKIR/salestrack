@@ -86,7 +86,7 @@ function ChatThread({ user, myId, me, onBack, refreshSignal, onRead }) {
 
   useEffect(() => {
     load();
-    const interval = setInterval(load, 1000);
+    const interval = setInterval(load, 15000);
     return () => clearInterval(interval);
   }, [user.id]);
 
@@ -265,24 +265,28 @@ function ChatWidget() {
       if (!activeUserRef.current) loadConversations();
       else setThreadRefreshSignal((n) => n + 1);
     };
-    document.addEventListener('visibilitychange', () => {
+    const handleVisibility = () => {
       if (document.visibilityState === 'visible') handleFocus();
-    });
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [token]);
 
   useEffect(() => {
     if (!token) return;
     loadUnreadTotal();
-    const interval = setInterval(loadUnreadTotal, 1000);
+    const interval = setInterval(loadUnreadTotal, 15000);
     return () => clearInterval(interval);
   }, [token]);
 
   useEffect(() => {
     if (!open || activeUser) return;
     loadConversations();
-    const interval = setInterval(loadConversations, 1000);
+    const interval = setInterval(loadConversations, 15000);
     return () => clearInterval(interval);
   }, [open, activeUser]);
 
