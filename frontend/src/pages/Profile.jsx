@@ -35,6 +35,14 @@ function Profile() {
 
   const [badgeStats, setBadgeStats] = useState(null);
 
+  const handleDownloadMyReport = () => {
+    window.open(`${API_URL}/api/activities/report/global?token=${token}`, '_blank');
+  };
+
+  const handleDownloadMyDailyReport = () => {
+    window.open(`${API_URL}/api/activities/report/daily?token=${token}`, '_blank');
+  };
+
   useEffect(() => {
     if (!token) { navigate('/login'); return; }
     apiFetch(`${API_URL}/api/profile`)
@@ -220,7 +228,7 @@ function Profile() {
             <p className="text-sm mt-1 break-all" style={{ color: 'var(--text-secondary)' }}>{email}{phone ? ` · ${phone}` : ''}</p>
           </div>
 
-          <div className="flex gap-6 shrink-0">
+          <div className="flex gap-6 shrink-0 items-center">
             <div className="text-center">
               <p className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>{earnedBadges.length}</p>
               <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Badges</p>
@@ -230,6 +238,20 @@ function Profile() {
               <p className="text-xl font-semibold" style={{ color: ACCENT }}>{role === 'admin' ? 'Admin' : 'Com.'}</p>
               <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Statut</p>
             </div>
+            <button
+              onClick={handleDownloadMyReport}
+              className="text-xs px-3 py-2 rounded-lg font-medium cursor-pointer"
+              style={{ backgroundColor: ACCENT, color: '#fff' }}
+            >
+              Global report
+            </button>
+            <button
+              onClick={handleDownloadMyDailyReport}
+              className="text-xs px-3 py-2 rounded-lg border cursor-pointer"
+              style={{ borderColor: ACCENT, color: ACCENT }}
+            >
+              Daily report
+            </button>
           </div>
         </div>
 

@@ -5,7 +5,28 @@ const authMiddleware = require('../middleware/authMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
 const odoo = require('../utils/odooClient');
 const { toMoroccoDate } = odoo;
+const { getGlobalReportData, renderGlobalReportPdf, getDailyReportData, renderDailyReportPdf } = require('../utils/reportGenerator');
 router.use(authMiddleware, adminMiddleware);
+
+router.get('/report/global/:commercialId', async (req, res) => {
+  try {
+    const data = await getGlobalReportData(req.params.commercialId);
+    renderGlobalReportPdf(res, data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/report/daily/:commercialId', async (req, res) => {
+  try {
+    const data = await getDailyReportData(req.params.commercialId);
+    renderDailyReportPdf(res, data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
 
 router.get('/courses', async (req, res) => {
   try {

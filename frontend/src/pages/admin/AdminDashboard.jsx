@@ -136,7 +136,29 @@ function CommercialDetail({ commercial, onClose, onQuotaUpdated }) {
               <p className="text-sm truncate" style={{ color: 'var(--text-muted)' }}>{commercial.email}</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-2xl shrink-0 leading-none transition-colors" style={{ color: 'var(--text-muted)' }}>×</button>
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              onClick={() => {
+                const token = localStorage.getItem('token');
+                window.open(`${API_URL}/api/admin/report/global/${commercial.id}?token=${token}`, '_blank');
+              }}
+              className="text-xs px-3 py-2 rounded-lg font-medium"
+              style={{ backgroundColor: ACCENT, color: '#fff' }}
+            >
+              Global report
+            </button>
+            <button
+              onClick={() => {
+                const token = localStorage.getItem('token');
+                window.open(`${API_URL}/api/admin/report/daily/${commercial.id}?token=${token}`, '_blank');
+              }}
+              className="text-xs px-3 py-2 rounded-lg border"
+              style={{ borderColor: ACCENT, color: ACCENT }}
+            >
+              Daily report
+            </button>
+            <button onClick={onClose} className="text-2xl leading-none transition-colors" style={{ color: 'var(--text-muted)' }}>×</button>
+          </div>
         </div>
 
         {loading && (

@@ -455,7 +455,61 @@ router.get('/pipeline/:commercialId', authMiddleware, async (req, res) => {
   }
 });
 
-module.exports = router;
+router.get('/waiting-lost/:commercialId', authMiddleware, async (req, res) => {
+  const { commercialId } = req.params;
 
+  try {
+    const userResult = await pool.query('SELECT odoo_user_id FROM users WHERE id = $1', [commercialId]);
+    const odooUserId = userResult.rows[0]?.odoo_user_id;
+
+    if (!odooUserId) {
+      return res.json({ linked: false, waitingActive: 0, waitingLost: 0, pipelineActive: 0, pipelineLost: 0 });
+    }
+
+    const waitingActive = await odoo.execute(
+      'crm.lead', 'search_count',
+      [[
+        '|', ['type', '=', 'lead'], ['type', '=', false],
+        ['user_id', '=', odooUserId],
+        ['active', '=', true],
+      ]]
+    );
+
+    const waitingLost = await odoo.execute(
+      'crm.lead', 'search_count',
+      [[
+        '|', ['type', '=', 'lead'], ['type', '=', false],
+        ['user_id', '=', odooUserId],
+        ['active', '=', false],
+      ]],
+      { context: { active_test: false } }
+    );
+
+    const pipelineActive = await odoo.execute(
+      'crm.lead', 'search_count',
+      [[
+        ['type', '=', 'opportunity'],
+        ['user_id', '=', odooUserId],
+        ['active', '=', true],
+      ]]
+    );
+
+    const pipelineLost = await odoo.execute(
+      'crm.lead', 'search_count',
+      [[
+        ['type', '=', 'opportunity'],
+        ['user_id', '=', odooUserId],
+        ['active', '=', false],
+        ['lost_reason', '!=', false],
+      ]],
+      { context: { active_test: false } }
+    );
+
+    res.json({ linked: true, waitingActive, waitingLost, pipelineActive, pipelineLost });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur de connexion à Odoo' });
+  }
+});
 
 module.exports = router;

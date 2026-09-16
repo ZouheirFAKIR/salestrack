@@ -5,6 +5,27 @@ const authMiddleware = require('../middleware/authMiddleware');
 const odoo = require('../utils/odooClient');
 const { toMoroccoDate } = odoo;
 const crypto = require('crypto');
+const { getGlobalReportData, renderGlobalReportPdf, getDailyReportData, renderDailyReportPdf } = require('../utils/reportGenerator');
+
+router.get('/report/global', authMiddleware, async (req, res) => {
+  try {
+    const data = await getGlobalReportData(req.userId);
+    renderGlobalReportPdf(res, data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/report/daily', authMiddleware, async (req, res) => {
+  try {
+    const data = await getDailyReportData(req.userId);
+    renderDailyReportPdf(res, data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
 
 router.get('/tv-display', async (req, res) => {
   try {

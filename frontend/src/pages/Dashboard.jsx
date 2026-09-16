@@ -3,6 +3,7 @@ import OdooRangeCard from '../components/OdooRangeCard';
 import OdooActivitiesCard from '../components/OdooActivitiesCard';
 import OdooActivitiesChartCard from '../components/OdooActivitiesChartCard';
 import OdooPipelineCard from '../components/OdooPipelineCard';
+import OdooWaitingLostCard from '../components/OdooWaitingLostCard';
 import PageLoader from '../components/PageLoader';
 import CommercialDetail from '../components/CommercialDetail';
 import { apiFetch } from '../utils/api';
@@ -240,6 +241,7 @@ function Dashboard() {
               <OdooActivitiesChartCard commercialId={user?.id} />
             </div>
             <OdooPipelineCard commercialId={user?.id} />
+            <OdooWaitingLostCard commercialId={user?.id} />
           </div>
         </div>
       </div>
