@@ -5,11 +5,11 @@ import Spinner from './Spinner';
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-function StatBox({ value, label, color }) {
+function StatItem({ value, label }) {
   return (
-    <div className="rounded-lg p-3" style={{ backgroundColor: 'var(--surface-alt, rgba(248,102,53,0.08))' }}>
-      <p className="text-2xl font-bold" style={{ color }}>{value}</p>
-      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</p>
+    <div>
+      <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{value}</p>
+      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{label}</p>
     </div>
   );
 }
@@ -38,18 +38,13 @@ function OdooWaitingLostCard({ commercialId }) {
 
   return (
     <div className="rounded-xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-      <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>Liste d'attente & Pipeline (Odoo)</p>
+      <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>Liste d'attente & Pipeline (Odoo)</p>
 
-      <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>Liste d'attente</p>
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <StatBox value={data.waitingActive} label="En attente" color={ACCENT} />
-        <StatBox value={data.waitingLost} label="Perdues" color="#e05c5c" />
-      </div>
-
-      <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>Pipeline</p>
-      <div className="grid grid-cols-2 gap-3">
-        <StatBox value={data.pipelineActive} label="Actives" color={ACCENT} />
-        <StatBox value={data.pipelineLost} label="Perdues" color="#e05c5c" />
+      <div className="grid grid-cols-4 gap-4">
+        <StatItem value={data.waitingActive} label="En attente" />
+        <StatItem value={data.waitingLost} label="Perdues" />
+        <StatItem value={data.pipelineActive} label="Pipeline actives" />
+        <StatItem value={data.pipelineLost} label="Pipeline perdues" />
       </div>
     </div>
   );

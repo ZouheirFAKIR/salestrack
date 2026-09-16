@@ -36,6 +36,7 @@ function estimateDailyHeight(data) {
   h += 26 + 20; // classement
   h += 26 + (data.odoo.linked && !data.odoo.error ? 46 : 8); // Odoo ventes
   h += 26 + (data.odooActivitiesToday.byCategory.length === 0 ? 8 : data.odooActivitiesToday.byCategory.length * 19 + 8);
+  h += 26 + 46; // Liste attente & pipeline du jour
   h += 26 + (data.activities.length === 0 ? 8 : Math.min(data.activities.length, 10) * 12 + 12 + (data.activities.length > 10 ? 10 : 0));
   h += 30; // footer
   return Math.max(420, h + 70);
@@ -422,6 +423,77 @@ function renderOdooWaitingListSection(doc, data) {
   ]);
 }
 
+async function getOdooWaitingLostToday(odooUserId) {
+  if (!odooUserId) return { linked: false, error: false, newToday: 0, lostToday: 0 };
+  try {
+    const newToday = await odoo.execute(
+      'crm.lead', 'search_count',
+      [[
+        '|', ['type', '=', 'lead'], ['type', '=', false],
+        ['user_id', '=', odooUserId],
+        ['create_date', '>=', new Date().toISOString().slice(0, 10) + ' 00:00:00'],
+      ]]
+    );
+    const lostToday = await odoo.execute(
+      'crm.lead', 'search_count',
+      [[
+        '|', ['type', '=', 'lead'], ['type', '=', false],
+        ['user_id', '=', odooUserId],
+        ['active', '=', false],
+        ['write_date', '>=', new Date().toISOString().slice(0, 10) + ' 00:00:00'],
+      ]],
+      { context: { active_test: false } }
+    );
+    return { linked: true, error: false, newToday, lostToday };
+  } catch (err) {
+    console.error('Erreur Odoo (liste attente jour, rapport):', err.message);
+    return { linked: true, error: true, newToday: 0, lostToday: 0 };
+  }
+}
+
+async function getOdooPipelineToday(odooUserId) {
+  if (!odooUserId) return { linked: false, error: false, newToday: 0, lostToday: 0 };
+  try {
+    const newToday = await odoo.execute(
+      'crm.lead', 'search_count',
+      [[
+        ['type', '=', 'opportunity'],
+        ['user_id', '=', odooUserId],
+        ['create_date', '>=', new Date().toISOString().slice(0, 10) + ' 00:00:00'],
+      ]]
+    );
+    const lostToday = await odoo.execute(
+      'crm.lead', 'search_count',
+      [[
+        ['type', '=', 'opportunity'],
+        ['user_id', '=', odooUserId],
+        ['active', '=', false],
+        ['write_date', '>=', new Date().toISOString().slice(0, 10) + ' 00:00:00'],
+      ]],
+      { context: { active_test: false } }
+    );
+    return { linked: true, error: false, newToday, lostToday };
+  } catch (err) {
+    console.error('Erreur Odoo (pipeline jour, rapport):', err.message);
+    return { linked: true, error: true, newToday: 0, lostToday: 0 };
+  }
+}
+
+function renderOdooWaitingPipelineTodaySection(doc, waiting, pipeline) {
+  drawSectionTitle(doc, "Liste d'attente & Pipeline du jour (Odoo)");
+  if (!waiting.linked && !pipeline.linked) {
+    doc.fontSize(7.5).fillColor('#888').text('Compte non lie a Odoo.');
+    doc.y += 8;
+    return;
+  }
+  drawStatBoxes(doc, [
+    { label: 'Liste attente - nouvelles', value: waiting.newToday },
+    { label: 'Liste attente - perdues', value: waiting.lostToday },
+    { label: 'Pipeline - nouvelles', value: pipeline.newToday },
+    { label: 'Pipeline - perdues', value: pipeline.lostToday },
+  ]);
+}
+
 async function getOdooLostCount(odooUserId) {
   if (!odooUserId) return { linked: false, error: false, total: 0 };
   const cacheKey = `lost-count:${odooUserId}`;
@@ -434,7 +506,6 @@ async function getOdooLostCount(odooUserId) {
         ['type', '=', 'opportunity'],
         ['user_id', '=', odooUserId],
         ['active', '=', false],
-        ['lost_reason', '!=', false],
       ]],
       { context: { active_test: false } }
     );
@@ -533,7 +604,7 @@ function renderOdooPipelineSection(doc, data, lostData) {
 
 // ---------- Objectifs / Classement (SalesTrack) ----------
 
-async function getQuotaProgress(commercialId, typeCounts) {
+async function getQuotaProgress(commercialId, typeCounts, odooUserId) {
   const quotasResult = await pool.query(
     'SELECT type, daily_target FROM type_quotas WHERE commercial_id = $1',
     [commercialId]
@@ -541,24 +612,75 @@ async function getQuotaProgress(commercialId, typeCounts) {
   const quotas = { appel: 80, rdv: 2, devis: 3, commande: 1 };
   quotasResult.rows.forEach((r) => { quotas[r.type] = r.daily_target; });
 
+  const merged = { ...typeCounts };
+  if (odooUserId) {
+    try {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const dateObj = new Date(`${todayStr}T00:00:00Z`);
+      const prevDay = new Date(dateObj); prevDay.setUTCDate(prevDay.getUTCDate() - 1);
+      const nextDay = new Date(dateObj); nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+      const orders = await odoo.execute(
+        'sale.order', 'search_read',
+        [[
+          ['user_id', '=', odooUserId],
+          ['create_date', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
+          ['create_date', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
+        ]],
+        { fields: ['state', 'create_date'] }
+      );
+      const ordersToday = orders.filter((o) => toMoroccoDate(o.create_date) === todayStr);
+      merged.devis = (merged.devis || 0) + ordersToday.filter((o) => ['draft', 'sent'].includes(o.state)).length;
+      merged.commande = (merged.commande || 0) + ordersToday.filter((o) => ['sale', 'done'].includes(o.state)).length;
+    } catch (err) {
+      console.error('Erreur Odoo (quota progress, rapport):', err.message);
+    }
+  }
+
   return Object.keys(quotas).map((type) => ({
     type,
     label: TYPE_LABELS[type] || type,
     target: quotas[type],
-    achieved: typeCounts[type] || 0,
-    percent: quotas[type] > 0 ? Math.round(((typeCounts[type] || 0) / quotas[type]) * 100) : 0,
+    achieved: merged[type] || 0,
+    percent: quotas[type] > 0 ? Math.round(((merged[type] || 0) / quotas[type]) * 100) : 0,
   }));
 }
 
 async function getTodayRank(commercialId) {
   const result = await pool.query(
-    `SELECT u.id, COALESCE(COUNT(a.id), 0) as total
+    `SELECT u.id, u.odoo_user_id, COALESCE(COUNT(a.id), 0) as total
      FROM users u
      LEFT JOIN activities a ON a.commercial_id = u.id AND DATE(a.date_activite) = CURRENT_DATE
      WHERE u.role != 'admin' OR u.role IS NULL
-     GROUP BY u.id
-     ORDER BY total DESC`
+     GROUP BY u.id, u.odoo_user_id`
   );
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const dateObj = new Date(`${todayStr}T00:00:00Z`);
+  const prevDay = new Date(dateObj); prevDay.setUTCDate(prevDay.getUTCDate() - 1);
+  const nextDay = new Date(dateObj); nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+
+  await Promise.all(result.rows.map(async (row) => {
+    if (!row.odoo_user_id) return;
+    try {
+      const orders = await odoo.execute(
+        'sale.order', 'search_read',
+        [[
+          ['user_id', '=', row.odoo_user_id],
+          ['create_date', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
+          ['create_date', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
+        ]],
+        { fields: ['state', 'create_date'] }
+      );
+      const ordersToday = orders.filter((o) => toMoroccoDate(o.create_date) === todayStr);
+      const odooDevis = ordersToday.filter((o) => ['draft', 'sent'].includes(o.state)).length;
+      const odooCommande = ordersToday.filter((o) => ['sale', 'done'].includes(o.state)).length;
+      row.total = Number(row.total) + odooDevis + odooCommande;
+    } catch (err) {
+      console.error('Erreur Odoo (rank, rapport):', err.message);
+    }
+  }));
+
+  result.rows.sort((a, b) => Number(b.total) - Number(a.total));
   const index = result.rows.findIndex((r) => String(r.id) === String(commercialId));
   return { rank: index >= 0 ? index + 1 : null, totalCommercials: result.rows.length };
 }
@@ -604,10 +726,20 @@ async function getGlobalReportData(commercialId) {
   );
   const daySet = new Set(dailyResult.rows.map((r) => r.jour));
   let streak = 0;
+  let missed = 0;
   let cursor = new Date();
-  while (true) {
+  let safety = 0;
+  while (safety < 400) {
     const key = cursor.toISOString().split('T')[0];
-    if (daySet.has(key)) { streak++; cursor.setDate(cursor.getDate() - 1); } else break;
+    if (daySet.has(key)) {
+      streak++;
+      missed = 0;
+    } else {
+      missed++;
+      if (missed > 1) break;
+    }
+    cursor.setDate(cursor.getDate() - 1);
+    safety++;
   }
 
   const quizResult = await pool.query(
@@ -741,11 +873,13 @@ async function getDailyReportData(commercialId) {
     if (typeCounts[a.type] !== undefined) typeCounts[a.type]++;
   });
 
-  const [odooData, odooActivitiesToday, quotaProgress, rank] = await Promise.all([
+  const [odooData, odooActivitiesToday, quotaProgress, rank, odooWaitingToday, odooPipelineToday] = await Promise.all([
     getOdooStatsToday(user?.odoo_user_id),
     getOdooActivitiesToday(user?.odoo_user_id),
     getQuotaProgress(commercialId, typeCounts),
     getTodayRank(commercialId),
+    getOdooWaitingLostToday(user?.odoo_user_id),
+    getOdooPipelineToday(user?.odoo_user_id),
   ]);
 
   return {
@@ -759,6 +893,8 @@ async function getDailyReportData(commercialId) {
     odooActivitiesToday,
     quotaProgress,
     rank,
+    odooWaitingToday,
+    odooPipelineToday,
   };
 }
 
@@ -784,6 +920,7 @@ function renderDailyReportPdf(res, data) {
   renderRankSection(doc, data.rank);
   renderOdooSection(doc, data.odoo);
   renderOdooActivitiesSection(doc, data.odooActivitiesToday, 'Activites Odoo du jour');
+  renderOdooWaitingPipelineTodaySection(doc, data.odooWaitingToday, data.odooPipelineToday);
 
   drawSectionTitle(doc, 'Detail des activites');
   const activityLines = data.activities.map((a) => {

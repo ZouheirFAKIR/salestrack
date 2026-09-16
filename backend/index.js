@@ -1,4 +1,5 @@
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
+process.removeAllListeners('warning');
 const express = require('express');
 const cors = require('cors');
 const activitiesRoutes = require('./routes/activities');
@@ -55,7 +56,7 @@ io.use((socket, next) => {
 });
 
 io.on('connection', (socket) => {
-  console.log('[chat-backend] utilisateur connecté au socket, userId:', socket.userId);
+  
   socket.join(`user:${socket.userId}`);
 });
 
@@ -63,5 +64,5 @@ app.set('io', io);
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`Serveur démarré sur http://localhost:${PORT}`);
+  console.log(`✅ Serveur SalesTrack démarré avec succès sur http://localhost:${PORT}`);
 });

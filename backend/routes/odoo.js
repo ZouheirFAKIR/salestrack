@@ -455,6 +455,82 @@ router.get('/pipeline/:commercialId', authMiddleware, async (req, res) => {
   }
 });
 
+router.get('/waiting-pipeline-daily/:commercialId', authMiddleware, async (req, res) => {
+  const { commercialId } = req.params;
+  const days = Math.min(parseInt(req.query.days, 10) || 7, 30);
+  const endStr = req.query.end || new Date().toISOString().slice(0, 10);
+  const cacheKey = `waiting-pipeline-daily:${commercialId}:${endStr}:${days}`;
+
+  const cached = getCached(cacheKey);
+  if (cached) return res.json(cached);
+
+  try {
+    const userResult = await pool.query('SELECT odoo_user_id FROM users WHERE id = $1', [commercialId]);
+    const odooUserId = userResult.rows[0]?.odoo_user_id;
+
+    if (!odooUserId) {
+      return res.json({ linked: false, daily: [], categories: [] });
+    }
+
+    const endDate = new Date(`${endStr}T00:00:00Z`);
+    const startDate = new Date(endDate);
+    startDate.setUTCDate(startDate.getUTCDate() - (days - 1));
+    const startStr = startDate.toISOString().slice(0, 10);
+
+    const records = await odoo.execute(
+      'crm.lead', 'search_read',
+      [[
+        ['user_id', '=', odooUserId],
+        '|',
+          ['create_date', '>=', `${startStr} 00:00:00`],
+          ['write_date', '>=', `${startStr} 00:00:00`],
+      ]],
+      { fields: ['type', 'active', 'create_date', 'write_date'], context: { active_test: false } }
+    );
+
+    const dayMap = {};
+    for (let i = 0; i < days; i++) {
+      const d = new Date(startDate);
+      d.setUTCDate(d.getUTCDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      dayMap[key] = { jour: key, attente_new: 0, attente_lost: 0, pipeline_new: 0, pipeline_lost: 0 };
+    }
+
+    records.forEach((r) => {
+      const isWaiting = r.type === 'lead' || r.type === false;
+      const isPipeline = r.type === 'opportunity';
+
+      const createDay = toMoroccoDate(r.create_date);
+      if (dayMap[createDay] && createDay >= startStr && createDay <= endStr) {
+        if (isWaiting) dayMap[createDay].attente_new++;
+        if (isPipeline) dayMap[createDay].pipeline_new++;
+      }
+
+      if (r.active === false) {
+        const lostDay = toMoroccoDate(r.write_date);
+        if (dayMap[lostDay] && lostDay >= startStr && lostDay <= endStr) {
+          if (isWaiting) dayMap[lostDay].attente_lost++;
+          if (isPipeline) dayMap[lostDay].pipeline_lost++;
+        }
+      }
+    });
+
+    const categories = [
+      { key: 'attente_new', label: "Attente - nouvelles" },
+      { key: 'attente_lost', label: 'Attente - perdues' },
+      { key: 'pipeline_new', label: 'Pipeline - nouvelles' },
+      { key: 'pipeline_lost', label: 'Pipeline - perdues' },
+    ];
+
+    const result = { linked: true, daily: Object.values(dayMap), categories };
+    setCached(cacheKey, result);
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur de connexion à Odoo' });
+  }
+});
+
 router.get('/waiting-lost/:commercialId', authMiddleware, async (req, res) => {
   const { commercialId } = req.params;
 
@@ -500,7 +576,6 @@ router.get('/waiting-lost/:commercialId', authMiddleware, async (req, res) => {
         ['type', '=', 'opportunity'],
         ['user_id', '=', odooUserId],
         ['active', '=', false],
-        ['lost_reason', '!=', false],
       ]],
       { context: { active_test: false } }
     );

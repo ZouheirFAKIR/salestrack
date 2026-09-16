@@ -470,7 +470,7 @@ router.get('/stats', authMiddleware, async (req, res) => {
 router.get('/leaderboard', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT u.id, u.nom, u.email, u.photo_url,
+      `SELECT u.id, u.nom, u.email, u.photo_url, u.odoo_user_id,
          COALESCE(COUNT(a.id), 0) as total,
          COUNT(a.id) FILTER (WHERE a.type = 'appel') as appel,
          COUNT(a.id) FILTER (WHERE a.type = 'rdv') as rdv,
@@ -480,11 +480,45 @@ router.get('/leaderboard', authMiddleware, async (req, res) => {
        LEFT JOIN activities a ON a.commercial_id = u.id
          AND DATE(a.date_activite) = CURRENT_DATE
        WHERE (u.role != 'admin' OR u.role IS NULL) AND u.hidden = FALSE
-       GROUP BY u.id, u.nom, u.email, u.photo_url
+       GROUP BY u.id, u.nom, u.email, u.photo_url, u.odoo_user_id
        ORDER BY total DESC
        LIMIT 20`
     );
-    res.json(result.rows);
+
+    const rows = result.rows;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const dateObj = new Date(`${todayStr}T00:00:00Z`);
+    const prevDay = new Date(dateObj); prevDay.setUTCDate(prevDay.getUTCDate() - 1);
+    const nextDay = new Date(dateObj); nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+
+    await Promise.all(rows.map(async (row) => {
+      if (!row.odoo_user_id) return;
+      try {
+        const orders = await odoo.execute(
+          'sale.order', 'search_read',
+          [[
+            ['user_id', '=', row.odoo_user_id],
+            ['create_date', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
+            ['create_date', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
+          ]],
+          { fields: ['state', 'create_date'] }
+        );
+        const ordersToday = orders.filter((o) => toMoroccoDate(o.create_date) === todayStr);
+        const odooDevis = ordersToday.filter((o) => ['draft', 'sent'].includes(o.state)).length;
+        const odooCommande = ordersToday.filter((o) => ['sale', 'done'].includes(o.state)).length;
+
+        row.devis = Number(row.devis) + odooDevis;
+        row.commande = Number(row.commande) + odooCommande;
+        row.total = Number(row.total) + odooDevis + odooCommande;
+      } catch (err) {
+        console.error('Erreur Odoo (leaderboard):', row.nom, err.message);
+      }
+    }));
+
+    rows.sort((a, b) => Number(b.total) - Number(a.total));
+    rows.forEach((r) => delete r.odoo_user_id);
+
+    res.json(rows);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -687,20 +721,42 @@ router.get('/badge-stats', authMiddleware, async (req, res) => {
       total += Number(r.total);
     });
 
-    const daySet = new Set(dailyResult.rows.map((r) => r.jour));
-    let streak = 0;
-    let cursor = new Date();
-    while (true) {
-      const key = cursor.toISOString().split('T')[0];
-      if (daySet.has(key)) {
-        streak++;
-        cursor.setDate(cursor.getDate() - 1);
-      } else break;
+    const odooUserResult = await pool.query('SELECT odoo_user_id FROM users WHERE id = $1', [req.userId]);
+    const odooUserId = odooUserResult.rows[0]?.odoo_user_id;
+    if (odooUserId) {
+      try {
+        const orders = await odoo.execute(
+          'sale.order', 'search_read',
+          [[['user_id', '=', odooUserId]]],
+          { fields: ['state'] }
+        );
+        const odooDevis = orders.filter((o) => ['draft', 'sent'].includes(o.state)).length;
+        const odooCommande = orders.filter((o) => ['sale', 'done'].includes(o.state)).length;
+        typeCounts.devis += odooDevis;
+        typeCounts.commande += odooCommande;
+        total += odooDevis + odooCommande;
+      } catch (odooErr) {
+        console.error('Erreur Odoo (badge-stats):', odooErr.message);
+      }
     }
+
+    const streakResult = await pool.query(
+      `UPDATE users
+       SET current_streak = CASE
+             WHEN last_active_date = CURRENT_DATE THEN current_streak
+             WHEN last_active_date >= CURRENT_DATE - INTERVAL '2 days' THEN current_streak + 1
+             ELSE 1
+           END,
+           last_active_date = CURRENT_DATE
+       WHERE id = $1
+       RETURNING current_streak`,
+      [req.userId]
+    );
+    const currentStreak = streakResult.rows[0]?.current_streak || 1;
 
     const targetDays = dailyResult.rows.filter((r) => Number(r.total) >= 5).length;
 
-    res.json({ typeCounts, total, streak, targetDays });
+    res.json({ typeCounts, total, streak: currentStreak, targetDays });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -768,6 +824,36 @@ router.get('/my-type-quotas', authMiddleware, async (req, res) => {
     );
     const today = { appel: 0, rdv: 0, devis: 0, commande: 0 };
     todayResult.rows.forEach((r) => { today[r.type] = Number(r.total); });
+
+    const userResult = await pool.query('SELECT odoo_user_id FROM users WHERE id = $1', [req.userId]);
+    const odooUserId = userResult.rows[0]?.odoo_user_id;
+
+    if (odooUserId) {
+      try {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const dateObj = new Date(`${todayStr}T00:00:00Z`);
+        const prevDay = new Date(dateObj); prevDay.setUTCDate(prevDay.getUTCDate() - 1);
+        const nextDay = new Date(dateObj); nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+
+        const orders = await odoo.execute(
+          'sale.order', 'search_read',
+          [[
+            ['user_id', '=', odooUserId],
+            ['create_date', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
+            ['create_date', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
+          ]],
+          { fields: ['state', 'create_date'] }
+        );
+        const ordersToday = orders.filter((o) => toMoroccoDate(o.create_date) === todayStr);
+        const odooDevis = ordersToday.filter((o) => ['draft', 'sent'].includes(o.state)).length;
+        const odooCommande = ordersToday.filter((o) => ['sale', 'done'].includes(o.state)).length;
+
+        today.devis = today.devis + odooDevis;
+        today.commande = today.commande + odooCommande;
+      } catch (odooErr) {
+        console.error('Erreur Odoo (my-type-quotas):', odooErr.message);
+      }
+    }
 
     res.json({ quotas, today });
   } catch (err) {

@@ -15,6 +15,7 @@ function Navbar() {
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   const [loggingOut, setLoggingOut] = useState(false);
   const [points, setPoints] = useState(null);
+  const [streak, setStreak] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const isAdmin = user?.role === 'admin';
@@ -123,8 +124,17 @@ function Navbar() {
       .catch(() => {});
   };
 
+  const loadStreak = () => {
+    if (!user) return;
+    apiFetch(`${API_URL}/api/activities/badge-stats`)
+      .then((r) => r.json())
+      .then((data) => setStreak(data.streak))
+      .catch(() => {});
+  };
+
   useEffect(() => {
     loadPoints();
+    loadStreak();
   }, [location.pathname]);
 
   useEffect(() => {
@@ -357,6 +367,16 @@ function Navbar() {
             >
               <CoinIcon size={16} />
               <span className="text-white text-xs font-semibold">{points}</span>
+            </Link>
+          )}
+
+          {user && streak !== null && streak > 0 && (
+            <Link
+              to="/badges"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/5 border border-white/10 hover:border-white/20 transition-colors"
+            >
+              <span className="text-sm">🔥</span>
+              <span className="text-white text-xs font-semibold">{streak}</span>
             </Link>
           )}
 

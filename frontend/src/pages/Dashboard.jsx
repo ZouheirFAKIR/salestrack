@@ -4,6 +4,7 @@ import OdooActivitiesCard from '../components/OdooActivitiesCard';
 import OdooActivitiesChartCard from '../components/OdooActivitiesChartCard';
 import OdooPipelineCard from '../components/OdooPipelineCard';
 import OdooWaitingLostCard from '../components/OdooWaitingLostCard';
+import OdooWaitingPipelineChartCard from '../components/OdooWaitingPipelineChartCard';
 import PageLoader from '../components/PageLoader';
 import CommercialDetail from '../components/CommercialDetail';
 import { apiFetch } from '../utils/api';
@@ -188,8 +189,7 @@ function Dashboard() {
             <p className="text-sm font-medium mb-4" style={{ color: 'var(--text-primary)' }}>Objectifs du jour</p>
             <div className="grid grid-cols-2 gap-3">
               {allTypes.map((type, i) => {
-                const s = getStat(type);
-                const current = Number(s.total);
+                const current = Number(typeQuotas?.today?.[type] || 0);
                 const target = typeQuotas?.quotas[type] || 5;
                 const percent = Math.min(Math.round((current / target) * 100), 100);
                 const circumference = 2 * Math.PI * 26;
@@ -241,6 +241,7 @@ function Dashboard() {
               <OdooActivitiesChartCard commercialId={user?.id} />
             </div>
             <OdooPipelineCard commercialId={user?.id} />
+            <OdooWaitingPipelineChartCard commercialId={user?.id} />
             <OdooWaitingLostCard commercialId={user?.id} />
           </div>
         </div>

@@ -38,6 +38,7 @@ function NouvelleActivite() {
   const [newlyUnlocked, setNewlyUnlocked] = useState([]);
   const [currentUnlockIndex, setCurrentUnlockIndex] = useState(0);
   const [typeQuotas, setTypeQuotas] = useState({ appel: 5, rdv: 2, devis: 1, commande: 1 });
+  const [todayQuotas, setTodayQuotas] = useState({ appel: 0, rdv: 0, devis: 0, commande: 0 });
   const [completedType, setCompletedType] = useState(null);
   const [dailyBonus, setDailyBonus] = useState(null);
   const [pendingObjective, setPendingObjective] = useState(null);
@@ -89,7 +90,10 @@ function NouvelleActivite() {
     if (!token) return;
     apiFetch(`${API_URL}/api/activities/my-type-quotas`)
       .then((r) => r.json())
-      .then((d) => setTypeQuotas(d.quotas));
+      .then((d) => {
+        setTypeQuotas(d.quotas);
+        setTodayQuotas(d.today);
+      });
   }, [token]);
 
   const resetForm = () => { setType(null); setSens(null); setStatut(null); setNombre(1); };
@@ -157,7 +161,7 @@ function NouvelleActivite() {
     }
   };
 
-  const getStat = (key) => todayStats.find((s) => s.type === key)?.total || 0;
+  const getStat = (key) => todayQuotas[key] ?? (todayStats.find((s) => s.type === key)?.total || 0);
 
   useEffect(() => {
     if (newlyUnlocked.length === 0 && pendingObjective) {
