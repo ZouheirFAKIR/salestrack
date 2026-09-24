@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../utils/api';
 import Spinner from './Spinner';
-import ActivityMultiChart from './ActivityMultiChart';
+import SimplePieChart from './SimplePieChart';
 
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -41,7 +41,7 @@ function OdooWaitingPipelineChartCard({ commercialId }) {
 
   return (
     <div className="rounded-xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-      <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>Liste d'attente & Pipeline par jour (Odoo)</p>
+      <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>Liste d'attente & Pipeline — répartition <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(cette période)</span></p>
 
       <div className="flex items-center justify-center gap-2 mb-4 flex-wrap">
         <button onClick={() => shift(-1)} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>‹</button>
@@ -61,12 +61,12 @@ function OdooWaitingPipelineChartCard({ commercialId }) {
       ) : !data || !data.linked || data.daily.length === 0 ? (
         <p className="text-xs text-center py-6" style={{ color: 'var(--text-muted)' }}>Aucune donnée Odoo sur cette période</p>
       ) : (
-        <ActivityMultiChart
-          data={data.daily}
-          keys={data.categories.map((c) => c.key)}
-          labels={data.categories.reduce((acc, c) => ({ ...acc, [c.key]: c.label }), {})}
-          labelKey="jour"
-          formatLabel={(d) => new Date(d).toLocaleDateString('fr-FR', { weekday: 'short' })}
+        <SimplePieChart
+          slices={data.categories.map((c) => ({
+            key: c.key,
+            label: c.label,
+            value: data.daily.reduce((sum, d) => sum + Number(d[c.key] || 0), 0),
+          }))}
         />
       )}
     </div>

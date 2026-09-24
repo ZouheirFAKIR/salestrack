@@ -93,13 +93,13 @@ router.get('/stats/:commercialId', authMiddleware, async (req, res) => {
       'search_read',
       [[
         ['user_id', '=', odooUserId],
-        ['create_date', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
-        ['create_date', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
+        ['date_order', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
+        ['date_order', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
       ]],
-      { fields: ['state', 'amount_total', 'create_date'] }
+      { fields: ['state', 'amount_total', 'date_order'] }
     );
 
-    const ordersToday = orders.filter((o) => toMoroccoDate(o.create_date) === date);
+    const ordersToday = orders.filter((o) => toMoroccoDate(o.date_order) === date);
     const devis = ordersToday.filter((o) => ['draft', 'sent'].includes(o.state)).length;
     const commandesList = ordersToday.filter((o) => ['sale', 'done'].includes(o.state));
     const commandes = commandesList.length;
@@ -195,10 +195,10 @@ router.get('/range/:commercialId', authMiddleware, async (req, res) => {
       'search_read',
       [[
         ['user_id', '=', odooUserId],
-        ['create_date', '>=', `${fetchStartDate.toISOString().slice(0, 10)} 00:00:00`],
-        ['create_date', '<=', `${fetchEndDate.toISOString().slice(0, 10)} 23:59:59`],
+        ['date_order', '>=', `${fetchStartDate.toISOString().slice(0, 10)} 00:00:00`],
+        ['date_order', '<=', `${fetchEndDate.toISOString().slice(0, 10)} 23:59:59`],
       ]],
-      { fields: ['state', 'create_date', 'amount_total'] }
+      { fields: ['state', 'date_order', 'amount_total'] }
     );
 
     const bucketMap = {};
@@ -223,7 +223,7 @@ router.get('/range/:commercialId', authMiddleware, async (req, res) => {
     }
 
     orders.forEach((o) => {
-      const localDate = toMoroccoDate(o.create_date);
+      const localDate = toMoroccoDate(o.date_order);
       const key = getBucketKey(localDate);
       if (!bucketMap[key]) return;
       if (['draft', 'sent'].includes(o.state)) bucketMap[key].devis++;
@@ -587,4 +587,189 @@ router.get('/waiting-lost/:commercialId', authMiddleware, async (req, res) => {
   }
 });
 
+
+
+
+
+
+
+router.get('/team-today', authMiddleware, async (req, res) => {
+  const date = req.query.date || new Date().toISOString().slice(0, 10);
+  const cacheKey = `team-today:${date}`;
+  const cached = getCached(cacheKey);
+  if (cached) return res.json(cached);
+
+  try {
+    const commercialsResult = await pool.query(
+      `SELECT odoo_user_id FROM users
+       WHERE (role != 'admin' OR role IS NULL) AND hidden = FALSE AND odoo_user_id IS NOT NULL`
+    );
+    const odooUserIds = commercialsResult.rows.map((r) => r.odoo_user_id);
+
+    if (odooUserIds.length === 0) {
+      const result = { devis: 0, commandes: 0, chiffreAffaires: 0 };
+      setCached(cacheKey, result);
+      return res.json(result);
+    }
+
+    const dateObj = new Date(`${date}T00:00:00Z`);
+    const prevDay = new Date(dateObj); prevDay.setUTCDate(prevDay.getUTCDate() - 1);
+    const nextDay = new Date(dateObj); nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+
+    const orders = await odoo.execute(
+      'sale.order',
+      'search_read',
+      [[
+        ['user_id', 'in', odooUserIds],
+        ['date_order', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
+        ['date_order', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
+      ]],
+      { fields: ['state', 'amount_total', 'date_order'] }
+    );
+
+    const ordersToday = orders.filter((o) => toMoroccoDate(o.date_order) === date);
+    const devis = ordersToday.filter((o) => ['draft', 'sent'].includes(o.state)).length;
+    const commandesList = ordersToday.filter((o) => ['sale', 'done'].includes(o.state));
+    const commandes = commandesList.length;
+    const chiffreAffaires = Math.round(commandesList.reduce((sum, o) => sum + o.amount_total, 0) * 100) / 100;
+
+    const result = { devis, commandes, chiffreAffaires };
+    setCached(cacheKey, result);
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur de connexion à Odoo' });
+  }
+});
+
+router.get('/team-daily', authMiddleware, async (req, res) => {
+  const { start, end } = req.query;
+  if (!start || !end) {
+    return res.status(400).json({ error: 'start et end sont requis (format YYYY-MM-DD)' });
+  }
+
+  const cacheKey = `team-daily:${start}:${end}`;
+  const cached = getCached(cacheKey);
+  if (cached) return res.json(cached);
+
+  try {
+    const commercialsResult = await pool.query(
+      `SELECT id, nom, odoo_user_id FROM users
+       WHERE (role != 'admin' OR role IS NULL) AND hidden = FALSE AND odoo_user_id IS NOT NULL
+       ORDER BY nom ASC`
+    );
+    const commercials = commercialsResult.rows;
+
+    if (commercials.length === 0) {
+      const result = { linked: false, daily: [], series: [] };
+      setCached(cacheKey, result);
+      return res.json(result);
+    }
+
+    const odooUserIds = commercials.map((c) => c.odoo_user_id);
+    const slugify = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '_');
+    const userSlugs = {};
+    commercials.forEach((c) => { userSlugs[c.odoo_user_id] = slugify(c.nom); });
+
+    const fetchStartDate = new Date(`${start}T00:00:00Z`); fetchStartDate.setUTCDate(fetchStartDate.getUTCDate() - 1);
+    const fetchEndDate = new Date(`${end}T00:00:00Z`); fetchEndDate.setUTCDate(fetchEndDate.getUTCDate() + 1);
+
+    const orders = await odoo.execute(
+      'sale.order',
+      'search_read',
+      [[
+        ['user_id', 'in', odooUserIds],
+        ['date_order', '>=', `${fetchStartDate.toISOString().slice(0, 10)} 00:00:00`],
+        ['date_order', '<=', `${fetchEndDate.toISOString().slice(0, 10)} 23:59:59`],
+      ]],
+      { fields: ['user_id', 'state', 'date_order'] }
+    );
+
+    const dayMap = {};
+    let cursor = new Date(start);
+    const endDate = new Date(end);
+    while (cursor <= endDate) {
+      const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
+      dayMap[key] = { jour: key };
+      commercials.forEach((c) => { dayMap[key][userSlugs[c.odoo_user_id]] = 0; });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    orders.forEach((o) => {
+      if (!['draft', 'sent', 'sale', 'done'].includes(o.state)) return;
+      const day = toMoroccoDate(o.date_order);
+      if (!dayMap[day]) return;
+      const slug = o.user_id ? userSlugs[o.user_id[0]] : null;
+      if (slug && dayMap[day][slug] !== undefined) dayMap[day][slug]++;
+    });
+
+    const series = commercials.map((c) => ({ key: userSlugs[c.odoo_user_id], label: c.nom }));
+    const result = { linked: true, daily: Object.values(dayMap), series };
+    setCached(cacheKey, result);
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur de connexion à Odoo' });
+  }
+});
+
+
+
+router.get('/team-day', authMiddleware, async (req, res) => {
+  const date = req.query.date || new Date().toISOString().slice(0, 10);
+  const cacheKey = `team-day:${date}`;
+  const cached = getCached(cacheKey);
+  if (cached) return res.json(cached);
+
+  try {
+    const commercialsResult = await pool.query(
+      `SELECT id, nom, odoo_user_id FROM users
+       WHERE (role != 'admin' OR role IS NULL) AND hidden = FALSE AND odoo_user_id IS NOT NULL
+       ORDER BY nom ASC`
+    );
+    const commercials = commercialsResult.rows;
+
+    if (commercials.length === 0) {
+      const result = { linked: false, date, byUser: [] };
+      setCached(cacheKey, result);
+      return res.json(result);
+    }
+
+    const odooUserIds = commercials.map((c) => c.odoo_user_id);
+    const dateObj = new Date(`${date}T00:00:00Z`);
+    const prevDay = new Date(dateObj); prevDay.setUTCDate(prevDay.getUTCDate() - 1);
+    const nextDay = new Date(dateObj); nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+
+    const orders = await odoo.execute(
+      'sale.order',
+      'search_read',
+      [[
+        ['user_id', 'in', odooUserIds],
+        ['date_order', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
+        ['date_order', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
+      ]],
+      { fields: ['user_id', 'state', 'date_order'] }
+    );
+
+    const ordersToday = orders.filter((o) => toMoroccoDate(o.date_order) === date);
+
+    const byUserMap = {};
+    commercials.forEach((c) => { byUserMap[c.odoo_user_id] = { nom: c.nom, devis: 0, commande: 0 }; });
+    ordersToday.forEach((o) => {
+      const uid = o.user_id ? o.user_id[0] : null;
+      if (!uid || !byUserMap[uid]) return;
+      if (['draft', 'sent'].includes(o.state)) byUserMap[uid].devis++;
+      if (['sale', 'done'].includes(o.state)) byUserMap[uid].commande++;
+    });
+
+    const result = { linked: true, date, byUser: Object.values(byUserMap) };
+    setCached(cacheKey, result);
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur de connexion à Odoo' });
+  }
+});
+
 module.exports = router;
+

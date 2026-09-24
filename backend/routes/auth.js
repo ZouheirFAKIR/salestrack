@@ -51,6 +51,7 @@ router.post('/login', async (req, res) => {
       user: {
         id: user.id, nom: user.nom, email: user.email,
         phone: user.phone, role: user.role, photo_url: user.photo_url,
+        is_admin_access: user.is_admin_access,
       },
     });
   } catch (err) {

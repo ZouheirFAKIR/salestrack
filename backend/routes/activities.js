@@ -743,11 +743,16 @@ router.get('/badge-stats', authMiddleware, async (req, res) => {
     const streakResult = await pool.query(
       `UPDATE users
        SET current_streak = CASE
+             WHEN EXTRACT(DOW FROM CURRENT_DATE) IN (0,6) THEN current_streak
              WHEN last_active_date = CURRENT_DATE THEN current_streak
-             WHEN last_active_date >= CURRENT_DATE - INTERVAL '2 days' THEN current_streak + 1
+             WHEN last_active_date = CURRENT_DATE - INTERVAL '1 day' THEN current_streak + 1
+             WHEN EXTRACT(DOW FROM CURRENT_DATE) = 1 AND last_active_date = CURRENT_DATE - INTERVAL '3 days' THEN current_streak + 1
              ELSE 1
            END,
-           last_active_date = CURRENT_DATE
+           last_active_date = CASE
+             WHEN EXTRACT(DOW FROM CURRENT_DATE) IN (0,6) THEN last_active_date
+             ELSE CURRENT_DATE
+           END
        WHERE id = $1
        RETURNING current_streak`,
       [req.userId]

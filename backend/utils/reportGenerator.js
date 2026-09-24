@@ -236,15 +236,15 @@ async function getOdooStatsRange(odooUserId, fromDate) {
   if (cached) return cached;
   try {
     const domain = [['user_id', '=', odooUserId]];
-    if (fromDate) domain.push(['create_date', '>=', fromDate]);
+    if (fromDate) domain.push(['date_order', '>=', fromDate]);
 
     const orders = await odoo.execute(
       'sale.order', 'search_read', [domain],
-      { fields: ['state', 'amount_total', 'create_date'] }
+      { fields: ['state', 'amount_total', 'date_order'] }
     );
 
     const filtered = fromDate
-      ? orders.filter((o) => toMoroccoDate(o.create_date) >= fromDate.slice(0, 10))
+      ? orders.filter((o) => toMoroccoDate(o.date_order) >= fromDate.slice(0, 10))
       : orders;
 
     const devis = filtered.filter((o) => ['draft', 'sent'].includes(o.state)).length;
@@ -273,13 +273,13 @@ async function getOdooStatsToday(odooUserId) {
       'sale.order', 'search_read',
       [[
         ['user_id', '=', odooUserId],
-        ['create_date', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
-        ['create_date', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
+        ['date_order', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
+        ['date_order', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
       ]],
-      { fields: ['state', 'amount_total', 'create_date'] }
+      { fields: ['state', 'amount_total', 'date_order'] }
     );
 
-    const ordersToday = orders.filter((o) => toMoroccoDate(o.create_date) === today);
+    const ordersToday = orders.filter((o) => toMoroccoDate(o.date_order) === today);
     const devis = ordersToday.filter((o) => ['draft', 'sent'].includes(o.state)).length;
     const commandesList = ordersToday.filter((o) => ['sale', 'done'].includes(o.state));
     const commandes = commandesList.length;
@@ -623,12 +623,12 @@ async function getQuotaProgress(commercialId, typeCounts, odooUserId) {
         'sale.order', 'search_read',
         [[
           ['user_id', '=', odooUserId],
-          ['create_date', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
-          ['create_date', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
+          ['date_order', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
+          ['date_order', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
         ]],
-        { fields: ['state', 'create_date'] }
+        { fields: ['state', 'date_order'] }
       );
-      const ordersToday = orders.filter((o) => toMoroccoDate(o.create_date) === todayStr);
+      const ordersToday = orders.filter((o) => toMoroccoDate(o.date_order) === todayStr);
       merged.devis = (merged.devis || 0) + ordersToday.filter((o) => ['draft', 'sent'].includes(o.state)).length;
       merged.commande = (merged.commande || 0) + ordersToday.filter((o) => ['sale', 'done'].includes(o.state)).length;
     } catch (err) {

@@ -5,6 +5,8 @@ import OdooActivitiesChartCard from '../components/OdooActivitiesChartCard';
 import OdooPipelineCard from '../components/OdooPipelineCard';
 import OdooWaitingLostCard from '../components/OdooWaitingLostCard';
 import OdooWaitingPipelineChartCard from '../components/OdooWaitingPipelineChartCard';
+import TeamOdooSummaryCard from '../components/TeamOdooSummaryCard';
+import TeamOdooTrendCard from '../components/TeamOdooTrendCard';
 import PageLoader from '../components/PageLoader';
 import CommercialDetail from '../components/CommercialDetail';
 import { apiFetch } from '../utils/api';
@@ -235,12 +237,14 @@ function Dashboard() {
         <div>
           <p className="text-sm font-medium mb-3 mt-2" style={{ color: 'var(--text-primary)' }}>Données Odoo</p>
           <div className="flex flex-col gap-4">
+            <TeamOdooSummaryCard />
+            <TeamOdooTrendCard />
             <OdooRangeCard commercialId={user?.id} />
+            <OdooPipelineCard commercialId={user?.id} />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
               <OdooActivitiesCard commercialId={user?.id} />
               <OdooActivitiesChartCard commercialId={user?.id} />
             </div>
-            <OdooPipelineCard commercialId={user?.id} />
             <OdooWaitingPipelineChartCard commercialId={user?.id} />
             <OdooWaitingLostCard commercialId={user?.id} />
           </div>

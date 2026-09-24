@@ -19,6 +19,7 @@ function Profile() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [role, setRole] = useState('');
+  const [isAdminAccess, setIsAdminAccess] = useState(false);
   const [photoUrl, setPhotoUrl] = useState('');
   const [saving, setSaving] = useState(false);
   const [photoLoading, setPhotoLoading] = useState(false);
@@ -52,6 +53,7 @@ function Profile() {
         setEmail(data.email || '');
         setPhone(data.phone || '');
         setRole(data.role || '');
+        setIsAdminAccess(!!data.is_admin_access);
         setPhotoUrl(data.photo_url || '');
         setPageLoading(false);
       })
@@ -166,6 +168,7 @@ function Profile() {
   };
 
   const secondaryCols = role === 'admin' ? 'sm:grid-cols-2 xl:grid-cols-4' : 'sm:grid-cols-3';
+  const roleLabel = role === 'admin' ? 'Admin' : role === 'manager' ? 'Manager' : 'Commercial';
 
   return (
     <div className="min-h-[calc(100vh-64px)] pb-16" style={{ backgroundColor: 'var(--bg)' }}>
@@ -221,7 +224,7 @@ function Profile() {
               <p className="text-lg sm:text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>{nom || 'Sans nom'}</p>
               {role && (
                 <span className="text-xs px-2.5 py-1 rounded-full w-fit mx-auto sm:mx-0" style={{ backgroundColor: `${ACCENT}1a`, color: ACCENT }}>
-                  {role}
+                  {roleLabel}
                 </span>
               )}
             </div>
@@ -235,7 +238,7 @@ function Profile() {
             </div>
             <div className="w-px" style={{ backgroundColor: 'var(--border)' }} />
             <div className="text-center">
-              <p className="text-xl font-semibold" style={{ color: ACCENT }}>{role === 'admin' ? 'Admin' : 'Com.'}</p>
+              <p className="text-xl font-semibold" style={{ color: ACCENT }}>{roleLabel}</p>
               <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Statut</p>
             </div>
             <button
@@ -394,7 +397,7 @@ function Profile() {
             )}
           </div>
 
-          {role === 'admin' && (
+          {(role === 'admin' || isAdminAccess) && (
             <div
               className="rounded-2xl p-4 flex flex-col sm:col-span-2 xl:col-span-2"
               style={{ backgroundColor: 'var(--surface)', border: `1px solid ${ACCENT}33`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}

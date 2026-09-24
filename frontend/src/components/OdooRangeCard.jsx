@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../utils/api';
 import Spinner from './Spinner';
-import MultiLineChart from './MultiLineChart';
+import GradientAreaChart from './GradientAreaChart';
 
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -65,11 +65,7 @@ function formatPeriodLabel(period, refDate) {
 
 function OdooRangeCard({ commercialId }) {
   const [period, setPeriod] = useState('week');
-  const [refDate, setRefDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 7);
-    return d;
-  });
+  const [refDate, setRefDate] = useState(() => new Date());
   const [data, setData] = useState([]);
   const [linked, setLinked] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -132,7 +128,7 @@ function OdooRangeCard({ commercialId }) {
           </div>
 
           {period !== 'day' && data.length > 0 && (
-            <MultiLineChart
+            <GradientAreaChart
               data={data}
               labelKey="periode"
               formatLabel={(d) => period === 'year'

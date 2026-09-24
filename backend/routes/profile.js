@@ -7,7 +7,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, nom, email, phone, role, photo_url FROM users WHERE id = $1',
+      'SELECT id, nom, email, phone, role, photo_url, is_admin_access FROM users WHERE id = $1',
       [req.userId]
     );
     if (result.rows.length === 0) {

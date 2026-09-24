@@ -2,10 +2,10 @@ const pool = require('../db');
 
 async function adminMiddleware(req, res, next) {
   try {
-    const result = await pool.query('SELECT role FROM users WHERE id = $1', [req.userId]);
+    const result = await pool.query('SELECT role, is_admin_access FROM users WHERE id = $1', [req.userId]);
     const user = result.rows[0];
 
-    if (!user || user.role !== 'admin') {
+    if (!user || (user.role !== 'admin' && !user.is_admin_access)) {
       return res.status(403).json({ error: 'Accès réservé aux administrateurs' });
     }
 
