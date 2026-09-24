@@ -27,6 +27,7 @@ import SuccessModal from './components/SuccessModal';
 import AmbientBackground from './components/AmbientBackground';
 import ChatWidget from './components/ChatWidget';
 import ChallengeNotifier from './components/ChallengeNotifier';
+import StreakHistory from './pages/StreakHistory';
 import { apiFetch } from './utils/api';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -103,6 +104,7 @@ function App() {
         <Route path="/feed" element={<AppLayout><Feed /></AppLayout>} />
         <Route path="/profile" element={<AppLayout><Profile /></AppLayout>} />
         <Route path="/badges" element={<AppLayout><Badges /></AppLayout>} />
+        <Route path="/streak-history" element={<AppLayout><StreakHistory /></AppLayout>} />
         <Route path="/certificates" element={<AppLayout><MyCertificates /></AppLayout>} />
         <Route path="/rewards" element={<AppLayout><Rewards /></AppLayout>} />
         <Route path="/courses" element={<AppLayout><Courses /></AppLayout>} />

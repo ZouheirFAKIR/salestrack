@@ -5,6 +5,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
 const odoo = require('../utils/odooClient');
 const { toMoroccoDate } = odoo;
+const { getPeriodReportData, renderPeriodReportPdf } = require('../utils/reportGenerator');
 const { getGlobalReportData, renderGlobalReportPdf, getDailyReportData, renderDailyReportPdf } = require('../utils/reportGenerator');
 router.use(authMiddleware, adminMiddleware);
 
@@ -715,6 +716,81 @@ router.post('/challenge/:id/end', async (req, res) => {
   try {
     await pool.query('UPDATE challenges SET ended = TRUE WHERE id = $1', [req.params.id]);
     res.json({ message: 'Défi terminé' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/team-today-quotas', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const commercialsResult = await pool.query(
+      `SELECT id, nom, odoo_user_id FROM users
+       WHERE (role IS NULL OR role NOT IN ('admin', 'manager')) AND hidden = FALSE
+       ORDER BY nom ASC`
+    );
+    const commercials = commercialsResult.rows;
+    if (commercials.length === 0) return res.json([]);
+
+    const ids = commercials.map((c) => c.id);
+
+    const quotasResult = await pool.query(
+      `SELECT commercial_id, type, daily_target FROM type_quotas WHERE commercial_id = ANY($1::int[])`,
+      [ids]
+    );
+    const quotasMap = {};
+    commercials.forEach((c) => { quotasMap[c.id] = { appel: 80, rdv: 2, devis: 3, commande: 1 }; });
+    quotasResult.rows.forEach((r) => { quotasMap[r.commercial_id][r.type] = r.daily_target; });
+
+    const todayResult = await pool.query(
+      `SELECT commercial_id, type, COUNT(*) as total FROM activities
+       WHERE commercial_id = ANY($1::int[]) AND DATE(date_activite) = CURRENT_DATE
+       GROUP BY commercial_id, type`,
+      [ids]
+    );
+    const todayMap = {};
+    commercials.forEach((c) => { todayMap[c.id] = { appel: 0, rdv: 0, devis: 0, commande: 0 }; });
+    todayResult.rows.forEach((r) => { todayMap[r.commercial_id][r.type] = Number(r.total); });
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const dateObj = new Date(`${todayStr}T00:00:00Z`);
+    const prevDay = new Date(dateObj); prevDay.setUTCDate(prevDay.getUTCDate() - 1);
+    const nextDay = new Date(dateObj); nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+    const odooUserIds = commercials.map((c) => c.odoo_user_id).filter(Boolean);
+
+    if (odooUserIds.length > 0) {
+      const orders = await odoo.execute(
+        'sale.order', 'search_read',
+        [[
+          ['user_id', 'in', odooUserIds],
+          ['date_order', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
+          ['date_order', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
+        ]],
+        { fields: ['user_id', 'state', 'date_order'] }
+      );
+      const ordersToday = orders.filter((o) => toMoroccoDate(o.date_order) === todayStr);
+      ordersToday.forEach((o) => {
+        const c = commercials.find((c) => c.odoo_user_id === (o.user_id ? o.user_id[0] : null));
+        if (!c) return;
+        if (['draft', 'sent'].includes(o.state)) todayMap[c.id].devis++;
+        if (['sale', 'done'].includes(o.state)) todayMap[c.id].commande++;
+      });
+    }
+
+    res.json(commercials.map((c) => ({ id: c.id, nom: c.nom, quotas: quotasMap[c.id], today: todayMap[c.id] })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/report/period/:commercialId', authMiddleware, adminMiddleware, async (req, res) => {
+  const { commercialId } = req.params;
+  const period = ['day', 'week', 'month', 'quarter', 'year'].includes(req.query.period) ? req.query.period : 'day';
+  const date = req.query.date || new Date().toISOString().slice(0, 10);
+  try {
+    const data = await getPeriodReportData(commercialId, period, date);
+    renderPeriodReportPdf(res, data);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur' });

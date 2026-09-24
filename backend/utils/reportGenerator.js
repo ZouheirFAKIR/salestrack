@@ -938,4 +938,229 @@ function renderDailyReportPdf(res, data) {
   doc.end();
 }
 
-module.exports = { getGlobalReportData, renderGlobalReportPdf, getDailyReportData, renderDailyReportPdf };
+function getPeriodRange(period, dateStr) {
+  const d = new Date(`${dateStr}T00:00:00`);
+  let start, end, label;
+
+  if (period === 'week') {
+    const day = d.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    start = new Date(d); start.setDate(d.getDate() + diffToMonday);
+    end = new Date(start); end.setDate(start.getDate() + 6);
+    label = `Semaine du ${start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} au ${end.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+  } else if (period === 'month') {
+    start = new Date(d.getFullYear(), d.getMonth(), 1);
+    end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    label = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  } else if (period === 'quarter') {
+    const q = Math.floor(d.getMonth() / 3);
+    start = new Date(d.getFullYear(), q * 3, 1);
+    end = new Date(d.getFullYear(), q * 3 + 3, 0);
+    label = `T${q + 1} ${d.getFullYear()}`;
+  } else if (period === 'year') {
+    start = new Date(d.getFullYear(), 0, 1);
+    end = new Date(d.getFullYear(), 11, 31);
+    label = String(d.getFullYear());
+  } else {
+    start = new Date(d); end = new Date(d);
+    label = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  }
+
+  const toISO = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+  return { start: toISO(start), end: toISO(end), label };
+}
+
+async function getOdooStatsPeriod(odooUserId, startStr, endStr) {
+  if (!odooUserId) return { linked: false, error: false, devis: 0, commandes: 0, chiffreAffaires: 0 };
+  try {
+    const fetchStart = new Date(`${startStr}T00:00:00Z`); fetchStart.setUTCDate(fetchStart.getUTCDate() - 1);
+    const fetchEnd = new Date(`${endStr}T00:00:00Z`); fetchEnd.setUTCDate(fetchEnd.getUTCDate() + 1);
+
+    const orders = await odoo.execute(
+      'sale.order', 'search_read',
+      [[
+        ['user_id', '=', odooUserId],
+        ['date_order', '>=', `${fetchStart.toISOString().slice(0, 10)} 00:00:00`],
+        ['date_order', '<=', `${fetchEnd.toISOString().slice(0, 10)} 23:59:59`],
+      ]],
+      { fields: ['state', 'amount_total', 'date_order'] }
+    );
+
+    const filtered = orders.filter((o) => {
+      const day = toMoroccoDate(o.date_order);
+      return day >= startStr && day <= endStr;
+    });
+
+    const devis = filtered.filter((o) => ['draft', 'sent'].includes(o.state)).length;
+    const commandesList = filtered.filter((o) => ['sale', 'done'].includes(o.state));
+    const commandes = commandesList.length;
+    const chiffreAffaires = Math.round(commandesList.reduce((sum, o) => sum + o.amount_total, 0) * 100) / 100;
+
+    return { linked: true, error: false, devis, commandes, chiffreAffaires };
+  } catch (err) {
+    console.error('Erreur Odoo (periode, rapport):', err.message);
+    return { linked: true, error: true, devis: 0, commandes: 0, chiffreAffaires: 0 };
+  }
+}
+
+async function getOdooActivitiesPeriod(odooUserId, startStr, endStr) {
+  if (!odooUserId) return { linked: false, error: false, byCategory: [] };
+  try {
+    const records = await odoo.execute(
+      'mail.activity', 'search_read',
+      [[
+        ['user_id', '=', odooUserId],
+        ['date_deadline', '>=', startStr],
+        ['date_deadline', '<=', endStr],
+      ]],
+      { fields: ['activity_type_id', 'active', 'activity_cancel'], context: { active_test: false } }
+    );
+    const filtered = records.filter((r) => !(r.active === false && r.activity_cancel));
+    const categoryMap = {};
+    filtered.forEach((r) => {
+      const label = r.activity_type_id ? r.activity_type_id[1] : 'Autre';
+      categoryMap[label] = (categoryMap[label] || 0) + 1;
+    });
+    const byCategory = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]).map(([label, count]) => ({ label, count }));
+    return { linked: true, error: false, byCategory };
+  } catch (err) {
+    console.error('Erreur Odoo (activites periode, rapport):', err.message);
+    return { linked: true, error: true, byCategory: [] };
+  }
+}
+
+async function getOdooWaitingPipelinePeriod(odooUserId, startStr, endStr) {
+  if (!odooUserId) return { linked: false, error: false, attenteNew: 0, attenteLost: 0, pipelineNew: 0, pipelineLost: 0 };
+  try {
+    const records = await odoo.execute(
+      'crm.lead', 'search_read',
+      [[
+        ['user_id', '=', odooUserId],
+        '|',
+          ['create_date', '>=', `${startStr} 00:00:00`],
+          ['write_date', '>=', `${startStr} 00:00:00`],
+      ]],
+      { fields: ['type', 'active', 'create_date', 'write_date'], context: { active_test: false } }
+    );
+
+    let attenteNew = 0, attenteLost = 0, pipelineNew = 0, pipelineLost = 0;
+    records.forEach((r) => {
+      const isWaiting = r.type === 'lead' || r.type === false;
+      const isPipeline = r.type === 'opportunity';
+      const createDay = toMoroccoDate(r.create_date);
+      if (createDay >= startStr && createDay <= endStr) {
+        if (isWaiting) attenteNew++;
+        if (isPipeline) pipelineNew++;
+      }
+      if (r.active === false) {
+        const lostDay = toMoroccoDate(r.write_date);
+        if (lostDay >= startStr && lostDay <= endStr) {
+          if (isWaiting) attenteLost++;
+          if (isPipeline) pipelineLost++;
+        }
+      }
+    });
+
+    return { linked: true, error: false, attenteNew, attenteLost, pipelineNew, pipelineLost };
+  } catch (err) {
+    console.error('Erreur Odoo (attente/pipeline periode, rapport):', err.message);
+    return { linked: true, error: true, attenteNew: 0, attenteLost: 0, pipelineNew: 0, pipelineLost: 0 };
+  }
+}
+
+async function getPeriodReportData(commercialId, period, dateStr) {
+  const { start, end, label } = getPeriodRange(period, dateStr);
+
+  const userResult = await pool.query('SELECT nom, odoo_user_id FROM users WHERE id = $1', [commercialId]);
+  const user = userResult.rows[0];
+  const odooUserId = user?.odoo_user_id;
+
+  const activitiesResult = await pool.query(
+    `SELECT type, COUNT(*) as total FROM activities
+     WHERE commercial_id = $1 AND DATE(date_activite) >= $2 AND DATE(date_activite) <= $3
+     GROUP BY type`,
+    [commercialId, start, end]
+  );
+  const activityCounts = { appel: 0, rdv: 0, devis: 0, commande: 0 };
+  activitiesResult.rows.forEach((r) => { activityCounts[r.type] = Number(r.total); });
+
+  const [odooData, odooActivities, waitingPipeline, odooPipeline] = await Promise.all([
+    getOdooStatsPeriod(odooUserId, start, end),
+    getOdooActivitiesPeriod(odooUserId, start, end),
+    getOdooWaitingPipelinePeriod(odooUserId, start, end),
+    getOdooPipeline(odooUserId),
+  ]);
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const quotaProgress = (period === 'day' && start === todayStr)
+    ? await getQuotaProgress(commercialId, activityCounts, odooUserId)
+    : null;
+
+  return {
+    commercialNom: user?.nom || 'Commercial',
+    periodLabel: label,
+    start, end,
+    activityCounts,
+    odoo: odooData,
+    odooActivities,
+    waitingPipeline,
+    odooPipeline,
+    quotaProgress,
+  };
+}
+
+function estimatePeriodHeight(data) {
+  let h = 52 + 14;
+  h += 16 + 46;
+  if (data.quotaProgress) h += 26 + data.quotaProgress.length * 19 + 8;
+  h += 26 + (data.odoo.linked && !data.odoo.error ? 46 : 8);
+  h += 26 + (data.odooActivities.byCategory.length === 0 ? 8 : data.odooActivities.byCategory.length * 19 + 8);
+  h += 26 + 46;
+  h += 26 + (data.odooPipeline.byStage.length === 0 ? 8 : Math.max(60, data.odooPipeline.byStage.length * 10) + 29);
+  h += 30;
+  return Math.max(420, h + 70);
+}
+
+function renderOdooWaitingPipelinePeriodSection(doc, data) {
+  drawSectionTitle(doc, "Liste d'attente & Pipeline sur la periode (Odoo)");
+  if (!data.linked) { doc.fontSize(7.5).fillColor('#888').text('Compte non lie a Odoo.'); doc.y += 8; return; }
+  if (data.error) { doc.fontSize(7.5).fillColor('#888').text('Connexion Odoo indisponible.'); doc.y += 8; return; }
+  drawStatBoxes(doc, [
+    { label: 'Attente - nouvelles', value: data.attenteNew },
+    { label: 'Attente - perdues', value: data.attenteLost },
+    { label: 'Pipeline - nouvelles', value: data.pipelineNew },
+    { label: 'Pipeline - perdues', value: data.pipelineLost },
+  ]);
+}
+
+function renderPeriodReportPdf(res, data) {
+  const doc = new PDFDocument({ margin: 26, size: [595.28, estimatePeriodHeight(data)] });
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="rapport_${data.commercialNom.replace(/\s+/g, '_')}_${data.start}_${data.end}.pdf"`);
+  doc.pipe(res);
+
+  drawPageBorder(doc);
+  drawHeader(doc, 'Rapport periodique', `${data.commercialNom} - ${data.periodLabel}`);
+
+  drawSectionTitle(doc, 'Activites SalesTrack', false);
+  drawStatBoxes(doc, [
+    { label: TYPE_LABELS.appel, value: data.activityCounts.appel },
+    { label: TYPE_LABELS.rdv, value: data.activityCounts.rdv },
+    { label: TYPE_LABELS.devis, value: data.activityCounts.devis },
+    { label: TYPE_LABELS.commande, value: data.activityCounts.commande },
+  ]);
+
+  if (data.quotaProgress) {
+    renderQuotaSection(doc, data.quotaProgress);
+  }
+
+  renderOdooSection(doc, data.odoo);
+  renderOdooActivitiesSection(doc, data.odooActivities, 'Activites Odoo sur la periode');
+  renderOdooWaitingPipelinePeriodSection(doc, data.waitingPipeline);
+  renderOdooPipelineSection(doc, data.odooPipeline);
+
+  drawFooter(doc);
+  doc.end();
+}
+
+module.exports = { getGlobalReportData, renderGlobalReportPdf, getDailyReportData, renderDailyReportPdf, getPeriodReportData, renderPeriodReportPdf };

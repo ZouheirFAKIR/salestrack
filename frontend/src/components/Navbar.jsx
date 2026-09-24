@@ -372,7 +372,7 @@ function Navbar() {
 
           {user && streak !== null && streak > 0 && (
             <Link
-              to="/badges"
+              to="/streak-history"
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/5 border border-white/10 hover:border-white/20 transition-colors"
             >
               <span className="text-sm">🔥</span>

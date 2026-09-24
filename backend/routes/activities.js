@@ -759,6 +759,16 @@ router.get('/badge-stats', authMiddleware, async (req, res) => {
     );
     const currentStreak = streakResult.rows[0]?.current_streak || 1;
 
+    const dow = new Date().getDay();
+    if (dow !== 0 && dow !== 6) {
+      await pool.query(
+        `INSERT INTO streak_history (commercial_id, activity_date, streak_value)
+         VALUES ($1, CURRENT_DATE, $2)
+         ON CONFLICT (commercial_id, activity_date) DO UPDATE SET streak_value = EXCLUDED.streak_value`,
+        [req.userId, currentStreak]
+      );
+    }
+
     const targetDays = dailyResult.rows.filter((r) => Number(r.total) >= 5).length;
 
     res.json({ typeCounts, total, streak: currentStreak, targetDays });
@@ -962,6 +972,22 @@ router.get('/race', authMiddleware, async (req, res) => {
     } : null;
 
     res.json({ active: challenges.length > 0, challenges, last });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/streak-history', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT TO_CHAR(activity_date, 'YYYY-MM-DD') as date, streak_value
+       FROM streak_history
+       WHERE commercial_id = $1
+       ORDER BY activity_date ASC`,
+      [req.userId]
+    );
+    res.json(result.rows);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur' });

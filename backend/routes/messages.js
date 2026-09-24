@@ -95,7 +95,6 @@ router.post('/:userId', async (req, res) => {
     const message = result.rows[0];
 
     const io = req.app.get('io');
-    console.log('[chat-backend] io existe ?', !!io, '| envoi vers user:' + otherId, 'et user:' + myId);
     if (io) {
       io.to(`user:${otherId}`).emit('new_message', message);
       io.to(`user:${myId}`).emit('new_message', message);
