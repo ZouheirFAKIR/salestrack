@@ -7,7 +7,120 @@ const odoo = require('../utils/odooClient');
 const { toMoroccoDate } = odoo;
 const { getPeriodReportData, renderPeriodReportPdf } = require('../utils/reportGenerator');
 const { getGlobalReportData, renderGlobalReportPdf, getDailyReportData, renderDailyReportPdf } = require('../utils/reportGenerator');
+
+// Ces 2 routes sont accessibles à tout utilisateur connecté (pas seulement admin) :
+// le classement du jour doit pouvoir ouvrir la fiche de n'importe quel commercial.
+router.get('/commercials/:id', authMiddleware, async (req, res) => {
+  try {
+    const user = await pool.query('SELECT id, nom, email, photo_url, odoo_user_id FROM users WHERE id = $1', [req.params.id]);
+    if (user.rows.length === 0) return res.status(404).json({ error: 'Introuvable' });
+
+    const statsResult = await pool.query(
+      `SELECT type, COUNT(*) as total FROM activities WHERE commercial_id = $1 GROUP BY type`,
+      [req.params.id]
+    );
+    const statsMap = { appel: 0, rdv: 0, devis: 0, commande: 0 };
+    statsResult.rows.forEach((r) => { statsMap[r.type] = Number(r.total); });
+
+    const stats = { rows: Object.entries(statsMap).map(([type, total]) => ({ type, total })) };
+    const daily = await pool.query(
+      `SELECT TO_CHAR(d, 'YYYY-MM-DD') as jour, COALESCE(COUNT(a.id), 0) as total
+       FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') d
+       LEFT JOIN activities a ON DATE(a.date_activite) = d AND a.commercial_id = $1
+       GROUP BY d ORDER BY d ASC`,
+      [req.params.id]
+    );
+    const typeQuotaTotal = await pool.query(
+      'SELECT COALESCE(SUM(daily_target), 9) as total_target FROM type_quotas WHERE commercial_id = $1',
+      [req.params.id]
+    );
+
+    const earnedResult = await pool.query(
+      `SELECT COALESCE(SUM(best_score), 0) as total FROM (
+         SELECT DISTINCT ON (course_id) score as best_score
+         FROM quiz_attempts
+         WHERE commercial_id = $1
+         ORDER BY course_id, score DESC, completed_at DESC
+       ) t`,
+      [req.params.id]
+    );
+    const bonusResult = await pool.query(
+      'SELECT COALESCE(SUM(points), 0) as total FROM daily_bonus_points WHERE commercial_id = $1',
+      [req.params.id]
+    );
+    const redemptions = await pool.query(
+      `SELECT rr.id, rr.quantity, rr.cost_at_redemption, rr.redeemed_at, r.title, r.image_url
+       FROM reward_redemptions rr
+       JOIN rewards r ON r.id = rr.reward_id
+       WHERE rr.commercial_id = $1
+       ORDER BY rr.redeemed_at DESC`,
+      [req.params.id]
+    );
+    const spentResult = await pool.query(
+      'SELECT COALESCE(SUM(cost_at_redemption), 0) as total FROM reward_redemptions WHERE commercial_id = $1',
+      [req.params.id]
+    );
+    const earned = Number(earnedResult.rows[0].total) + Number(bonusResult.rows[0].total);
+    const spent = Number(spentResult.rows[0].total);
+
+    res.json({
+      user: user.rows[0],
+      stats: stats.rows,
+      daily: daily.rows,
+      daily_target: typeQuotaTotal.rows[0].total_target,
+      points_balance: earned - spent,
+      redemptions: redemptions.rows,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/commercials/:id/activity-week', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const type = ['appel', 'rdv', 'devis', 'commande'].includes(req.query.type) ? req.query.type : 'appel';
+  const offset = parseInt(req.query.offset, 10) || 0;
+
+  try {
+    const result = await pool.query(
+      `SELECT TO_CHAR(d, 'YYYY-MM-DD') as jour, COALESCE(COUNT(a.id), 0) as total
+       FROM generate_series(
+         (CURRENT_DATE + ($3 * INTERVAL '7 days')) - INTERVAL '6 days',
+         CURRENT_DATE + ($3 * INTERVAL '7 days'),
+         INTERVAL '1 day'
+       ) d
+       LEFT JOIN activities a ON DATE(a.date_activite) = d AND a.commercial_id = $1 AND a.type = $2
+       GROUP BY d ORDER BY d ASC`,
+      [id, type, offset]
+    );
+
+    res.json({
+      type,
+      offset,
+      start: result.rows[0]?.jour || null,
+      end: result.rows[result.rows.length - 1]?.jour || null,
+      daily: result.rows,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 router.use(authMiddleware, adminMiddleware);
+
+router.post('/sync-odoo-activities', async (req, res) => {
+  try {
+    const { syncOdooActivities } = require('../utils/odooActivitySync');
+    const since = req.body?.since || req.query.since || null;
+    const result = await syncOdooActivities(since);
+    res.json({ message: 'Synchronisation Odoo terminee', ...result });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+  });
 
 router.get('/report/global/:commercialId', async (req, res) => {
   try {
@@ -232,13 +345,17 @@ router.get('/commercials', async (req, res) => {
 // Détail d'un commercial (activités par type + par jour)
 router.get('/commercials/:id', async (req, res) => {
   try {
-    const user = await pool.query('SELECT id, nom, email, photo_url FROM users WHERE id = $1', [req.params.id]);
+    const user = await pool.query('SELECT id, nom, email, photo_url, odoo_user_id FROM users WHERE id = $1', [req.params.id]);
     if (user.rows.length === 0) return res.status(404).json({ error: 'Introuvable' });
 
-    const stats = await pool.query(
+    const statsResult = await pool.query(
       `SELECT type, COUNT(*) as total FROM activities WHERE commercial_id = $1 GROUP BY type`,
       [req.params.id]
     );
+    const statsMap = { appel: 0, rdv: 0, devis: 0, commande: 0 };
+    statsResult.rows.forEach((r) => { statsMap[r.type] = Number(r.total); });
+
+    const stats = { rows: Object.entries(statsMap).map(([type, total]) => ({ type, total })) };
     const daily = await pool.query(
       `SELECT TO_CHAR(d, 'YYYY-MM-DD') as jour, COALESCE(COUNT(a.id), 0) as total
        FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') d
@@ -752,7 +869,7 @@ router.get('/team-today-quotas', authMiddleware, adminMiddleware, async (req, re
     commercials.forEach((c) => { todayMap[c.id] = { appel: 0, rdv: 0, devis: 0, commande: 0 }; });
     todayResult.rows.forEach((r) => { todayMap[r.commercial_id][r.type] = Number(r.total); });
 
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Casablanca' }).format(new Date());
     const dateObj = new Date(`${todayStr}T00:00:00Z`);
     const prevDay = new Date(dateObj); prevDay.setUTCDate(prevDay.getUTCDate() - 1);
     const nextDay = new Date(dateObj); nextDay.setUTCDate(nextDay.getUTCDate() + 1);
@@ -763,12 +880,19 @@ router.get('/team-today-quotas', authMiddleware, adminMiddleware, async (req, re
         'sale.order', 'search_read',
         [[
           ['user_id', 'in', odooUserIds],
-          ['date_order', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
-          ['date_order', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
+          ['create_date', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
+          ['create_date', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
         ]],
-        { fields: ['user_id', 'state', 'date_order'] }
+        { fields: ['user_id', 'state', 'create_date'] }
       );
-      const ordersToday = orders.filter((o) => toMoroccoDate(o.date_order) === todayStr);
+      commercials.forEach((c) => {
+        if (c.odoo_user_id) {
+          todayMap[c.id].devis = 0;
+          todayMap[c.id].commande = 0;
+        }
+      });
+
+      const ordersToday = orders.filter((o) => toMoroccoDate(o.create_date) === todayStr);
       ordersToday.forEach((o) => {
         const c = commercials.find((c) => c.odoo_user_id === (o.user_id ? o.user_id[0] : null));
         if (!c) return;

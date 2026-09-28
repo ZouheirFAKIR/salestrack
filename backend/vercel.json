@@ -2,5 +2,8 @@
   "version": 2,
   "builds": [{ "src": "index.js", "use": "@vercel/node" }],
   "routes": [{ "src": "/(.*)", "dest": "index.js" }],
-  "crons": [{ "path": "/api/cron/daily-winner", "schedule": "0 17 * * *" }]
+  "crons": [
+    { "path": "/api/cron/daily-winner", "schedule": "0 17 * * *" },
+    { "path": "/api/cron/sync-odoo-activities", "schedule": "0 * * * *" }
+  ]
 }

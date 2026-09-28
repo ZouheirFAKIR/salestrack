@@ -5,7 +5,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 const odoo = require('../utils/odooClient');
 const { toMoroccoDate } = odoo;
 const crypto = require('crypto');
-const { getGlobalReportData, renderGlobalReportPdf, getDailyReportData, renderDailyReportPdf } = require('../utils/reportGenerator');
+const { getGlobalReportData, renderGlobalReportPdf, getDailyReportData, renderDailyReportPdf, getPeriodReportData, renderPeriodReportPdf } = require('../utils/reportGenerator');
 
 router.get('/report/global', authMiddleware, async (req, res) => {
   try {
@@ -21,6 +21,18 @@ router.get('/report/daily', authMiddleware, async (req, res) => {
   try {
     const data = await getDailyReportData(req.userId);
     renderDailyReportPdf(res, data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/report/period', authMiddleware, async (req, res) => {
+  const period = ['day', 'week', 'month', 'quarter', 'year'].includes(req.query.period) ? req.query.period : 'day';
+  const date = req.query.date || new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Casablanca' }).format(new Date());
+  try {
+    const data = await getPeriodReportData(req.userId, period, date);
+    renderPeriodReportPdf(res, data);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -486,7 +498,7 @@ router.get('/leaderboard', authMiddleware, async (req, res) => {
     );
 
     const rows = result.rows;
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Casablanca' }).format(new Date());
     const dateObj = new Date(`${todayStr}T00:00:00Z`);
     const prevDay = new Date(dateObj); prevDay.setUTCDate(prevDay.getUTCDate() - 1);
     const nextDay = new Date(dateObj); nextDay.setUTCDate(nextDay.getUTCDate() + 1);
@@ -507,9 +519,9 @@ router.get('/leaderboard', authMiddleware, async (req, res) => {
         const odooDevis = ordersToday.filter((o) => ['draft', 'sent'].includes(o.state)).length;
         const odooCommande = ordersToday.filter((o) => ['sale', 'done'].includes(o.state)).length;
 
-        row.devis = Number(row.devis) + odooDevis;
-        row.commande = Number(row.commande) + odooCommande;
-        row.total = Number(row.total) + odooDevis + odooCommande;
+        row.devis = odooDevis;
+        row.commande = odooCommande;
+        row.total = Number(row.appel) + Number(row.rdv) + odooDevis + odooCommande;
       } catch (err) {
         console.error('Erreur Odoo (leaderboard):', row.nom, err.message);
       }
@@ -863,8 +875,8 @@ router.get('/my-type-quotas', authMiddleware, async (req, res) => {
         const odooDevis = ordersToday.filter((o) => ['draft', 'sent'].includes(o.state)).length;
         const odooCommande = ordersToday.filter((o) => ['sale', 'done'].includes(o.state)).length;
 
-        today.devis = today.devis + odooDevis;
-        today.commande = today.commande + odooCommande;
+        today.devis = odooDevis;
+        today.commande = odooCommande;
       } catch (odooErr) {
         console.error('Erreur Odoo (my-type-quotas):', odooErr.message);
       }

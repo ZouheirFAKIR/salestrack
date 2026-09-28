@@ -101,11 +101,23 @@ function CommercialDetail({ commercial, onClose, onQuotaUpdated }) {
   const [weekRange, setWeekRange] = useState(null);
   const [weekLoading, setWeekLoading] = useState(true);
 
+  const [error, setError] = useState(null);
+
   useEffect(() => {
+    setError(null);
     apiFetch(`${API_URL}/api/admin/commercials/${commercial.id}`)
-      .then((r) => r.json())
-      .then((data) => {
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok) {
+          setError(data?.error || 'Impossible de charger cette fiche');
+          setLoading(false);
+          return;
+        }
         setDetail(data);
+        setLoading(false);
+      })
+      .catch(() => {
+        setError('Impossible de charger cette fiche');
         setLoading(false);
       });
   }, [commercial.id]);
@@ -154,6 +166,12 @@ function CommercialDetail({ commercial, onClose, onQuotaUpdated }) {
         {loading && (
           <div className="flex justify-center py-16">
             <Spinner size={24} color={ACCENT} />
+          </div>
+        )}
+
+        {!loading && error && (
+          <div className="flex flex-col items-center gap-2 py-16 text-center">
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{error}</p>
           </div>
         )}
 

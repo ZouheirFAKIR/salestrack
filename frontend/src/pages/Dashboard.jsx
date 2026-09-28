@@ -188,9 +188,8 @@ function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
-          {user?.role === 'manager' ? (
-            <TeamQuotaCard />
-          ) : (
+          <div className="flex flex-col gap-4">
+          {user?.role === 'manager' && <TeamQuotaCard />}
           <div className="rounded-2xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
             <p className="text-sm font-medium mb-4" style={{ color: 'var(--text-primary)' }}>Objectifs du jour</p>
             <div className="grid grid-cols-2 gap-3">
@@ -230,7 +229,7 @@ function Dashboard() {
               })}
             </div>
           </div>
-          )}
+          </div>
 
           <Leaderboard
             entries={leaderboard}

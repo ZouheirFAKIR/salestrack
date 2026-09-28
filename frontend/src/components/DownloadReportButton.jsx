@@ -8,6 +8,7 @@ const PERIODS = [
   { key: 'month', label: 'Mois' },
   { key: 'quarter', label: 'Trimestre' },
   { key: 'year', label: 'Année' },
+  { key: 'global', label: 'Global' },
 ];
 
 function pad(n) { return String(n).padStart(2, '0'); }
@@ -21,7 +22,7 @@ function DownloadIcon() {
   );
 }
 
-function DownloadReportButton({ commercialId, commercialNom }) {
+function DownloadReportButton({ commercialId, commercialNom = '', self = false }) {
   const [open, setOpen] = useState(false);
   const [period, setPeriod] = useState('day');
   const [date, setDate] = useState(() => toISO(new Date()));
@@ -32,19 +33,29 @@ function DownloadReportButton({ commercialId, commercialNom }) {
     setDownloading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_URL}/api/admin/report/period/${commercialId}?period=${period}&date=${date}`, {
+      let url;
+      if (period === 'global') {
+        url = self
+          ? `${API_URL}/api/activities/report/global`
+          : `${API_URL}/api/admin/report/global/${commercialId}`;
+      } else {
+        url = self
+          ? `${API_URL}/api/activities/report/period?period=${period}&date=${date}`
+          : `${API_URL}/api/admin/report/period/${commercialId}?period=${period}&date=${date}`;
+      }
+      const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error('Erreur');
       const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
+      const blobUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = `rapport-${commercialNom.replace(/\s+/g, '-')}-${date}.pdf`;
+      a.href = blobUrl;
+      a.download = `rapport-${commercialNom.replace(/\s+/g, '-')}-${period === 'global' ? 'global' : date}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      window.URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(blobUrl);
       setOpen(false);
     } catch {
       alert('Erreur lors du téléchargement du rapport');
@@ -91,13 +102,15 @@ function DownloadReportButton({ commercialId, commercialNom }) {
                 </button>
               ))}
             </div>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="text-sm px-3 py-2 rounded-lg w-full mb-3"
-              style={{ border: '1px solid var(--border)', backgroundColor: 'var(--surface-strong)', color: 'var(--text-primary)' }}
-            />
+            {period !== 'global' && (
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="text-sm px-3 py-2 rounded-lg w-full mb-3"
+                style={{ border: '1px solid var(--border)', backgroundColor: 'var(--surface-strong)', color: 'var(--text-primary)' }}
+              />
+            )}
             <button
               onClick={handleDownload}
               disabled={downloading}

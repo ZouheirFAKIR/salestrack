@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { apiFetch, API_URL } from '../utils/api';
 import { Icon } from '../data/icons';
 import { TYPE_COLORS } from '../data/typeColors';
@@ -12,9 +12,11 @@ const LABELS = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 
 function TeamQuotaCard() {
   const [team, setTeam] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState('');
 
-  useEffect(() => {
-    apiFetch(`${API_URL}/api/admin/team-today-quotas`)
+  const loadTeam = useCallback(() => {
+    return apiFetch(`${API_URL}/api/admin/team-today-quotas`)
       .then((r) => r.json())
       .then((res) => {
         setTeam(Array.isArray(res) ? res : []);
@@ -23,9 +25,41 @@ function TeamQuotaCard() {
       .catch(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    loadTeam();
+  }, [loadTeam]);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncMsg('');
+    try {
+      const res = await apiFetch(`${API_URL}/api/admin/sync-odoo-activities`, { method: 'POST' });
+      const data = await res.json();
+      setSyncMsg(`${data.synced || 0} nouvelle(s) activite(s)`);
+      await loadTeam();
+    } catch {
+      setSyncMsg('Erreur de synchronisation');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
     <div className="rounded-2xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-      <p className="text-sm font-medium mb-4" style={{ color: 'var(--text-primary)' }}>Objectifs équipe</p>
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Objectifs équipe</p>
+        <div className="flex items-center gap-2">
+          {syncMsg && <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{syncMsg}</span>}
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="text-[11px] font-medium px-2.5 py-1.5 rounded-lg"
+            style={{ backgroundColor: `${ACCENT}14`, color: ACCENT, opacity: syncing ? 0.6 : 1 }}
+          >
+            {syncing ? 'Synchro...' : 'Synchroniser Odoo'}
+          </button>
+        </div>
+      </div>
 
       {loading ? (
         <div className="py-10 flex justify-center"><Spinner size={20} color={ACCENT} /></div>

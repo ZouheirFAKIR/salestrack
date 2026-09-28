@@ -10,6 +10,18 @@ function verifyCronSecret(req, res, next) {
   next();
 }
 
+const { syncOdooActivities } = require('../utils/odooActivitySync');
+
+router.get('/sync-odoo-activities', verifyCronSecret, async (req, res) => {
+  try {
+    const result = await syncOdooActivities();
+    res.json({ message: 'Synchronisation Odoo terminee', ...result });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 router.get('/daily-winner', verifyCronSecret, async (req, res) => {
   try {
     const result = await pool.query(
