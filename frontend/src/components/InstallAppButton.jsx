@@ -72,7 +72,7 @@ function InstallAppButton({ variant = 'pill' }) {
           <rect x="6" y="2" width="12" height="20" rx="2.5" />
           <path d="M12 7v7m0 0-3-3m3 3 3-3M10 18h4" />
         </svg>
-        <span className={variant === 'menu' ? '' : 'hidden lg:inline'}>Installer l'app</span>
+        <span className={variant === 'menu' ? '' : 'hidden 2xl:inline'}>Installer l'app</span>
       </button>
 
       {helpOpen && (

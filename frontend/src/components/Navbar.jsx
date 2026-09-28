@@ -15,8 +15,14 @@ function Navbar() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   const [loggingOut, setLoggingOut] = useState(false);
-  const [points, setPoints] = useState(null);
-  const [streak, setStreak] = useState(null);
+  const [points, setPoints] = useState(() => {
+    const v = localStorage.getItem('navPoints');
+    return v !== null ? Number(v) : null;
+  });
+  const [streak, setStreak] = useState(() => {
+    const v = localStorage.getItem('navStreak');
+    return v !== null ? Number(v) : null;
+  });
   const [menuOpen, setMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const isAdmin = user?.role === 'admin';
@@ -121,7 +127,10 @@ function Navbar() {
     if (!user) return;
     apiFetch(`${API_URL}/api/rewards/balance`)
       .then((r) => r.json())
-      .then((data) => setPoints(data.balance))
+      .then((data) => {
+        setPoints(data.balance);
+        localStorage.setItem('navPoints', data.balance);
+      })
       .catch(() => {});
   };
 
@@ -129,7 +138,10 @@ function Navbar() {
     if (!user) return;
     apiFetch(`${API_URL}/api/activities/badge-stats`)
       .then((r) => r.json())
-      .then((data) => setStreak(data.streak))
+      .then((data) => {
+        setStreak(data.streak);
+        localStorage.setItem('navStreak', data.streak);
+      })
       .catch(() => {});
   };
 
@@ -167,6 +179,8 @@ function Navbar() {
     setTimeout(() => {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      localStorage.removeItem('navPoints');
+      localStorage.removeItem('navStreak');
       navigate('/login');
     }, 300);
   };
@@ -184,24 +198,24 @@ function Navbar() {
       <div className="px-3 sm:px-6 py-3 flex items-center justify-between gap-2">
         <Link to="/nouvelle-activite" className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">
           <img src={yealeadLogo} alt="Yealead" className="w-8 h-8 sm:w-9 sm:h-9 object-contain" />
-          <span className="text-white font-semibold text-base sm:text-lg hidden sm:inline">SalesTrack</span>
+          <span className="text-white font-semibold text-base sm:text-lg hidden sm:inline md:hidden 2xl:inline">SalesTrack</span>
         </Link>
 
         {/* 3 liens principaux, visibles sur tous les écrans */}
-        <div className="hidden md:flex gap-1 bg-white/5 rounded-full p-1 overflow-x-auto max-w-full">
+        <div className="hidden md:flex gap-1 bg-white/5 rounded-full p-1 min-w-0">
           {primaryLinks.map((link) => {
             const active = location.pathname === link.path;
             return (
               <Link
                 key={link.path}
                 to={link.path}
-                                className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-full text-xs sm:text-sm transition-all duration-200 whitespace-nowrap shrink-0"
+                                className="flex items-center gap-2 px-3.5 py-2 rounded-full text-sm transition-all duration-200 whitespace-nowrap shrink-0"
                 style={active ? { backgroundColor: ACCENT, color: '#fff', fontWeight: 500, boxShadow: `0 0 16px ${ACCENT}66` } : { color: 'var(--text-secondary)' }}
                 onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = 'var(--text-primary)'; }}
                 onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = 'var(--text-secondary)'; }}
               >
                 {renderIcon(link, active)}
-                <span className="hidden sm:inline">{link.label}</span>
+                <span className="hidden xl:inline">{link.label}</span>
               </Link>
             );
           })}
@@ -212,13 +226,13 @@ function Navbar() {
               <Link
                 key={link.path}
                 to={link.path}
-                                className="hidden md:flex items-center gap-2 px-4 py-2 rounded-full text-sm transition-all duration-200 whitespace-nowrap shrink-0"
+                                className="hidden md:flex items-center gap-2 px-3.5 py-2 rounded-full text-sm transition-all duration-200 whitespace-nowrap shrink-0"
                 style={active ? { backgroundColor: ACCENT, color: '#fff', fontWeight: 500, boxShadow: `0 0 16px ${ACCENT}66` } : { color: 'var(--text-secondary)' }}
                 onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = 'var(--text-primary)'; }}
                 onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = 'var(--text-secondary)'; }}
               >
                 {renderIcon(link, active)}
-                <span>{link.label}</span>
+                <span className="hidden xl:inline">{link.label}</span>
               </Link>
             );
           })}
@@ -370,7 +384,7 @@ function Navbar() {
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/5 border border-white/10 hover:border-white/20 transition-colors"
             >
               <CoinIcon size={16} />
-              <span className="text-white text-xs font-semibold">{points}</span>
+              <span className="text-white text-xs font-semibold">{points ?? '–'}</span>
             </Link>
           )}
 
@@ -380,7 +394,7 @@ function Navbar() {
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/5 border border-white/10 hover:border-white/20 transition-colors"
             >
               <span className="text-sm">🔥</span>
-              <span className="text-white text-xs font-semibold">{streak}</span>
+              <span className="text-white text-xs font-semibold">{streak ?? '–'}</span>
             </Link>
           )}
 
