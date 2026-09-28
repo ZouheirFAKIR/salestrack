@@ -5,6 +5,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
 const odoo = require('../utils/odooClient');
 const { toMoroccoDate } = odoo;
+const ODOO_START = '2026-09-13 23:00:00'; // 14/09/2026 00:00 heure du Maroc
 const { getPeriodReportData, renderPeriodReportPdf } = require('../utils/reportGenerator');
 const { getGlobalReportData, renderGlobalReportPdf, getDailyReportData, renderDailyReportPdf } = require('../utils/reportGenerator');
 
@@ -21,6 +22,21 @@ router.get('/commercials/:id', authMiddleware, async (req, res) => {
     );
     const statsMap = { appel: 0, rdv: 0, devis: 0, commande: 0 };
     statsResult.rows.forEach((r) => { statsMap[r.type] = Number(r.total); });
+
+    const odooUserId = user.rows[0].odoo_user_id;
+    if (odooUserId) {
+      try {
+        const orders = await odoo.execute(
+          'sale.order', 'search_read',
+          [[['user_id', '=', odooUserId], ['create_date', '>=', ODOO_START]]],
+          { fields: ['state'] }
+        );
+        statsMap.devis = orders.filter((o) => ['draft', 'sent'].includes(o.state)).length;
+        statsMap.commande = orders.filter((o) => ['sale', 'done'].includes(o.state)).length;
+      } catch (err) {
+        console.error('Erreur Odoo (fiche commercial):', err.message);
+      }
+    }
 
     const stats = { rows: Object.entries(statsMap).map(([type, total]) => ({ type, total })) };
     const daily = await pool.query(
@@ -94,6 +110,34 @@ router.get('/commercials/:id/activity-week', authMiddleware, async (req, res) =>
        GROUP BY d ORDER BY d ASC`,
       [id, type, offset]
     );
+
+    if (['devis', 'commande'].includes(type) && result.rows.length > 0) {
+      const u = await pool.query('SELECT odoo_user_id FROM users WHERE id = $1', [id]);
+      const odooUserId = u.rows[0]?.odoo_user_id;
+      if (odooUserId) {
+        try {
+          const first = result.rows[0].jour;
+          const last = result.rows[result.rows.length - 1].jour;
+          const from = new Date(`${first}T00:00:00Z`);
+          from.setUTCDate(from.getUTCDate() - 1);
+          const orders = await odoo.execute(
+            'sale.order', 'search_read',
+            [[
+              ['user_id', '=', odooUserId],
+              ['create_date', '>=', `${from.toISOString().slice(0, 10)} 00:00:00`],
+              ['create_date', '<=', `${last} 23:59:59`],
+            ]],
+            { fields: ['state', 'create_date'] }
+          );
+          const states = type === 'devis' ? ['draft', 'sent'] : ['sale', 'done'];
+          result.rows.forEach((row) => {
+            row.total = orders.filter((o) => states.includes(o.state) && toMoroccoDate(o.create_date) === row.jour).length;
+          });
+        } catch (err) {
+          console.error('Erreur Odoo (activity-week):', err.message);
+        }
+      }
+    }
 
     res.json({
       type,
