@@ -10,6 +10,12 @@ function isIOS() {
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
 }
 
+function isAndroid() {
+  return /android/i.test(window.navigator.userAgent);
+}
+
+const APK_URL = '/downloads/SalesTrack.apk';
+
 function InstallAppButton({ variant = 'pill' }) {
   const [installed, setInstalled] = useState(isInstalled());
   const [canPrompt, setCanPrompt] = useState(!!window.deferredInstallPrompt);
@@ -29,6 +35,16 @@ function InstallAppButton({ variant = 'pill' }) {
   if (installed) return null;
 
   const handleClick = async () => {
+    if (isAndroid()) {
+      const a = document.createElement('a');
+      a.href = APK_URL;
+      a.download = 'SalesTrack.apk';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setHelpOpen(true);
+      return;
+    }
     const prompt = window.deferredInstallPrompt;
     if (prompt) {
       prompt.prompt();
@@ -74,7 +90,16 @@ function InstallAppButton({ variant = 'pill' }) {
               </div>
             </div>
 
-            {isIOS() ? (
+            {isAndroid() ? (
+              <ol className="text-sm flex flex-col gap-3 mb-5" style={{ color: 'var(--text-secondary)' }}>
+                <li><b>1.</b> Le téléchargement de <b>SalesTrack.apk</b> a commencé</li>
+                <li><b>2.</b> Ouvre le fichier (notification ou dossier <b>Téléchargements</b>)</li>
+                <li><b>3.</b> Appuie sur <b>Installer</b></li>
+                <li className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  Samsung : si c'est bloqué, va dans <b>Paramètres → Sécurité et confidentialité → Bloqueur automatique</b>, désactive-le, installe, puis réactive-le.
+                </li>
+              </ol>
+            ) : isIOS() ? (
               <ol className="text-sm flex flex-col gap-3 mb-5" style={{ color: 'var(--text-secondary)' }}>
                 <li><b>1.</b> Ouvre ce site dans <b>Safari</b></li>
                 <li><b>2.</b> Appuie sur le bouton <b>Partager</b> (carré avec une flèche ↑)</li>
