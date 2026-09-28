@@ -180,7 +180,7 @@ function Navbar() {
   );
 
   return (
-    <nav className="bg-black border-b border-white/10 sticky top-0 z-30">
+    <nav className="bg-black border-b border-white/10 sticky top-0 z-30" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="px-3 sm:px-6 py-3 flex items-center justify-between gap-2">
         <Link to="/nouvelle-activite" className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">
           <img src={yealeadLogo} alt="Yealead" className="w-8 h-8 sm:w-9 sm:h-9 object-contain" />
@@ -188,7 +188,7 @@ function Navbar() {
         </Link>
 
         {/* 3 liens principaux, visibles sur tous les écrans */}
-        <div className="flex gap-1 bg-white/5 rounded-full p-1 overflow-x-auto max-w-full">
+        <div className="hidden md:flex gap-1 bg-white/5 rounded-full p-1 overflow-x-auto max-w-full">
           {primaryLinks.map((link) => {
             const active = location.pathname === link.path;
             return (
@@ -225,10 +225,12 @@ function Navbar() {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <InstallAppButton />
+          <div className="hidden md:block">
+            <InstallAppButton />
+          </div>
                     <button
             onClick={toggleTheme}
-            className="w-9 h-9 rounded-full border border-white/15 flex items-center justify-center text-white/70 hover:text-white transition-colors shrink-0"
+            className="hidden md:flex w-9 h-9 rounded-full border border-white/15 items-center justify-center text-white/70 hover:text-white transition-colors shrink-0"
             aria-label="Changer de thème"
           >
             {theme === 'dark' ? (
@@ -384,7 +386,7 @@ function Navbar() {
 
           {user ? (
             <>
-              <Link to="/profile" className="hover:opacity-80 transition-opacity hidden sm:block">
+              <Link to="/profile" className="hover:opacity-80 transition-opacity hidden md:block">
                 {user.photo_url ? (
                   <img src={user.photo_url} alt="" className="w-9 h-9 rounded-full object-cover" />
                 ) : (
@@ -432,7 +434,7 @@ function Navbar() {
       {/* Menu déroulant mobile */}
       {menuOpen && (
                 <div className="md:hidden border-t border-white/10 px-3 py-3 flex flex-col gap-1 bg-black animate-[fadeIn_0.15s_ease]">
-          {secondaryLinks.map((link) => {
+          {secondaryLinks.filter((l) => !['/feed', '/challenge'].includes(l.path)).map((link) => {
             const active = location.pathname === link.path;
             return (
               <Link
@@ -448,6 +450,15 @@ function Navbar() {
           })}
           {user ? (
             <>
+              <button
+                onClick={toggleTheme}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-left"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                <span className="w-4 text-center">{theme === 'dark' ? '☀️' : '🌙'}</span>
+                <span>{theme === 'dark' ? 'Mode clair' : 'Mode sombre'}</span>
+              </button>
+              <InstallAppButton variant="menu" />
               <Link to="/profile" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/70 hover:text-white transition-colors">
                 {user.photo_url ? (
                   <img src={user.photo_url} alt="" className="w-5 h-5 rounded-full object-cover" />
@@ -480,6 +491,57 @@ function Navbar() {
               <Icon name="login" size={22} />
             </Link>
           )}
+        </div>
+      )}
+      {user && (
+        <div
+          className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-white/10"
+          style={{ backgroundColor: 'var(--surface-strong)', paddingBottom: 'env(safe-area-inset-bottom)', boxShadow: '0 -4px 20px rgba(0,0,0,0.08)' }}
+        >
+          <div className="h-16 grid grid-cols-5 items-center">
+            {[
+              { path: '/', label: 'Accueil', iconName: 'dashboard' },
+              { path: '/feed', label: 'Feed', iconName: 'feed' },
+              { path: '/nouvelle-activite', label: 'Ajouter', center: true },
+              { path: '/challenge', label: 'Défi', iconName: 'trophy' },
+              { path: '/profile', label: 'Profil', avatar: true },
+            ].map((tab) => {
+              const active = location.pathname === tab.path;
+              if (tab.center) {
+                return (
+                  <Link key={tab.path} to={tab.path} className="flex justify-center" aria-label={tab.label}>
+                    <span
+                      className="w-13 h-13 -mt-7 rounded-full flex items-center justify-center"
+                      style={{ width: 52, height: 52, backgroundColor: ACCENT, color: '#fff', boxShadow: `0 6px 18px ${ACCENT}66`, border: '4px solid var(--surface-strong)' }}
+                    >
+                      <Icon name="add" size={22} />
+                    </span>
+                  </Link>
+                );
+              }
+              return (
+                <Link
+                  key={tab.path}
+                  to={tab.path}
+                  className="flex flex-col items-center justify-center gap-1 h-full"
+                  style={{ color: active ? ACCENT : 'var(--text-muted)' }}
+                >
+                  {tab.avatar ? (
+                    user.photo_url ? (
+                      <img src={user.photo_url} alt="" className="w-6 h-6 rounded-full object-cover" style={active ? { outline: `2px solid ${ACCENT}`, outlineOffset: 1 } : {}} />
+                    ) : (
+                      <span className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-semibold" style={{ backgroundColor: ACCENT, color: '#fff' }}>
+                        {user.nom?.charAt(0).toUpperCase()}
+                      </span>
+                    )
+                  ) : (
+                    <Icon name={tab.iconName} size={20} />
+                  )}
+                  <span className="text-[10px] font-medium">{tab.label}</span>
+                </Link>
+              );
+            })}
+          </div>
         </div>
       )}
       <style>{`@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }`}</style>

@@ -87,3 +87,11 @@
 [data-theme="light"] .text-white\/15 {
   color: var(--text-muted) !important;
 }
+
+@media (max-width: 767px) {
+  body {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+    background-color: var(--bg);
+    -webkit-tap-highlight-color: transparent;
+  }
+}

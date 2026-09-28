@@ -348,7 +348,7 @@ function ChatWidget() {
         </div>
       )}
 
-      <div className="fixed bottom-5 right-5 z-50">
+      <div className="fixed bottom-[88px] right-4 md:bottom-5 md:right-5 z-50">
         <div
           className="absolute bottom-0 right-[68px] rounded-2xl flex flex-col overflow-hidden origin-right"
           style={{

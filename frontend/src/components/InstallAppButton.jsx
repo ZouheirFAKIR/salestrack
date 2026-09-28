@@ -10,7 +10,7 @@ function isIOS() {
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
 }
 
-function InstallAppButton() {
+function InstallAppButton({ variant = 'pill' }) {
   const [installed, setInstalled] = useState(isInstalled());
   const [canPrompt, setCanPrompt] = useState(!!window.deferredInstallPrompt);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -45,8 +45,10 @@ function InstallAppButton() {
     <>
       <button
         onClick={handleClick}
-        className="h-9 px-3 rounded-full flex items-center gap-1.5 text-xs font-semibold transition-all hover:-translate-y-0.5 shrink-0"
-        style={{ border: `1.5px solid ${ACCENT}`, color: ACCENT }}
+        className={variant === 'menu'
+          ? 'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium'
+          : 'h-9 px-3 rounded-full flex items-center gap-1.5 text-xs font-semibold transition-all hover:-translate-y-0.5 shrink-0'}
+        style={variant === 'menu' ? { color: ACCENT } : { border: `1.5px solid ${ACCENT}`, color: ACCENT }}
         aria-label="Installer l'application"
         title="Installer SalesTrack sur ton téléphone"
       >
@@ -54,7 +56,7 @@ function InstallAppButton() {
           <rect x="6" y="2" width="12" height="20" rx="2.5" />
           <path d="M12 7v7m0 0-3-3m3 3 3-3M10 18h4" />
         </svg>
-        <span className="hidden lg:inline">Installer l'app</span>
+        <span className={variant === 'menu' ? '' : 'hidden lg:inline'}>Installer l'app</span>
       </button>
 
       {helpOpen && (
