@@ -4,6 +4,7 @@ import yealeadLogo from '../assets/yealead.png';
 import Spinner from './Spinner';
 import { Icon } from '../data/icons';
 import CoinIcon from './CoinIcon';
+import InstallAppButton from './InstallAppButton';
 import { apiFetch, API_URL } from '../utils/api';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -224,6 +225,7 @@ function Navbar() {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          <InstallAppButton />
                     <button
             onClick={toggleTheme}
             className="w-9 h-9 rounded-full border border-white/15 flex items-center justify-center text-white/70 hover:text-white transition-colors shrink-0"
