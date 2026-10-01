@@ -18,6 +18,7 @@ function ChallengeNotifier() {
 
   useEffect(() => {
     if (!token) return;
+    if (API_URL.includes('vercel.app')) return; // Vercel ne supporte pas socket.io
     const socket = io(API_URL, { auth: { token } });
 
     socket.on('new_challenge', (challenge) => {

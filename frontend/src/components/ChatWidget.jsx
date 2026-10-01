@@ -216,6 +216,15 @@ function ChatWidget() {
   // Socket.io — événements en temps réel + déclenchement du toast pour les nouveaux messages entrants
   useEffect(() => {
     if (!token) return;
+    if (API_URL.includes('vercel.app')) {
+      // Vercel ne supporte pas socket.io : on vérifie les messages toutes les 20 s
+      const timer = setInterval(() => {
+        loadUnreadTotal();
+        loadConversations();
+        if (activeUserRef.current) setThreadRefreshSignal((n) => n + 1);
+      }, 20000);
+      return () => clearInterval(timer);
+    }
     const socket = io(API_URL, { auth: { token } });
 
     socket.on('new_message', (msg) => {
