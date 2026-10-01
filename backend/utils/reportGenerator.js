@@ -953,10 +953,10 @@ function getPeriodRange(period, dateStr) {
     end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
     label = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
   } else if (period === 'quarter') {
-    const q = Math.floor(d.getMonth() / 3);
-    start = new Date(d.getFullYear(), q * 3, 1);
-    end = new Date(d.getFullYear(), q * 3 + 3, 0);
-    label = `T${q + 1} ${d.getFullYear()}`;
+    start = new Date(d.getFullYear(), d.getMonth(), 1);
+    end = new Date(d.getFullYear(), d.getMonth() + 3, 0);
+    const fmt = (dt) => dt.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    label = `Trimestre : ${fmt(start)} → ${fmt(end)}`;
   } else if (period === 'year') {
     start = new Date(d.getFullYear(), 0, 1);
     end = new Date(d.getFullYear(), 11, 31);

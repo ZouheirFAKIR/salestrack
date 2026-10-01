@@ -42,4 +42,15 @@ function toMoroccoDate(dateOrderStr) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Casablanca' }).format(utcDate);
 }
 
-module.exports = { execute, toMoroccoDate };
+// Devis : jour de création. Commande : jour de confirmation (date_order).
+function orderDay(o) {
+  const isCommande = ['sale', 'done'].includes(o.state);
+  return toMoroccoDate(isCommande ? o.date_order : o.create_date);
+}
+
+// Devis/commandes créés OU confirmés entre from et to
+function orderDateDomain(from, to) {
+  return ['|', '&', ['create_date', '>=', from], ['create_date', '<=', to], '&', ['date_order', '>=', from], ['date_order', '<=', to]];
+}
+
+module.exports = { execute, toMoroccoDate, orderDay, orderDateDomain };

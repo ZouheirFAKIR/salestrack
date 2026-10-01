@@ -93,13 +93,12 @@ router.get('/stats/:commercialId', authMiddleware, async (req, res) => {
       'search_read',
       [[
         ['user_id', '=', odooUserId],
-        ['date_order', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
-        ['date_order', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
+        ...odoo.orderDateDomain(`${prevDay.toISOString().slice(0, 10)} 00:00:00`, `${nextDay.toISOString().slice(0, 10)} 23:59:59`),
       ]],
-      { fields: ['state', 'amount_total', 'date_order'] }
+      { fields: ['state', 'amount_total', 'create_date', 'date_order'] }
     );
 
-    const ordersToday = orders.filter((o) => toMoroccoDate(o.date_order) === date);
+    const ordersToday = orders.filter((o) => odoo.orderDay(o) === date);
     const devis = ordersToday.filter((o) => ['draft', 'sent'].includes(o.state)).length;
     const commandesList = ordersToday.filter((o) => ['sale', 'done'].includes(o.state));
     const commandes = commandesList.length;
@@ -621,13 +620,12 @@ router.get('/team-today', authMiddleware, async (req, res) => {
       'search_read',
       [[
         ['user_id', 'in', odooUserIds],
-        ['date_order', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
-        ['date_order', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
+        ...odoo.orderDateDomain(`${prevDay.toISOString().slice(0, 10)} 00:00:00`, `${nextDay.toISOString().slice(0, 10)} 23:59:59`),
       ]],
-      { fields: ['state', 'amount_total', 'date_order'] }
+      { fields: ['state', 'amount_total', 'create_date', 'date_order'] }
     );
 
-    const ordersToday = orders.filter((o) => toMoroccoDate(o.date_order) === date);
+    const ordersToday = orders.filter((o) => odoo.orderDay(o) === date);
     const devis = ordersToday.filter((o) => ['draft', 'sent'].includes(o.state)).length;
     const commandesList = ordersToday.filter((o) => ['sale', 'done'].includes(o.state));
     const commandes = commandesList.length;
@@ -745,13 +743,12 @@ router.get('/team-day', authMiddleware, async (req, res) => {
       'search_read',
       [[
         ['user_id', 'in', odooUserIds],
-        ['date_order', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
-        ['date_order', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
+        ...odoo.orderDateDomain(`${prevDay.toISOString().slice(0, 10)} 00:00:00`, `${nextDay.toISOString().slice(0, 10)} 23:59:59`),
       ]],
-      { fields: ['user_id', 'state', 'date_order'] }
+      { fields: ['user_id', 'state', 'create_date', 'date_order'] }
     );
 
-    const ordersToday = orders.filter((o) => toMoroccoDate(o.date_order) === date);
+    const ordersToday = orders.filter((o) => odoo.orderDay(o) === date);
 
     const byUserMap = {};
     commercials.forEach((c) => { byUserMap[c.odoo_user_id] = { nom: c.nom, devis: 0, commande: 0 }; });

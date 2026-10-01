@@ -9,8 +9,8 @@ const { getGlobalReportData, renderGlobalReportPdf, getDailyReportData, renderDa
 
 router.get('/report/global', authMiddleware, async (req, res) => {
   try {
-    const data = await getGlobalReportData(req.userId);
-    renderGlobalReportPdf(res, data);
+    const data = await salesReport.getReportData(req.userId, 'global');
+    salesReport.renderReportPdf(res, data);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -31,8 +31,8 @@ router.get('/report/period', authMiddleware, async (req, res) => {
   const period = ['day', 'week', 'month', 'quarter', 'year'].includes(req.query.period) ? req.query.period : 'day';
   const date = req.query.date || new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Casablanca' }).format(new Date());
   try {
-    const data = await getPeriodReportData(req.userId, period, date);
-    renderPeriodReportPdf(res, data);
+    const data = await salesReport.getReportData(req.userId, period, date);
+    salesReport.renderReportPdf(res, data);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -510,12 +510,11 @@ router.get('/leaderboard', authMiddleware, async (req, res) => {
           'sale.order', 'search_read',
           [[
             ['user_id', '=', row.odoo_user_id],
-            ['create_date', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
-            ['create_date', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
+            ...odoo.orderDateDomain(`${prevDay.toISOString().slice(0, 10)} 00:00:00`, `${nextDay.toISOString().slice(0, 10)} 23:59:59`),
           ]],
-          { fields: ['state', 'create_date'] }
+          { fields: ['state', 'create_date', 'date_order', 'amount_total'] }
         );
-        const ordersToday = orders.filter((o) => toMoroccoDate(o.create_date) === todayStr);
+        const ordersToday = orders.filter((o) => odoo.orderDay(o) === todayStr);
         const odooDevis = ordersToday.filter((o) => ['draft', 'sent'].includes(o.state)).length;
         const odooCommande = ordersToday.filter((o) => ['sale', 'done'].includes(o.state)).length;
 
@@ -842,6 +841,8 @@ router.get('/my-type-quotas', authMiddleware, async (req, res) => {
     );
     const quotas = { appel: 80, rdv: 2, devis: 3, commande: 1 };
     quotasResult.rows.forEach((r) => { quotas[r.type] = r.daily_target; });
+    const caRes = await pool.query('SELECT ca_target FROM users WHERE id = $1', [req.userId]);
+    quotas.ca = Number(caRes.rows[0]?.ca_target || 0);
 
     const todayResult = await pool.query(
       `SELECT type, COUNT(*) as total FROM activities
@@ -849,7 +850,7 @@ router.get('/my-type-quotas', authMiddleware, async (req, res) => {
        GROUP BY type`,
       [req.userId]
     );
-    const today = { appel: 0, rdv: 0, devis: 0, commande: 0 };
+    const today = { appel: 0, rdv: 0, devis: 0, commande: 0, ca: 0 };
     todayResult.rows.forEach((r) => { today[r.type] = Number(r.total); });
 
     const userResult = await pool.query('SELECT odoo_user_id FROM users WHERE id = $1', [req.userId]);
@@ -857,7 +858,7 @@ router.get('/my-type-quotas', authMiddleware, async (req, res) => {
 
     if (odooUserId) {
       try {
-        const todayStr = new Date().toISOString().slice(0, 10);
+        const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Casablanca' }).format(new Date());
         const dateObj = new Date(`${todayStr}T00:00:00Z`);
         const prevDay = new Date(dateObj); prevDay.setUTCDate(prevDay.getUTCDate() - 1);
         const nextDay = new Date(dateObj); nextDay.setUTCDate(nextDay.getUTCDate() + 1);
@@ -875,8 +876,11 @@ router.get('/my-type-quotas', authMiddleware, async (req, res) => {
         const odooDevis = ordersToday.filter((o) => ['draft', 'sent'].includes(o.state)).length;
         const odooCommande = ordersToday.filter((o) => ['sale', 'done'].includes(o.state)).length;
 
-        today.devis = odooDevis;
-        today.commande = odooCommande;
+          today.devis = odooDevis;
+          today.commande = odooCommande;
+        today.ca = Math.round(
+          ordersToday.filter((o) => ['sale', 'done'].includes(o.state)).reduce((s, o) => s + (o.amount_total || 0), 0)
+        );
       } catch (odooErr) {
         console.error('Erreur Odoo (my-type-quotas):', odooErr.message);
       }

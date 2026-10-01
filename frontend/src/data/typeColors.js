@@ -3,4 +3,5 @@ export const TYPE_COLORS = {
   rdv: '#a78bfa',
   devis: '#f59e0b',
   commande: '#22c55e',
+  ca: '#14b8a6',
 };

@@ -6,8 +6,14 @@ import DownloadReportButton from './DownloadReportButton';
 import Spinner from './Spinner';
 
 const ACCENT = '#f86635';
-const TYPES = ['appel', 'rdv', 'devis', 'commande'];
-const LABELS = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
+const TYPES = ['appel', 'rdv', 'devis', 'commande', 'ca'];
+const LABELS = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes', ca: "Chiffre d'affaires" };
+
+function formatK(n) {
+  const v = Math.round(Number(n) || 0);
+  if (v < 1000) return String(v);
+  return `${(v / 1000).toFixed(v >= 10000 ? 0 : 1).replace('.0', '')}k`;
+}
 
 function TeamQuotaCard() {
   const [team, setTeam] = useState([]);
@@ -66,18 +72,18 @@ function TeamQuotaCard() {
       ) : team.length === 0 ? (
         <p className="text-xs text-center py-6" style={{ color: 'var(--text-muted)' }}>Aucun commercial</p>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {team.map((c) => (
             <div key={c.id} className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
               <div className="flex items-center justify-between mb-3">
                 <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{c.nom}</p>
                 <DownloadReportButton commercialId={c.id} commercialNom={c.nom} />
               </div>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                 {TYPES.map((type) => {
                   const current = Number(c.today?.[type] || 0);
-                  const target = Number(c.quotas?.[type] || 5);
-                  const percent = Math.min(Math.round((current / target) * 100), 100);
+                  const target = Number(c.quotas?.[type] || 0);
+                  const percent = target > 0 ? Math.min(Math.round((current / target) * 100), 100) : 0;
                   const circumference = 2 * Math.PI * 26;
                   const displayPercent = Math.max(percent, 4);
                   const ringColor = TYPE_COLORS[type];
@@ -98,7 +104,9 @@ function TeamQuotaCard() {
                           <Icon name={type} size={18} style={{ color: ringColor }} />
                         </div>
                       </div>
-                      <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{current}/{target}</p>
+                      <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        {type === 'ca' ? `${formatK(current)}/${formatK(target)}` : `${current}/${target}`}
+                      </p>
                       <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{LABELS[type]}</p>
                     </div>
                   );

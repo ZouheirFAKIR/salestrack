@@ -8,6 +8,7 @@ const { toMoroccoDate } = odoo;
 const ODOO_START = '2026-09-13 23:00:00'; // 14/09/2026 00:00 heure du Maroc
 const { getPeriodReportData, renderPeriodReportPdf } = require('../utils/reportGenerator');
 const { getGlobalReportData, renderGlobalReportPdf, getDailyReportData, renderDailyReportPdf } = require('../utils/reportGenerator');
+const salesReport = require('../utils/salesReport');
 
 // Ces 2 routes sont accessibles à tout utilisateur connecté (pas seulement admin) :
 // le classement du jour doit pouvoir ouvrir la fiche de n'importe quel commercial.
@@ -28,11 +29,14 @@ router.get('/commercials/:id', authMiddleware, async (req, res) => {
       try {
         const orders = await odoo.execute(
           'sale.order', 'search_read',
-          [[['user_id', '=', odooUserId], ['create_date', '>=', ODOO_START]]],
-          { fields: ['state'] }
+          [[['user_id', '=', odooUserId], ...odoo.orderDateDomain(ODOO_START, '2100-01-01 00:00:00')]],
+          { fields: ['state', 'amount_total', 'create_date', 'date_order'] }
         );
-        statsMap.devis = orders.filter((o) => ['draft', 'sent'].includes(o.state)).length;
-        statsMap.commande = orders.filter((o) => ['sale', 'done'].includes(o.state)).length;
+        const sinceStart = orders.filter((o) => odoo.orderDay(o) >= '2026-09-14');
+        statsMap.devis = sinceStart.filter((o) => ['draft', 'sent'].includes(o.state)).length;
+        const commandesList = sinceStart.filter((o) => ['sale', 'done'].includes(o.state));
+        statsMap.commande = commandesList.length;
+        statsMap.ca = Math.round(commandesList.reduce((s, o) => s + (o.amount_total || 0), 0));
       } catch (err) {
         console.error('Erreur Odoo (fiche commercial):', err.message);
       }
@@ -95,7 +99,7 @@ router.get('/commercials/:id', authMiddleware, async (req, res) => {
 
 router.get('/commercials/:id/activity-week', authMiddleware, async (req, res) => {
   const { id } = req.params;
-  const type = ['appel', 'rdv', 'devis', 'commande'].includes(req.query.type) ? req.query.type : 'appel';
+  const type = ['appel', 'rdv', 'devis', 'commande', 'ca'].includes(req.query.type) ? req.query.type : 'appel';
   const offset = parseInt(req.query.offset, 10) || 0;
 
   try {
@@ -111,7 +115,7 @@ router.get('/commercials/:id/activity-week', authMiddleware, async (req, res) =>
       [id, type, offset]
     );
 
-    if (['devis', 'commande'].includes(type) && result.rows.length > 0) {
+    if (['devis', 'commande', 'ca'].includes(type) && result.rows.length > 0) {
       const u = await pool.query('SELECT odoo_user_id FROM users WHERE id = $1', [id]);
       const odooUserId = u.rows[0]?.odoo_user_id;
       if (odooUserId) {
@@ -124,14 +128,16 @@ router.get('/commercials/:id/activity-week', authMiddleware, async (req, res) =>
             'sale.order', 'search_read',
             [[
               ['user_id', '=', odooUserId],
-              ['create_date', '>=', `${from.toISOString().slice(0, 10)} 00:00:00`],
-              ['create_date', '<=', `${last} 23:59:59`],
+              ...odoo.orderDateDomain(`${from.toISOString().slice(0, 10)} 00:00:00`, `${last} 23:59:59`),
             ]],
-            { fields: ['state', 'create_date'] }
+            { fields: ['state', 'create_date', 'date_order', 'amount_total'] }
           );
           const states = type === 'devis' ? ['draft', 'sent'] : ['sale', 'done'];
           result.rows.forEach((row) => {
-            row.total = orders.filter((o) => states.includes(o.state) && toMoroccoDate(o.create_date) === row.jour).length;
+            const dayOrders = orders.filter((o) => states.includes(o.state) && odoo.orderDay(o) === row.jour);
+            row.total = type === 'ca'
+              ? Math.round(dayOrders.reduce((s, o) => s + (o.amount_total || 0), 0))
+              : dayOrders.length;
           });
         } catch (err) {
           console.error('Erreur Odoo (activity-week):', err.message);
@@ -168,8 +174,8 @@ router.post('/sync-odoo-activities', async (req, res) => {
 
 router.get('/report/global/:commercialId', async (req, res) => {
   try {
-    const data = await getGlobalReportData(req.params.commercialId);
-    renderGlobalReportPdf(res, data);
+    const data = await salesReport.getReportData(req.params.commercialId, 'global');
+    salesReport.renderReportPdf(res, data);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -549,6 +555,8 @@ router.get('/commercials/:id/type-quotas', async (req, res) => {
     );
     const quotas = { appel: 80, rdv: 2, devis: 3, commande: 1 };
     result.rows.forEach((r) => { quotas[r.type] = r.daily_target; });
+    const caResult = await pool.query('SELECT ca_target FROM users WHERE id = $1', [req.params.id]);
+    quotas.ca = Number(caResult.rows[0]?.ca_target || 0);
     res.json(quotas);
   } catch (err) {
     console.error(err);
@@ -561,8 +569,20 @@ router.put('/commercials/:id/type-quotas', async (req, res) => {
   const { type, daily_target } = req.body;
   const validTypes = ['appel', 'rdv', 'devis', 'commande'];
 
+  if (type === 'ca') {
+    const value = Number(daily_target);
+    if (!Number.isFinite(value) || value < 0) return res.status(400).json({ error: 'Objectif invalide' });
+    try {
+      await pool.query('UPDATE users SET ca_target = $1 WHERE id = $2', [Math.round(value), req.params.id]);
+      return res.json({ message: 'Objectif CA mis à jour' });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Erreur serveur' });
+    }
+  }
+
   if (!validTypes.includes(type)) return res.status(400).json({ error: 'Type invalide' });
-  if (!daily_target || daily_target < 0) return res.status(400).json({ error: 'Objectif invalide' });
+  if (daily_target === undefined || daily_target === null || Number(daily_target) < 0) return res.status(400).json({ error: 'Objectif invalide' });
 
   try {
     await pool.query(
@@ -886,7 +906,7 @@ router.post('/challenge/:id/end', async (req, res) => {
 router.get('/team-today-quotas', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const commercialsResult = await pool.query(
-      `SELECT id, nom, odoo_user_id FROM users
+      `SELECT id, nom, odoo_user_id, ca_target FROM users
        WHERE (role IS NULL OR role NOT IN ('admin', 'manager')) AND hidden = FALSE
        ORDER BY nom ASC`
     );
@@ -900,7 +920,7 @@ router.get('/team-today-quotas', authMiddleware, adminMiddleware, async (req, re
       [ids]
     );
     const quotasMap = {};
-    commercials.forEach((c) => { quotasMap[c.id] = { appel: 80, rdv: 2, devis: 3, commande: 1 }; });
+    commercials.forEach((c) => { quotasMap[c.id] = { appel: 80, rdv: 2, devis: 3, commande: 1, ca: Number(c.ca_target || 0) }; });
     quotasResult.rows.forEach((r) => { quotasMap[r.commercial_id][r.type] = r.daily_target; });
 
     const todayResult = await pool.query(
@@ -910,7 +930,7 @@ router.get('/team-today-quotas', authMiddleware, adminMiddleware, async (req, re
       [ids]
     );
     const todayMap = {};
-    commercials.forEach((c) => { todayMap[c.id] = { appel: 0, rdv: 0, devis: 0, commande: 0 }; });
+    commercials.forEach((c) => { todayMap[c.id] = { appel: 0, rdv: 0, devis: 0, commande: 0, ca: 0 }; });
     todayResult.rows.forEach((r) => { todayMap[r.commercial_id][r.type] = Number(r.total); });
 
     const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Casablanca' }).format(new Date());
@@ -924,10 +944,9 @@ router.get('/team-today-quotas', authMiddleware, adminMiddleware, async (req, re
         'sale.order', 'search_read',
         [[
           ['user_id', 'in', odooUserIds],
-          ['create_date', '>=', `${prevDay.toISOString().slice(0, 10)} 00:00:00`],
-          ['create_date', '<=', `${nextDay.toISOString().slice(0, 10)} 23:59:59`],
+          ...odoo.orderDateDomain(`${prevDay.toISOString().slice(0, 10)} 00:00:00`, `${nextDay.toISOString().slice(0, 10)} 23:59:59`),
         ]],
-        { fields: ['user_id', 'state', 'create_date'] }
+        { fields: ['user_id', 'state', 'create_date', 'date_order', 'amount_total'] }
       );
       commercials.forEach((c) => {
         if (c.odoo_user_id) {
@@ -936,12 +955,15 @@ router.get('/team-today-quotas', authMiddleware, adminMiddleware, async (req, re
         }
       });
 
-      const ordersToday = orders.filter((o) => toMoroccoDate(o.create_date) === todayStr);
+      const ordersToday = orders.filter((o) => odoo.orderDay(o) === todayStr);
       ordersToday.forEach((o) => {
         const c = commercials.find((c) => c.odoo_user_id === (o.user_id ? o.user_id[0] : null));
         if (!c) return;
         if (['draft', 'sent'].includes(o.state)) todayMap[c.id].devis++;
-        if (['sale', 'done'].includes(o.state)) todayMap[c.id].commande++;
+        if (['sale', 'done'].includes(o.state)) {
+          todayMap[c.id].commande++;
+          todayMap[c.id].ca += o.amount_total || 0;
+        }
       });
     }
 
@@ -957,8 +979,100 @@ router.get('/report/period/:commercialId', authMiddleware, adminMiddleware, asyn
   const period = ['day', 'week', 'month', 'quarter', 'year'].includes(req.query.period) ? req.query.period : 'day';
   const date = req.query.date || new Date().toISOString().slice(0, 10);
   try {
-    const data = await getPeriodReportData(commercialId, period, date);
-    renderPeriodReportPdf(res, data);
+    const data = await salesReport.getReportData(commercialId, period, date);
+    salesReport.renderReportPdf(res, data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Répartition pour les camemberts : appels, RDV, liste d'attente, pipeline
+router.get('/commercials/:id/breakdown', async (req, res) => {
+  const { id } = req.params;
+  const period = ['day', 'week', 'month', 'all'].includes(req.query.period) ? req.query.period : 'day';
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Casablanca' }).format(new Date());
+  const start = new Date(`${today}T00:00:00Z`);
+  if (period === 'week') start.setUTCDate(start.getUTCDate() - ((start.getUTCDay() + 6) % 7));
+  if (period === 'month') start.setUTCDate(1);
+  const startStr = period === 'all' ? '2000-01-01' : start.toISOString().slice(0, 10);
+
+  try {
+    const local = await pool.query(
+      `SELECT type, sens, statut, COUNT(*)::int AS n
+       FROM activities
+       WHERE commercial_id = $1 AND type IN ('appel', 'rdv')
+         AND DATE(date_activite) BETWEEN $2 AND $3
+       GROUP BY type, sens, statut`,
+      [id, startStr, today]
+    );
+
+    const appelSens = { sortant: 0, entrant: 0, autre: 0 };
+    const appelStatut = { repond: 0, ne_repond_pas: 0, autre: 0 };
+    const rdvStatut = { present: 0, absent: 0, autre: 0 };
+    local.rows.forEach((r) => {
+      if (r.type === 'appel') {
+        appelSens[r.sens in appelSens ? r.sens : 'autre'] += r.n;
+        appelStatut[r.statut in appelStatut ? r.statut : 'autre'] += r.n;
+      } else {
+        rdvStatut[r.statut in rdvStatut ? r.statut : 'autre'] += r.n;
+      }
+    });
+
+    let odooData = { linked: false };
+    const u = await pool.query('SELECT odoo_user_id FROM users WHERE id = $1', [id]);
+    const odooUserId = u.rows[0]?.odoo_user_id;
+    if (odooUserId) {
+      try {
+        const leads = await odoo.execute(
+          'crm.lead', 'search_read',
+          [[['user_id', '=', odooUserId]]],
+          { fields: ['type', 'active', 'stage_id'], context: { active_test: false } }
+        );
+        const waiting = { actives: 0, perdues: 0 };
+        const pipelineStages = {};
+        let pipelinePerdues = 0;
+        leads.forEach((l) => {
+          if (l.type !== 'opportunity') {
+            if (l.active) waiting.actives++; else waiting.perdues++;
+          } else if (!l.active) {
+            pipelinePerdues++;
+          } else {
+            const stage = l.stage_id ? l.stage_id[1] : 'Sans étape';
+            pipelineStages[stage] = (pipelineStages[stage] || 0) + 1;
+          }
+        });
+        odooData = { linked: true, waiting, pipelineStages, pipelinePerdues };
+      } catch (err) {
+        console.error('Erreur Odoo (breakdown):', err.message);
+      }
+    }
+
+    res.json({ period, start: startStr, end: today, appelSens, appelStatut, rdvStatut, odoo: odooData });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Toutes les données d'un commercial pour une période (mêmes chiffres que le rapport PDF)
+router.get('/commercials/:id/report-data', async (req, res) => {
+  const period = ['day', 'week', 'month', 'quarter', 'year', 'global'].includes(req.query.period) ? req.query.period : 'day';
+  try {
+    const data = await salesReport.getReportData(req.params.id, period, req.query.date);
+    delete data.sales.orders;
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Anciens commerciaux (inactifs dans l'app, visibles seulement par le manager)
+router.get('/inactive-commercials', async (req, res) => {
+  try {
+    const r = await pool.query('SELECT id, nom FROM users WHERE inactive = TRUE ORDER BY nom ASC');
+    res.json(r.rows);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur' });

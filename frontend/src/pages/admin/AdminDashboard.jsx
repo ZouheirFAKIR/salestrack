@@ -13,7 +13,7 @@ import OdooActivitiesCard from '../../components/OdooActivitiesCard';
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-const TYPE_LABELS = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
+const TYPE_LABELS = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes', ca: 'CA (MAD)' };
 
 const NAV_LINKS = [
   { to: '/admin/courses', label: 'Cours' },

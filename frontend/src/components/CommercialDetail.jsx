@@ -13,7 +13,7 @@ import OdooPipelineCard from './OdooPipelineCard';
 const ACCENT = '#f86635';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-const TYPE_LABELS = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
+const TYPE_LABELS = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes', ca: 'CA (MAD)' };
 
 const inputStyle = {
   backgroundColor: 'var(--surface-strong)',
@@ -92,7 +92,7 @@ function TypeQuotasForm({ commercialId, onSaved }) {
 
 function CommercialDetail({ commercial, onClose, onQuotaUpdated }) {
   const viewer = JSON.parse(localStorage.getItem('user') || 'null');
-  const isAdmin = viewer?.role === 'admin';
+  const isAdmin = viewer?.role === 'admin' || viewer?.role === 'manager' || !!viewer?.is_admin_access;
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedType, setSelectedType] = useState('appel');
@@ -133,7 +133,7 @@ function CommercialDetail({ commercial, onClose, onQuotaUpdated }) {
       });
   }, [commercial.id, selectedType, weekOffset]);
 
-  const labels = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes' };
+  const labels = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes', ca: 'CA (MAD)' };
 
   const formatRange = (start, end) => {
     if (!start || !end) return '';
@@ -177,8 +177,8 @@ function CommercialDetail({ commercial, onClose, onQuotaUpdated }) {
 
         {!loading && detail && (
           <div className="flex flex-col gap-5">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {['appel', 'rdv', 'devis', 'commande'].map((type) => {
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              {['appel', 'rdv', 'devis', 'commande', 'ca'].map((type) => {
                 const stat = detail.stats.find((s) => s.type === type);
                 const isSelected = selectedType === type;
                 return (
@@ -192,7 +192,9 @@ function CommercialDetail({ commercial, onClose, onQuotaUpdated }) {
                     }}
                   >
                     <Icon name={type} size={22} className="mx-auto" style={{ color: TYPE_COLORS[type] }} />
-                    <p className="text-2xl font-semibold mt-2" style={{ color: 'var(--text-primary)' }}>{stat?.total || 0}</p>
+                    <p className="text-2xl font-semibold mt-2" style={{ color: 'var(--text-primary)' }}>
+                      {type === 'ca' ? Number(stat?.total || 0).toLocaleString('fr-FR') : (stat?.total || 0)}
+                    </p>
                     <p className="text-xs mt-0.5" style={{ color: isSelected ? TYPE_COLORS[type] : 'var(--text-muted)' }}>{labels[type]}</p>
                   </button>
                 );
