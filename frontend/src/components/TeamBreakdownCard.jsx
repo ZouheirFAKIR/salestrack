@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch, API_URL } from '../utils/api';
 import { Icon } from '../data/icons';
 import { TYPE_COLORS } from '../data/typeColors';
@@ -206,39 +206,52 @@ function Ring({ type, current, target }) {
 }
 
 function MiniBars({ buckets, series }) {
+  const scrollRef = useRef(null);
   const max = Math.max(1, ...buckets.flatMap((b) => series.map((s) => b[s.key] || 0)));
-  const step = Math.ceil(buckets.length / 10);
+
+  // Toujours démarrer sur les mois les plus récents
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+  }, [buckets]);
+
   return (
     <div>
-      <div className="flex items-end gap-[2px] h-36 w-full border-b" style={{ borderColor: 'var(--border)' }}>
-        {buckets.map((b) => (
-          <div
-            key={b.key}
-            className="flex-1 h-full flex items-end justify-center gap-[1px] rounded-t hover:bg-black/5"
-            title={`${b.tableLabel} — ${series.map((s) => `${s.label} : ${b[s.key] || 0}`).join(' · ')}`}
-          >
-            {series.map((s) => (
-              <div
-                key={s.key}
-                style={{
-                  height: `${((b[s.key] || 0) / max) * 100}%`,
-                  minHeight: b[s.key] ? 3 : 0,
-                  width: '14px',
-                  maxWidth: '45%',
-                  backgroundColor: s.color,
-                  borderRadius: '3px 3px 0 0',
-                }}
-              />
-            ))}
-          </div>
-        ))}
-      </div>
-      <div className="flex gap-[2px] mt-1">
-        {buckets.map((b, i) => (
-          <span key={b.key} className="flex-1 text-center text-[9px] truncate" style={{ color: 'var(--text-muted)' }}>
-            {i % step === 0 ? b.label : ''}
-          </span>
-        ))}
+      <div ref={scrollRef} className="overflow-x-auto pb-1">
+        <div className="flex gap-1" style={{ minWidth: buckets.length * 46 }}>
+          {buckets.map((b) => (
+            <div
+              key={b.key}
+              className="flex-1 flex flex-col items-center rounded-md hover:bg-black/5"
+              style={{ minWidth: 42 }}
+              title={`${b.tableLabel} — ${series.map((s) => `${s.label} : ${b[s.key] || 0}`).join(' · ')}`}
+            >
+              <div className="h-40 w-full flex items-end justify-center gap-[3px] border-b" style={{ borderColor: 'var(--border)' }}>
+                {series.map((s) => {
+                  const v = b[s.key] || 0;
+                  return (
+                    <div key={s.key} className="flex flex-col items-center justify-end h-full" style={{ width: 14 }}>
+                      {v > 0 && (
+                        <span className="text-[10px] font-semibold mb-0.5" style={{ color: s.color }}>{v}</span>
+                      )}
+                      <div
+                        style={{
+                          height: `${(v / max) * 85}%`,
+                          minHeight: v ? 3 : 0,
+                          width: '100%',
+                          backgroundColor: s.color,
+                          borderRadius: '3px 3px 0 0',
+                        }}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              <span className="mt-1 text-[10px] whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
+                {b.label}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
       <div className="flex gap-4 mt-2">
         {series.map((s) => (
@@ -250,6 +263,7 @@ function MiniBars({ buckets, series }) {
     </div>
   );
 }
+
 
 // ---------- Carte ----------
 function TeamBreakdownCard() {
@@ -428,7 +442,7 @@ function TeamBreakdownCard() {
           </div>
 
           {data.buckets.length > 1 && (
-            <Box title={`Devis et commandes par ${data.monthly ? 'mois' : 'jour'}`} subtitle="Passe la souris sur une barre pour voir le détail">
+            <Box title={`Devis et commandes par ${data.unit || (data.monthly ? 'mois' : 'jour')}`} subtitle="Glisse sur le côté pour voir les autres périodes">
               <MiniBars
                 buckets={data.buckets}
                 series={[
