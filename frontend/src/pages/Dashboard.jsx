@@ -7,7 +7,6 @@ import OdooWaitingLostCard from '../components/OdooWaitingLostCard';
 import OdooWaitingPipelineChartCard from '../components/OdooWaitingPipelineChartCard';
 import TeamOdooSummaryCard from '../components/TeamOdooSummaryCard';
 import TeamOdooTrendCard from '../components/TeamOdooTrendCard';
-import TeamQuotaCard from '../components/TeamQuotaCard';
 import TeamBreakdownCard from '../components/TeamBreakdownCard';
 import PageLoader from '../components/PageLoader';
 import CommercialDetail from '../components/CommercialDetail';
@@ -48,10 +47,10 @@ function AnimatedNumber({ value }) {
 // Grand titre d'une partie de la page
 function GroupTitle({ title, subtitle }) {
   return (
-    <div className="flex items-center gap-3 mt-6">
+    <div className="flex items-center gap-3 mt-4 sm:mt-6">
       <span className="w-1 h-7 rounded-full shrink-0" style={{ backgroundColor: ACCENT }} />
-      <div>
-        <p className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</p>
+      <div className="min-w-0">
+        <p className="text-base sm:text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</p>
         {subtitle && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{subtitle}</p>}
       </div>
     </div>
@@ -61,7 +60,7 @@ function GroupTitle({ title, subtitle }) {
 // Petit titre précis au-dessus d'une carte
 function BlockTitle({ title, subtitle }) {
   return (
-    <div className="-mb-2 mt-1">
+    <div className="-mb-2 mt-1 min-w-0">
       <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</p>
       {subtitle && <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{subtitle}</p>}
     </div>
@@ -76,8 +75,8 @@ const RANK_STYLES = {
 
 function Leaderboard({ entries, currentUserId, onSelectUser }) {
   return (
-    <div className="rounded-2xl p-4 sm:p-5 h-full" style={cardStyle}>
-      <p className="text-sm font-medium mb-4" style={{ color: 'var(--text-primary)' }}>Classement du jour</p>
+    <div className="rounded-2xl p-3 sm:p-5 h-full min-w-0" style={cardStyle}>
+      <p className="text-sm font-medium mb-3 sm:mb-4" style={{ color: 'var(--text-primary)' }}>Classement du jour</p>
       {(!entries || entries.length === 0) ? (
         <p className="text-xs text-center py-6" style={{ color: 'var(--text-muted)' }}>Aucune activité aujourd'hui</p>
       ) : (
@@ -90,7 +89,7 @@ function Leaderboard({ entries, currentUserId, onSelectUser }) {
               <div
                 key={e.id}
                 onClick={() => onSelectUser(e)}
-                className="flex items-center gap-3 rounded-xl p-2.5 transition-colors"
+                className="flex items-center gap-2 sm:gap-3 rounded-xl p-2 sm:p-2.5 transition-colors"
                 style={{
                   backgroundColor: isMe ? `${ACCENT}14` : 'var(--surface-strong)',
                   border: isMe ? `1px solid ${ACCENT}55` : '1px solid transparent',
@@ -115,7 +114,7 @@ function Leaderboard({ entries, currentUserId, onSelectUser }) {
                   <p className="text-sm font-medium truncate" style={{ color: isMe ? ACCENT : 'var(--text-primary)' }}>
                     {e.nom}{isMe && ' (toi)'}
                   </p>
-                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  <div className="flex items-center gap-x-2 gap-y-0.5 mt-0.5 flex-wrap">
                     {[
                       { key: 'appel', v: e.appel },
                       { key: 'rdv', v: e.rdv },
@@ -143,9 +142,9 @@ function Leaderboard({ entries, currentUserId, onSelectUser }) {
 
 function ObjectivesCard({ typeQuotas, title }) {
   return (
-    <div className="rounded-2xl p-4 sm:p-5 h-full" style={cardStyle}>
-      <p className="text-sm font-medium mb-4" style={{ color: 'var(--text-primary)' }}>{title}</p>
-      <div className="grid grid-cols-2 gap-3">
+    <div className="rounded-2xl p-3 sm:p-5 h-full min-w-0" style={cardStyle}>
+      <p className="text-sm font-medium mb-3 sm:mb-4" style={{ color: 'var(--text-primary)' }}>{title}</p>
+      <div className="grid grid-cols-2 gap-2 sm:gap-3">
         {ALL_TYPES.map((type, i) => {
           const current = Number(typeQuotas?.today?.[type] || 0);
           const target = Number(typeQuotas?.quotas?.[type] ?? 0);
@@ -158,7 +157,7 @@ function ObjectivesCard({ typeQuotas, title }) {
           return (
             <div
               key={type}
-              className={`rounded-xl p-3 flex items-center text-center ${isCA ? 'col-span-2 flex-row justify-center gap-4' : 'flex-col'}`}
+              className={`rounded-xl p-2.5 sm:p-3 flex items-center text-center min-w-0 ${isCA ? 'col-span-2 flex-row justify-center gap-4' : 'flex-col'}`}
               style={{ backgroundColor: 'var(--surface-strong)', border: `1px solid ${color}30`, borderTop: `2.5px solid ${color}`, animation: `popIn 0.4s ease ${i * 0.06}s both` }}
             >
               <div className={`relative w-16 h-16 shrink-0 ${isCA ? '' : 'mb-2'}`}>
@@ -176,7 +175,7 @@ function ObjectivesCard({ typeQuotas, title }) {
                 </div>
               </div>
               <div className={isCA ? 'text-left' : ''}>
-                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                <p className="text-sm font-semibold break-words" style={{ color: 'var(--text-primary)' }}>
                   {isCA
                     ? `${Number(current).toLocaleString('fr-FR')} / ${Number(target).toLocaleString('fr-FR')} MAD`
                     : <><AnimatedNumber value={current} />/{target}</>}
@@ -200,7 +199,7 @@ function PersonalOdooSection({ userId, typeQuotas, showObjectives }) {
             title="Mes objectifs du jour · Mes ventes de la semaine"
             subtitle="Ce que j'ai fait aujourd'hui face à mes objectifs, et mes devis, commandes et CA de la semaine (Odoo)"
           />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch [&>*]:min-w-0">
             <ObjectivesCard typeQuotas={typeQuotas} title="Mes objectifs du jour" />
             <div className="[&>*]:h-full">
               <OdooRangeCard commercialId={userId} />
@@ -218,13 +217,13 @@ function PersonalOdooSection({ userId, typeQuotas, showObjectives }) {
       <OdooPipelineCard commercialId={userId} />
 
       <BlockTitle title="Mes activités Odoo" subtitle="Tâches, appels et rappels : prévues, terminées, en retard et annulées, puis leur évolution par catégorie" />
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start [&>*]:min-w-0">
         <OdooActivitiesCard commercialId={userId} />
         <OdooActivitiesChartCard commercialId={userId} />
       </div>
 
       <BlockTitle title="Ma liste d'attente & mon pipeline" subtitle="Pistes actives et perdues au total, puis nouvelles et perdues sur la période choisie (Odoo)" />
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start [&>*]:min-w-0">
         <OdooWaitingLostCard commercialId={userId} />
         <OdooWaitingPipelineChartCard commercialId={userId} />
       </div>
@@ -275,7 +274,7 @@ function Dashboard() {
   const todayStr = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
-    <div className="p-4 sm:p-6 pb-12 relative overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
+    <div className="px-3 py-4 sm:p-6 pb-12 relative overflow-x-hidden" style={{ backgroundColor: 'var(--bg)' }}>
       <div
         className="absolute -top-24 -right-24 w-80 h-80 rounded-full pointer-events-none"
         style={{ background: `radial-gradient(circle, ${ACCENT}20, transparent 70%)`, filter: 'blur(6px)' }}
@@ -285,11 +284,11 @@ function Dashboard() {
         style={{ background: `radial-gradient(circle, ${ACCENT}16, transparent 70%)`, filter: 'blur(6px)' }}
       />
 
-      <div className="max-w-6xl mx-auto flex flex-col gap-4 relative z-10">
+      <div className="max-w-6xl mx-auto flex flex-col gap-4 relative z-10 min-w-0">
 
         {/* En-tête */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
+          <div className="min-w-0">
             <h1 className="text-xl sm:text-2xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>Salut {prenom} 👋</h1>
             <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>
               {isManager ? "Voici l'activité de ton équipe" : 'Voici ton activité récente'}
@@ -318,7 +317,7 @@ function Dashboard() {
               title="Devis, commandes & CA de l'équipe · Classement du jour"
               subtitle="Totaux de l'équipe pour le jour choisi, et classement des commerciaux par nombre d'activités aujourd'hui"
             />
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch [&>*]:min-w-0">
               <div className="lg:col-span-2 [&>*]:h-full">
                 <TeamOdooSummaryCard />
               </div>
@@ -343,7 +342,7 @@ function Dashboard() {
               title="Mes objectifs du jour · Classement du jour"
               subtitle="Tes appels, RDV, devis, commandes et CA face à tes objectifs, et ton rang dans l'équipe"
             />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch [&>*]:min-w-0">
               <ObjectivesCard typeQuotas={typeQuotas} title="Objectifs du jour" />
               <Leaderboard entries={leaderboard} currentUserId={user?.id} onSelectUser={setSelectedCommercial} />
             </div>

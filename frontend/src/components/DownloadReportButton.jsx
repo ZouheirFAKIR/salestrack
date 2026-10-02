@@ -171,15 +171,25 @@ function DownloadReportButton({ commercialId, commercialNom = '', self = false }
 
       {open && (
         <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="fixed inset-0 z-[80] bg-black/40 sm:bg-transparent" onClick={() => setOpen(false)} />
 
           <div
-            className="absolute right-0 mt-2 z-20 rounded-2xl p-4 w-80 max-w-[calc(100vw-2rem)]"
+            className="fixed left-3 right-3 top-1/2 -translate-y-1/2 z-[81] max-h-[85vh] overflow-y-auto rounded-2xl p-4
+                       sm:absolute sm:left-auto sm:right-0 sm:top-full sm:translate-y-0 sm:mt-2 sm:w-80 sm:max-h-none sm:overflow-visible"
             style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 12px 32px rgba(0,0,0,0.18)' }}
           >
-            <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-              Rapport{commercialNom ? ` — ${commercialNom}` : ''}
-            </p>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <p className="text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                Rapport{commercialNom ? ` — ${commercialNom}` : ''}
+              </p>
+              <button
+                onClick={() => setOpen(false)}
+                className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-base sm:hidden"
+                style={{ backgroundColor: 'var(--surface-strong)', color: 'var(--text-secondary)' }}
+              >
+                ×
+              </button>
+            </div>
 
             {/* Choix du type de période */}
             <div className="grid grid-cols-3 gap-1.5 mb-4">

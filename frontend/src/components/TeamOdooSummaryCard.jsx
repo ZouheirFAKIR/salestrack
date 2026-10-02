@@ -87,7 +87,7 @@ function TeamOdooSummaryCard() {
             <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Commandes</p>
           </div>
           <div className="rounded-xl p-3 sm:p-4 text-center" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
-            <p className="text-xl sm:text-2xl font-semibold break-words" style={{ color: ACCENT }}>{formatMAD(stats.chiffreAffaires)}</p>
+            <p className="text-sm sm:text-2xl font-semibold break-words" style={{ color: ACCENT }}>{formatMAD(stats.chiffreAffaires)}</p>
             <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Chiffre d'affaires</p>
           </div>
         </div>

@@ -64,7 +64,7 @@ function OdooWaitingLostCard({ commercialId }) {
         />
       </div>
 
-      <div className="grid grid-cols-4 gap-4 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
         <StatItem value={data.waitingActive} label="En attente" />
         <StatItem value={data.waitingLost} label="Perdues" />
         <StatItem value={data.pipelineActive} label="Pipeline actives" />

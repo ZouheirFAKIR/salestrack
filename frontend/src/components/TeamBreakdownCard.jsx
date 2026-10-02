@@ -29,6 +29,9 @@ const QUOTA_TYPES = ['appel', 'rdv', 'devis', 'commande', 'ca'];
 const QUOTA_LABELS = { appel: 'Appels', rdv: 'Rendez-vous', devis: 'Devis', commande: 'Commandes', ca: "Chiffre d'affaires" };
 const QUARTER_NAMES = ['janv. – mars', 'avr. – juin', 'juil. – sept.', 'oct. – déc.'];
 
+// Rangée qui défile sur le côté (sans barre visible) sur téléphone
+const SCROLL_ROW = 'flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
+
 // ---------- Dates ----------
 function pad(n) { return String(n).padStart(2, '0'); }
 function toISO(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
@@ -99,7 +102,7 @@ const inputStyle = {
 
 function PeriodPicker({ period, refDate, onChange }) {
   const today = new Date();
-  const cls = 'text-xs px-3 py-1.5 rounded-lg outline-none';
+  const cls = 'text-xs px-3 py-1.5 rounded-lg outline-none flex-1 min-w-0 sm:flex-none';
 
   if (period === 'day') {
     return (
@@ -151,7 +154,7 @@ function PeriodPicker({ period, refDate, onChange }) {
 
 function Box({ title, subtitle, children }) {
   return (
-    <div className="rounded-xl p-4 flex flex-col gap-3" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
+    <div className="rounded-xl p-3 sm:p-4 flex flex-col gap-3 min-w-0" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
       <div>
         <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{title}</p>
         {subtitle && <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{subtitle}</p>}
@@ -161,9 +164,9 @@ function Box({ title, subtitle, children }) {
   );
 }
 
-function Kpi({ label, value, color, sub }) {
+function Kpi({ label, value, color, sub, className = '' }) {
   return (
-    <div className="rounded-xl p-3" style={{ backgroundColor: `${ACCENT}0d`, border: '1px solid var(--border)' }}>
+    <div className={`rounded-xl p-3 min-w-0 ${className}`} style={{ backgroundColor: `${ACCENT}0d`, border: '1px solid var(--border)' }}>
       <p className="text-lg sm:text-xl font-semibold truncate" style={{ color }}>{value}</p>
       <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{label}</p>
       {sub && <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{sub}</p>}
@@ -187,8 +190,8 @@ function Ring({ type, current, target }) {
   const shown = Math.max(percent, 4);
   return (
     <div className="flex flex-col items-center text-center">
-      <div className="relative w-16 h-16 mb-1">
-        <svg viewBox="0 0 64 64" className="w-16 h-16 -rotate-90">
+      <div className="relative w-14 h-14 sm:w-16 sm:h-16 mb-1">
+        <svg viewBox="0 0 64 64" className="w-14 h-14 sm:w-16 sm:h-16 -rotate-90">
           <circle cx="32" cy="32" r="26" stroke="var(--border)" strokeWidth="5" fill="none" />
           <circle cx="32" cy="32" r="26" stroke={color} strokeWidth="5" fill="none" strokeLinecap="round"
             strokeDasharray={c} strokeDashoffset={c - (shown / 100) * c} style={{ transition: 'stroke-dashoffset 0.8s ease' }} />
@@ -209,13 +212,13 @@ function MiniBars({ buckets, series }) {
   const scrollRef = useRef(null);
   const max = Math.max(1, ...buckets.flatMap((b) => series.map((s) => b[s.key] || 0)));
 
-  // Toujours démarrer sur les mois les plus récents
+  // Toujours démarrer sur les périodes les plus récentes
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
   }, [buckets]);
 
   return (
-    <div>
+    <div className="min-w-0">
       <div ref={scrollRef} className="overflow-x-auto pb-1">
         <div className="flex gap-1" style={{ minWidth: buckets.length * 46 }}>
           {buckets.map((b) => (
@@ -225,7 +228,7 @@ function MiniBars({ buckets, series }) {
               style={{ minWidth: 42 }}
               title={`${b.tableLabel} — ${series.map((s) => `${s.label} : ${b[s.key] || 0}`).join(' · ')}`}
             >
-              <div className="h-40 w-full flex items-end justify-center gap-[3px] border-b" style={{ borderColor: 'var(--border)' }}>
+              <div className="h-36 sm:h-40 w-full flex items-end justify-center gap-[3px] border-b" style={{ borderColor: 'var(--border)' }}>
                 {series.map((s) => {
                   const v = b[s.key] || 0;
                   return (
@@ -263,7 +266,6 @@ function MiniBars({ buckets, series }) {
     </div>
   );
 }
-
 
 // ---------- Carte ----------
 function TeamBreakdownCard() {
@@ -333,11 +335,11 @@ function TeamBreakdownCard() {
   const current = selected || selectedInactive;
 
   return (
-    <div className="rounded-2xl p-4 sm:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+    <div className="rounded-2xl p-3 sm:p-5 min-w-0" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
 
       {/* 1. Choix du commercial + actions */}
-      <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
-        <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <div className={`${SCROLL_ROW} min-w-0 -mx-1 px-1 pb-1`}>
           {team.map((c) => (
             <Chip key={c.id} active={userId === c.id} onClick={() => setUserId(c.id)}>{c.nom}</Chip>
           ))}
@@ -349,7 +351,7 @@ function TeamBreakdownCard() {
                 setUserId(Number(e.target.value));
                 setPeriod('global');
               }}
-              className="text-xs font-medium px-3 py-1.5 rounded-full outline-none"
+              className="text-xs font-medium px-3 py-1.5 rounded-full outline-none shrink-0 max-w-[200px]"
               style={selectedInactive
                 ? { backgroundColor: '#6b7280', color: '#fff' }
                 : { backgroundColor: 'var(--surface-strong)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
@@ -359,12 +361,12 @@ function TeamBreakdownCard() {
             </select>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          {syncMsg && <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{syncMsg}</span>}
+        <div className="flex items-center justify-end gap-2 shrink-0">
+          {syncMsg && <span className="text-[10px] mr-auto sm:mr-0" style={{ color: 'var(--text-muted)' }}>{syncMsg}</span>}
           <button
             onClick={handleSync}
             disabled={syncing}
-            className="text-[11px] font-medium px-3 py-2 rounded-lg"
+            className="text-[11px] font-medium px-3 py-2 rounded-lg whitespace-nowrap"
             style={{ backgroundColor: `${ACCENT}14`, color: ACCENT, opacity: syncing ? 0.6 : 1 }}
           >
             {syncing ? 'Synchro...' : 'Synchroniser Odoo'}
@@ -375,11 +377,11 @@ function TeamBreakdownCard() {
 
       {/* 2. Aujourd'hui face aux objectifs */}
       {selected && (
-        <div className="rounded-xl p-4 mb-4" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
+        <div className="rounded-xl p-3 sm:p-4 mb-4" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
           <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>
             Aujourd'hui — objectifs de {selected.nom.split(' ')[0]}
           </p>
-          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-x-2 gap-y-3">
             {QUOTA_TYPES.map((type) => (
               <Ring
                 key={type}
@@ -393,31 +395,31 @@ function TeamBreakdownCard() {
       )}
 
       {selectedInactive && (
-        <div className="rounded-xl px-4 py-3 mb-4 flex items-center gap-2 text-xs" style={{ backgroundColor: 'var(--surface-strong)', border: '1px dashed var(--border)', color: 'var(--text-secondary)' }}>
+        <div className="rounded-xl px-3 sm:px-4 py-3 mb-4 flex items-start sm:items-center gap-2 text-xs" style={{ backgroundColor: 'var(--surface-strong)', border: '1px dashed var(--border)', color: 'var(--text-secondary)' }}>
           <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ backgroundColor: '#6b7280', color: '#fff' }}>INACTIF</span>
           {selectedInactive.nom} ne fait plus partie de l'équipe. Seules ses données Odoo sont affichées.
         </div>
       )}
 
       {/* 3. Filtre de période */}
-      <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
-        <div className="flex gap-2 flex-wrap">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 mb-2">
+        <div className={`${SCROLL_ROW} -mx-1 px-1 sm:flex-wrap`}>
           {PERIODS.map((p) => (
             <Chip key={p.key} active={period === p.key} onClick={() => changePeriod(p.key)}>{p.label}</Chip>
           ))}
         </div>
         {period !== 'global' && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={() => setRefDate((d) => shiftDate(period, d, -1))}
-              className="w-7 h-7 rounded-full flex items-center justify-center"
+              className="w-8 h-8 sm:w-7 sm:h-7 shrink-0 rounded-full flex items-center justify-center"
               style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
             >‹</button>
             <PeriodPicker period={period} refDate={refDate} onChange={setRefDate} />
             <button
               onClick={() => canGoNext && setRefDate((d) => shiftDate(period, d, 1))}
               disabled={!canGoNext}
-              className="w-7 h-7 rounded-full flex items-center justify-center disabled:opacity-30"
+              className="w-8 h-8 sm:w-7 sm:h-7 shrink-0 rounded-full flex items-center justify-center disabled:opacity-30"
               style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
             >›</button>
           </div>
@@ -435,7 +437,7 @@ function TeamBreakdownCard() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
             <Kpi label="Devis" value={data.sales.linked ? fmt(data.sales.devis) : '-'} color={ORANGE} />
             <Kpi label="Commandes" value={data.sales.linked ? fmt(data.sales.commandes) : '-'} color={GREEN} />
-            <Kpi label="Chiffre d'affaires" value={data.sales.linked ? `${fmt(data.sales.ca)} MAD` : '-'} color={ACCENT} />
+            <Kpi label="Chiffre d'affaires" value={data.sales.linked ? `${fmt(data.sales.ca)} MAD` : '-'} color={ACCENT} className="col-span-2 sm:col-span-1" />
 
             <Kpi label="Appels" value={fmt(data.local.appels)} color={BLUE} />
             <Kpi label="Rendez-vous" value={fmt(data.local.rdv)} color={PURPLE} />
@@ -453,7 +455,7 @@ function TeamBreakdownCard() {
             </Box>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 [&>*]:min-w-0">
             <PieChart
               title="Appels — sens"
               centerLabel="appels"
@@ -481,9 +483,9 @@ function TeamBreakdownCard() {
           </div>
 
           {data.acts.linked ? (
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 [&>*]:min-w-0">
               <Box title="Activités Odoo" subtitle={period === 'global' ? 'Toutes les activités' : 'Échéance dans la période'}>
-                <div className="grid grid-cols-4 gap-1">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-1 gap-y-3">
                   <MiniStat label="Terminées" value={fmt(data.acts.done)} color={GREEN} />
                   <MiniStat label="Prévues" value={fmt(data.acts.planned)} color={BLUE} />
                   <MiniStat label="En retard" value={fmt(data.acts.overdue)} color={RED} />
@@ -492,7 +494,7 @@ function TeamBreakdownCard() {
                 <div className="flex flex-col gap-1.5">
                   {data.acts.byCategory.slice(0, 5).map((c) => (
                     <div key={c.label} className="flex items-center justify-between text-xs">
-                      <span style={{ color: 'var(--text-secondary)' }}>{c.label}</span>
+                      <span className="truncate mr-2" style={{ color: 'var(--text-secondary)' }}>{c.label}</span>
                       <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{fmt(c.total)}</span>
                     </div>
                   ))}
