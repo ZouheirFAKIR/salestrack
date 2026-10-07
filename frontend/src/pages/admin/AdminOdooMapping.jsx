@@ -58,6 +58,17 @@ function AdminOdooMapping() {
   const [error, setError] = useState('');
   const [savingId, setSavingId] = useState(null);
   const [statsFor, setStatsFor] = useState(null);
+  const [yeastar, setYeastar] = useState(null);
+
+  const loadYeastar = () => {
+    setYeastar(null);
+    apiFetch(`${API_URL}/api/odoo/yeastar-status`, { skipCache: true })
+      .then((r) => r.json())
+      .then(setYeastar)
+      .catch(() => setYeastar({ connected: false, error: 'Serveur injoignable' }));
+  };
+
+  useEffect(() => { loadYeastar(); }, []);
 
   useEffect(() => {
     Promise.all([
@@ -95,6 +106,23 @@ function AdminOdooMapping() {
     setSavingId(null);
   };
 
+  const handleExtSave = async (commercialId, value) => {
+    const ext = value.trim();
+    const currentC = commercials.find((c) => c.id === commercialId);
+    if ((currentC?.yeastar_ext || '') === ext) return;
+    setSavingId(commercialId);
+    try {
+      await apiFetch(`${API_URL}/api/odoo/yeastar-mapping`, {
+        method: 'POST',
+        body: JSON.stringify({ commercialId, yeastarExt: ext }),
+      });
+      setCommercials((prev) => prev.map((c) => (c.id === commercialId ? { ...c, yeastar_ext: ext || null } : c)));
+    } catch (err) {
+      console.error(err);
+    }
+    setSavingId(null);
+  };
+
   if (loading) return <PageLoader />;
 
   return (
@@ -112,8 +140,38 @@ function AdminOdooMapping() {
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>Liaison Odoo</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-            Associe chaque commercial SalesTrack à son compte vendeur Odoo pour afficher ses devis, commandes et chiffre d'affaires.
+            Associe chaque commercial SalesTrack à son compte vendeur Odoo (devis, commandes, CA) et à son poste Yeastar (appels).
           </p>
+        </div>
+
+        <div className="rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="flex items-center gap-3 min-w-0">
+            <span
+              className="w-2.5 h-2.5 rounded-full shrink-0"
+              style={{ backgroundColor: !yeastar ? '#9ca3af' : yeastar.connected ? '#22c55e' : '#ef4444' }}
+            />
+            <div className="min-w-0">
+              <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                Yeastar : {!yeastar ? 'vérification...' : yeastar.connected ? 'connecté' : 'non connecté'}
+              </p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {!yeastar && 'Connexion au standard en cours'}
+                {yeastar?.connected && (
+                  yeastar.callsToday > 0
+                    ? `${yeastar.callsToday} appel(s) aujourd'hui · ` + Object.entries(yeastar.byExt).map(([ext, n]) => `poste ${ext} : ${n}`).join(' · ')
+                    : "Aucun appel aujourd'hui pour l'instant"
+                )}
+                {yeastar && !yeastar.connected && yeastar.error}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={loadYeastar}
+            className="text-xs px-3 py-2 rounded-lg font-medium shrink-0 self-start sm:self-auto"
+            style={{ backgroundColor: `${ACCENT}14`, color: ACCENT }}
+          >
+            Revérifier
+          </button>
         </div>
 
         {error && (
@@ -161,6 +219,17 @@ function AdminOdooMapping() {
                       <option key={u.id} value={u.id}>{u.name}</option>
                     ))}
                   </select>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="Poste"
+                    title="Numéro de poste Yeastar (ex : 205)"
+                    defaultValue={c.yeastar_ext || ''}
+                    onBlur={(e) => handleExtSave(c.id, e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                    className="text-xs px-2.5 py-2 rounded-lg outline-none w-20 shrink-0"
+                    style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  />
                 </div>
               </div>
             ))}

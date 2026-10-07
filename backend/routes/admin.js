@@ -9,6 +9,7 @@ const ODOO_START = '2026-09-13 23:00:00'; // 14/09/2026 00:00 heure du Maroc
 const { getPeriodReportData, renderPeriodReportPdf } = require('../utils/reportGenerator');
 const { getGlobalReportData, renderGlobalReportPdf, getDailyReportData, renderDailyReportPdf } = require('../utils/reportGenerator');
 const salesReport = require('../utils/salesReport');
+const bcrypt = require('bcrypt');
 
 // Ces 2 routes sont accessibles à tout utilisateur connecté (pas seulement admin) :
 // le classement du jour doit pouvoir ouvrir la fiche de n'importe quel commercial.
@@ -1073,6 +1074,80 @@ router.get('/inactive-commercials', async (req, res) => {
   try {
     const r = await pool.query('SELECT id, nom FROM users WHERE inactive = TRUE ORDER BY nom ASC');
     res.json(r.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ---------- Gestion des utilisateurs (admin seulement) ----------
+router.get('/users', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, nom, email, role, COALESCE(inactive, FALSE) AS inactive
+       FROM users ORDER BY COALESCE(inactive, FALSE) ASC, nom ASC`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.post('/users', async (req, res) => {
+  const nom = String(req.body.nom || '').trim();
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const password = String(req.body.password || '');
+  const role = req.body.role === 'manager' ? 'manager' : null;
+
+  if (!nom || !email || !password) {
+    return res.status(400).json({ error: 'Nom, email et mot de passe sont obligatoires' });
+  }
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères' });
+  }
+
+  try {
+    const hashed = await bcrypt.hash(password, 10);
+    const result = await pool.query(
+      'INSERT INTO users (nom, email, password) VALUES ($1, $2, $3) RETURNING id, nom, email',
+      [nom, email, hashed]
+    );
+    if (role) {
+      await pool.query('UPDATE users SET role = $1 WHERE id = $2', [role, result.rows[0].id]);
+    }
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    if (err.code === '23505') return res.status(400).json({ error: 'Cet email est déjà utilisé' });
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.patch('/users/:id/status', async (req, res) => {
+  const id = Number(req.params.id);
+  if (id === req.userId) return res.status(400).json({ error: 'Tu ne peux pas désactiver ton propre compte' });
+  try {
+    const target = await pool.query('SELECT role FROM users WHERE id = $1', [id]);
+    if (!target.rows[0]) return res.status(404).json({ error: 'Utilisateur introuvable' });
+    if (target.rows[0].role === 'admin') return res.status(400).json({ error: 'Impossible de désactiver un admin' });
+    await pool.query('UPDATE users SET inactive = $1 WHERE id = $2', [Boolean(req.body.inactive), id]);
+    res.json({ message: 'Statut mis à jour' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.patch('/users/:id/password', async (req, res) => {
+  const password = String(req.body.password || '');
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères' });
+  }
+  try {
+    const hashed = await bcrypt.hash(password, 10);
+    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashed, req.params.id]);
+    res.json({ message: 'Mot de passe changé' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur' });

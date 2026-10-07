@@ -21,6 +21,7 @@ const NAV_LINKS = [
   { to: '/admin/notifications', label: 'Notifications' },
   { to: '/admin/odoo', label: 'Liaison Odoo' },
   { to: '/admin/challenge', label: 'Défi' },
+  { to: '/admin/users', label: 'Utilisateurs' },
 ];
 
 const progressColor = (percent) =>

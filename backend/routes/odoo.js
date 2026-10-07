@@ -4,6 +4,7 @@ const pool = require('../db');
 const authMiddleware = require('../middleware/authMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
 const odoo = require('../utils/odooClient');
+const yeastar = require('../utils/yeastarClient');
 const { toMoroccoDate } = odoo;
 
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
@@ -26,7 +27,7 @@ function setCached(key, data) {
 router.get('/commercials', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, nom, email, odoo_user_id FROM users
+      `SELECT id, nom, email, odoo_user_id, yeastar_ext FROM users
        WHERE (role != 'admin' OR role IS NULL) AND hidden = FALSE
        ORDER BY nom ASC`
     );
@@ -60,6 +61,42 @@ router.post('/mapping', authMiddleware, adminMiddleware, async (req, res) => {
       [odooUserId || null, commercialId]
     );
     res.json({ message: 'Association enregistrée' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+router.get('/yeastar-status', authMiddleware, adminMiddleware, async (req, res) => {
+  if (!process.env.YEASTAR_URL || !process.env.YEASTAR_CLIENT_ID || !process.env.YEASTAR_CLIENT_SECRET) {
+    return res.json({ connected: false, error: 'Codes Yeastar absents du fichier .env' });
+  }
+  try {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const calls = await yeastar.getCalls(start, new Date());
+    const byExt = {};
+    calls.forEach((c) => {
+      [c.from, c.to].forEach((n) => {
+        if (n && /^\d{1,6}$/.test(String(n))) byExt[n] = (byExt[n] || 0) + 1;
+      });
+    });
+    res.json({ connected: true, callsToday: calls.length, byExt });
+  } catch (err) {
+    console.error(err);
+    res.json({ connected: false, error: err.message });
+  }
+});
+
+router.post('/yeastar-mapping', authMiddleware, adminMiddleware, async (req, res) => {
+  const { commercialId, yeastarExt } = req.body;
+  const ext = String(yeastarExt || '').trim();
+  if (ext && !/^\d{1,10}$/.test(ext)) {
+    return res.status(400).json({ error: 'Numéro de poste invalide' });
+  }
+  try {
+    await pool.query('UPDATE users SET yeastar_ext = $1 WHERE id = $2', [ext || null, commercialId]);
+    res.json({ message: 'Poste enregistré' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur serveur' });

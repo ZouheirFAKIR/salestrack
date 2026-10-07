@@ -6,38 +6,20 @@ const pool = require('../db');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-router.post('/signup', async (req, res) => {
-  const { nom, email, password } = req.body;
-
-  if (!nom || !email || !password) {
-    return res.status(400).json({ error: 'Tous les champs sont obligatoires' });
-  }
-
-  try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const result = await pool.query(
-      'INSERT INTO users (nom, email, password) VALUES ($1, $2, $3) RETURNING id, nom, email',
-      [nom, email, hashedPassword]
-    );
-    res.status(201).json(result.rows[0]);
-  } catch (err) {
-    if (err.code === '23505') {
-      return res.status(400).json({ error: 'Cet email est déjà utilisé' });
-    }
-    console.error(err);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
 
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const result = await pool.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [String(email || '').trim()]);
     const user = result.rows[0];
 
-    if (!user) {
+    if (!user || !user.password) {
       return res.status(400).json({ error: 'Email ou mot de passe incorrect' });
+    }
+
+    if (user.inactive) {
+      return res.status(403).json({ error: 'Ce compte est désactivé. Contacte ton administrateur.' });
     }
 
     const validPassword = await bcrypt.compare(password, user.password);

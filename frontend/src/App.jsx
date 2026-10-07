@@ -18,10 +18,10 @@ import AdminNotifications from './pages/admin/AdminNotifications';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminOdooMapping from './pages/admin/AdminOdooMapping';
 import AdminChallenge from './pages/admin/AdminChallenge';
+import AdminUsers from './pages/admin/AdminUsers';
 import AdminRoute from './components/AdminRoute';
 import Login from './pages/Login';
 import TvDisplay from './pages/TvDisplay';
-import Signup from './pages/Signup';
 import TargetModal from './components/TargetModal';
 import SuccessModal from './components/SuccessModal';
 import AmbientBackground from './components/AmbientBackground';
@@ -96,7 +96,6 @@ function App() {
       <ScrollToTop />
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
         <Route path="/tv" element={<TvDisplay />} />
         <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />
         <Route path="/nouvelle-activite" element={<AppLayout><NouvelleActivite /></AppLayout>} />
@@ -115,6 +114,7 @@ function App() {
         <Route path="/admin/notifications" element={<AdminRoute><AppLayout><AdminNotifications /></AppLayout></AdminRoute>} />
         <Route path="/admin/odoo" element={<AdminRoute><AppLayout><AdminOdooMapping /></AppLayout></AdminRoute>} />
         <Route path="/admin/challenge" element={<AdminRoute><AppLayout><AdminChallenge /></AppLayout></AdminRoute>} />
+        <Route path="/admin/users" element={<AdminRoute><AppLayout><AdminUsers /></AppLayout></AdminRoute>} />
       </Routes>
     </BrowserRouter>
   );
