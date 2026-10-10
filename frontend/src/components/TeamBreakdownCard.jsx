@@ -268,6 +268,8 @@ function MiniBars({ buckets, series }) {
 }
 
 // ---------- Carte ----------
+const reportCache = new Map();
+
 function TeamBreakdownCard() {
   const [team, setTeam] = useState([]);
   const [inactive, setInactive] = useState([]);
@@ -302,11 +304,23 @@ function TeamBreakdownCard() {
 
   useEffect(() => {
     if (!userId) return;
-    setLoading(true);
+    const key = `${userId}|${period}|${toISO(refDate)}`;
+    const cached = reportCache.get(key);
+    if (cached) {
+      setData(cached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+    let cancelled = false;
     apiFetch(`${API_URL}/api/admin/commercials/${userId}/report-data?period=${period}&date=${toISO(refDate)}`, { skipCache: true })
       .then((r) => r.json())
-      .then((res) => { setData(res); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then((res) => {
+        if (!res.error) reportCache.set(key, res);
+        if (!cancelled) { setData(res); setLoading(false); }
+      })
+      .catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [userId, period, refDate]);
 
   const handleSync = async () => {

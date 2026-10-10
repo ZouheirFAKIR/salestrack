@@ -274,7 +274,7 @@ function Dashboard() {
   const todayStr = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
-    <div className="px-3 py-4 sm:p-6 pb-12 relative overflow-x-hidden" style={{ backgroundColor: 'var(--bg)' }}>
+    <div className="px-3 py-4 sm:p-6 pb-12 relative overflow-clip" style={{ backgroundColor: 'var(--bg)' }}>
       <div
         className="absolute -top-24 -right-24 w-80 h-80 rounded-full pointer-events-none"
         style={{ background: `radial-gradient(circle, ${ACCENT}20, transparent 70%)`, filter: 'blur(6px)' }}
