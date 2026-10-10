@@ -154,10 +154,10 @@ function PeriodPicker({ period, refDate, onChange }) {
 
 function Box({ title, subtitle, children }) {
   return (
-    <div className="rounded-xl p-3 sm:p-4 flex flex-col gap-3 min-w-0" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
+    <div className="rounded-2xl p-5 flex flex-col gap-4 min-w-0" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
       <div>
-        <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{title}</p>
-        {subtitle && <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{subtitle}</p>}
+        <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</p>
+        {subtitle && <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>{subtitle}</p>}
       </div>
       {children}
     </div>
@@ -177,8 +177,8 @@ function Kpi({ label, value, color, sub, className = '' }) {
 function MiniStat({ label, value, color }) {
   return (
     <div className="text-center">
-      <p className="text-lg font-semibold" style={{ color }}>{value}</p>
-      <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{label}</p>
+      <p className="text-3xl font-bold" style={{ color }}>{value}</p>
+      <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.6)' }}>{label}</p>
     </div>
   );
 }
@@ -511,8 +511,8 @@ function TeamBreakdownCard() {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   {data.acts.byCategory.slice(0, 5).map((c) => (
-                    <div key={c.label} className="flex items-center justify-between text-xs">
-                      <span className="truncate mr-2" style={{ color: 'var(--text-secondary)' }}>{c.label}</span>
+                    <div key={c.label} className="flex items-center justify-between text-sm py-0.5">
+                      <span className="truncate mr-2" style={{ color: 'rgba(255,255,255,0.72)' }}>{c.label}</span>
                       <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{fmt(c.total)}</span>
                     </div>
                   ))}

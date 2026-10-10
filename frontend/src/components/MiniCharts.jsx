@@ -1,6 +1,8 @@
 // Petits graphiques variés pour les répartitions (à la place des camemberts)
 
 const boxStyle = { backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' };
+const SOFT = 'rgba(255,255,255,0.72)';
+const FAINT = 'rgba(255,255,255,0.5)';
 
 function pct(v, total) {
   return total > 0 ? Math.round((v / total) * 100) : 0;
@@ -12,10 +14,10 @@ function fmt(n) {
 
 function Box({ title, subtitle, children }) {
   return (
-    <div className="rounded-xl p-4 flex flex-col gap-3 h-full min-w-0" style={boxStyle}>
+    <div className="rounded-2xl p-5 flex flex-col gap-4 h-full min-w-0" style={boxStyle}>
       <div>
-        <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{title}</p>
-        {subtitle && <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{subtitle}</p>}
+        <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</p>
+        {subtitle && <p className="text-xs mt-0.5" style={{ color: FAINT }}>{subtitle}</p>}
       </div>
       {children}
     </div>
@@ -24,16 +26,26 @@ function Box({ title, subtitle, children }) {
 
 function Legend({ parts, total }) {
   return (
-    <ul className="flex flex-col gap-1.5">
+    <ul className="flex flex-col gap-2">
       {parts.map((p) => (
-        <li key={p.label} className="flex items-center gap-2 text-xs">
-          <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: p.color }} />
-          <span className="flex-1 truncate" style={{ color: 'var(--text-secondary)' }}>{p.label}</span>
+        <li key={p.label} className="flex items-center gap-2.5 text-sm">
+          <span className="w-3 h-3 rounded shrink-0" style={{ backgroundColor: p.color }} />
+          <span className="flex-1 truncate" style={{ color: SOFT }}>{p.label}</span>
           <b className="font-semibold" style={{ color: 'var(--text-primary)' }}>{fmt(p.value)}</b>
-          <span className="w-10 text-right" style={{ color: 'var(--text-muted)' }}>{pct(p.value, total)}%</span>
+          <span className="w-12 text-right" style={{ color: FAINT }}>{pct(p.value, total)}%</span>
         </li>
       ))}
     </ul>
+  );
+}
+
+function BigNumber({ value, unit, right }) {
+  return (
+    <div className="flex items-baseline gap-2">
+      <span className="text-4xl font-bold tracking-tight leading-none" style={{ color: 'var(--text-primary)' }}>{value}</span>
+      <span className="text-sm" style={{ color: FAINT }}>{unit}</span>
+      {right}
+    </div>
   );
 }
 
@@ -43,21 +55,21 @@ export function SplitBarCard({ title, subtitle, parts, unit, footer }) {
   const main = parts[0];
   return (
     <Box title={title} subtitle={subtitle}>
-      <div className="flex items-baseline gap-2">
-        <span className="text-3xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>{fmt(total)}</span>
-        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{unit}</span>
-        {total > 0 && (
-          <span className="ml-auto text-sm font-semibold" style={{ color: main.color }}>
+      <BigNumber
+        value={fmt(total)}
+        unit={unit}
+        right={total > 0 && (
+          <span className="ml-auto text-base font-bold" style={{ color: main.color }}>
             {pct(main.value, total)}% {main.label.toLowerCase()}
           </span>
         )}
-      </div>
-      <div className="flex gap-0.5 h-3 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--border)' }}>
+      />
+      <div className="flex gap-1 h-3.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--border)' }}>
         {total > 0 && parts.filter((p) => p.value > 0).map((p) => (
           <span
             key={p.label}
             className="h-full transition-[flex-grow] duration-700"
-            style={{ flex: `${p.value} 1 0`, backgroundColor: p.color, minWidth: 4 }}
+            style={{ flex: `${p.value} 1 0`, backgroundColor: p.color, minWidth: 5 }}
           />
         ))}
       </div>
@@ -81,24 +93,24 @@ export function GaugeCard({ title, subtitle, parts, rateLabel }) {
 
   return (
     <Box title={title} subtitle={subtitle}>
-      <div className="flex items-center gap-4">
-        <svg viewBox="0 0 180 96" className="w-40 shrink-0">
-          <path d={path} fill="none" stroke={total > 0 ? restColor : 'var(--border)'} strokeWidth="14" strokeLinecap="round" opacity="0.85" />
+      <div className="flex flex-col items-center gap-3">
+        <svg viewBox="0 0 180 100" className="w-52 max-w-full">
+          <path d={path} fill="none" stroke={total > 0 ? restColor : 'var(--border)'} strokeWidth="16" strokeLinecap="round" opacity="0.9" />
           {total > 0 && (
             <path
               d={path}
               fill="none"
               stroke={main.color}
-              strokeWidth="14"
+              strokeWidth="16"
               strokeLinecap="round"
               strokeDasharray={`${(rate / 100) * arc} ${arc}`}
               style={{ transition: 'stroke-dasharray 0.8s ease' }}
             />
           )}
-          <text x={cx} y={cy - 14} textAnchor="middle" fontSize="28" fontWeight="700" fill="var(--text-primary)">{rate}%</text>
-          <text x={cx} y={cy + 4} textAnchor="middle" fontSize="11" fill="var(--text-muted)">{rateLabel}</text>
+          <text x={cx} y={cy - 16} textAnchor="middle" fontSize="34" fontWeight="800" fill="var(--text-primary)">{rate}%</text>
+          <text x={cx} y={cy + 6} textAnchor="middle" fontSize="13" fill={SOFT}>{rateLabel}</text>
         </svg>
-        <div className="flex-1 min-w-0">
+        <div className="w-full">
           <Legend parts={parts} total={total} />
         </div>
       </div>
@@ -119,20 +131,17 @@ export function DotsCard({ title, subtitle, parts, unit }) {
 
   return (
     <Box title={title} subtitle={subtitle}>
-      <div className="flex items-baseline gap-2">
-        <span className="text-3xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>{fmt(total)}</span>
-        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{unit}</span>
-      </div>
+      <BigNumber value={fmt(total)} unit={unit} />
       {total === 0 ? (
-        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Aucun sur la période</p>
+        <p className="text-sm" style={{ color: FAINT }}>Aucun sur la période</p>
       ) : (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-2">
           {dots.map((c, i) => (
-            <span key={i} className="w-4 h-4 rounded-full" style={{ backgroundColor: c }} />
+            <span key={i} className="w-5 h-5 rounded-full" style={{ backgroundColor: c }} />
           ))}
         </div>
       )}
-      {step > 1 && <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>1 point = {step} {unit}</p>}
+      {step > 1 && <p className="text-xs" style={{ color: FAINT }}>1 point = {step} {unit}</p>}
       <Legend parts={parts} total={total} />
     </Box>
   );
@@ -144,25 +153,16 @@ export function StageBarsCard({ title, subtitle, stages, extra, footer }) {
   const total = stages.reduce((s, x) => s + x.value, 0);
   return (
     <Box title={title} subtitle={subtitle}>
-      <div className="flex items-baseline gap-2">
-        <span className="text-3xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>{fmt(total)}</span>
-        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>ouvertes</span>
-        {extra && <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>{extra}</span>}
-      </div>
+      <BigNumber
+        value={fmt(total)}
+        unit="ouvertes"
+        right={extra && <span className="ml-auto text-sm" style={{ color: SOFT }}>{extra}</span>}
+      />
       {stages.length === 0 ? (
-        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Aucune opportunité ouverte</p>
+        <p className="text-sm" style={{ color: FAINT }}>Aucune opportunité ouverte</p>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-2.5">
           {stages.map((s) => (
-            <li key={s.label} className="grid grid-cols-[6.5rem_1fr_2.5rem] items-center gap-2 text-xs">
-              <span className="truncate" style={{ color: 'var(--text-secondary)' }}>{s.label}</span>
-              <span className="h-2.5 rounded-r-full transition-[width] duration-700" style={{ width: `${Math.max((s.value / max) * 100, 3)}%`, backgroundColor: s.color }} />
-              <b className="text-right font-semibold" style={{ color: 'var(--text-primary)' }}>{fmt(s.value)}</b>
-            </li>
-          ))}
-        </ul>
-      )}
-      {footer}
-    </Box>
-  );
-}
+            <li key={s.label} className="grid grid-cols-[7.5rem_1fr_3rem] items-center gap-3 text-sm">
+              <span className="truncate" style={{ color: SOFT }}>{s.label}</span>
+              <span className="h-3 rounded-r-full transition-[width] duration-700" style={{ width: `${Math.max((s.value
