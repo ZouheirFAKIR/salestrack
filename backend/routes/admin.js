@@ -1057,11 +1057,19 @@ router.get('/commercials/:id/breakdown', async (req, res) => {
 });
 
 // Toutes les données d'un commercial pour une période (mêmes chiffres que le rapport PDF)
+// Petite mémoire côté serveur : la même demande dans les 2 minutes répond tout de suite
+const reportDataCache = new Map();
+const REPORT_TTL = 2 * 60 * 1000;
+
 router.get('/commercials/:id/report-data', async (req, res) => {
   const period = ['day', 'week', 'month', 'quarter', 'year', 'global'].includes(req.query.period) ? req.query.period : 'day';
+  const key = `${req.params.id}|${period}|${req.query.date || ''}`;
+  const hit = reportDataCache.get(key);
+  if (hit && Date.now() - hit.t < REPORT_TTL) return res.json(hit.data);
   try {
     const data = await salesReport.getReportData(req.params.id, period, req.query.date);
     delete data.sales.orders;
+    reportDataCache.set(key, { t: Date.now(), data });
     res.json(data);
   } catch (err) {
     console.error(err);

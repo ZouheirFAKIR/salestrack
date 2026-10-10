@@ -44,28 +44,26 @@ function AnimatedNumber({ value }) {
   return <>{display}</>;
 }
 
-// Grand titre d'une partie de la page
-function GroupTitle({ title, subtitle }) {
+// Une partie de la page : un titre court + son contenu, qui apparaît en douceur
+function Section({ title, subtitle, index = 0, children }) {
   return (
-    <div className="flex items-center gap-3 mt-4 sm:mt-6">
-      <span className="w-1 h-7 rounded-full shrink-0" style={{ backgroundColor: ACCENT }} />
-      <div className="min-w-0">
-        <p className="text-base sm:text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</p>
-        {subtitle && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{subtitle}</p>}
+    <section className="dash-in flex flex-col gap-4 min-w-0" style={{ animationDelay: `${index * 90}ms` }}>
+      <div className="flex items-end justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="w-1 h-8 rounded-full shrink-0" style={{ background: `linear-gradient(${ACCENT}, ${ACCENT}55)` }} />
+          <div className="min-w-0">
+            <h2 className="text-lg sm:text-xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>{title}</h2>
+            {subtitle && <p className="text-xs sm:text-sm" style={{ color: 'var(--text-muted)' }}>{subtitle}</p>}
+          </div>
+        </div>
       </div>
-    </div>
+      {children}
+    </section>
   );
 }
 
-// Petit titre précis au-dessus d'une carte
-function BlockTitle({ title, subtitle }) {
-  return (
-    <div className="-mb-2 mt-1 min-w-0">
-      <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</p>
-      {subtitle && <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{subtitle}</p>}
-    </div>
-  );
-}
+// Grille où toutes les cartes d'une même ligne ont la même hauteur et les mêmes coins
+const ROW = 'grid gap-4 sm:gap-5 items-stretch [&>*]:min-w-0 [&>*]:h-full [&>*]:rounded-2xl';
 
 const RANK_STYLES = {
   1: { icon: goldTrophy },
@@ -193,39 +191,26 @@ function ObjectivesCard({ typeQuotas, title }) {
 function PersonalOdooSection({ userId, typeQuotas, showObjectives }) {
   return (
     <>
-      {showObjectives ? (
-        <>
-          <BlockTitle
-            title="Mes objectifs du jour · Mes ventes de la semaine"
-            subtitle="Ce que j'ai fait aujourd'hui face à mes objectifs, et mes devis, commandes et CA de la semaine (Odoo)"
-          />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch [&>*]:min-w-0">
-            <ObjectivesCard typeQuotas={typeQuotas} title="Mes objectifs du jour" />
-            <div className="[&>*]:h-full">
-              <OdooRangeCard commercialId={userId} />
-            </div>
-          </div>
-        </>
-      ) : (
-        <>
-          <BlockTitle title="Mes ventes de la semaine" subtitle="Mes devis, commandes et chiffre d'affaires jour par jour (Odoo)" />
-          <OdooRangeCard commercialId={userId} />
-        </>
-      )}
-
-      <BlockTitle title="Mon pipeline d'opportunités" subtitle="Mes opportunités ouvertes par étape, et celles qui n'ont aucune activité prévue (Odoo)" />
-      <OdooPipelineCard commercialId={userId} />
-
-      <BlockTitle title="Mes activités Odoo" subtitle="Tâches, appels et rappels : prévues, terminées, en retard et annulées, puis leur évolution par catégorie" />
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start [&>*]:min-w-0">
-        <OdooActivitiesCard commercialId={userId} />
-        <OdooActivitiesChartCard commercialId={userId} />
+      <div className={`${ROW} grid-cols-1 lg:grid-cols-2`}>
+        {showObjectives
+          ? <ObjectivesCard typeQuotas={typeQuotas} title="Mes objectifs du jour" />
+          : <OdooRangeCard commercialId={userId} />}
+        {showObjectives
+          ? <OdooRangeCard commercialId={userId} />
+          : <OdooPipelineCard commercialId={userId} />}
       </div>
 
-      <BlockTitle title="Ma liste d'attente & mon pipeline" subtitle="Pistes actives et perdues au total, puis nouvelles et perdues sur la période choisie (Odoo)" />
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start [&>*]:min-w-0">
+      <div className={`${ROW} grid-cols-1 md:grid-cols-2 2xl:grid-cols-3`}>
+        {showObjectives && <OdooPipelineCard commercialId={userId} />}
         <OdooWaitingLostCard commercialId={userId} />
-        <OdooWaitingPipelineChartCard commercialId={userId} />
+        <div className={showObjectives ? 'md:col-span-2 2xl:col-span-1 [&>*]:h-full [&>*]:rounded-2xl' : '[&>*]:h-full [&>*]:rounded-2xl 2xl:col-span-2'}>
+          <OdooWaitingPipelineChartCard commercialId={userId} />
+        </div>
+      </div>
+
+      <div className={`${ROW} grid-cols-1 lg:grid-cols-2`}>
+        <OdooActivitiesCard commercialId={userId} />
+        <OdooActivitiesChartCard commercialId={userId} />
       </div>
     </>
   );
@@ -274,89 +259,69 @@ function Dashboard() {
   const todayStr = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
-    <div className="px-3 py-4 sm:p-6 pb-12 relative overflow-clip" style={{ backgroundColor: 'var(--bg)' }}>
+    <div className="dash-scope px-4 py-6 sm:px-6 sm:py-8 lg:px-10 pb-16 relative overflow-clip" style={{ backgroundColor: 'var(--bg)' }}>
+      {/* Lueur douce en haut de page */}
       <div
-        className="absolute -top-24 -right-24 w-80 h-80 rounded-full pointer-events-none"
-        style={{ background: `radial-gradient(circle, ${ACCENT}20, transparent 70%)`, filter: 'blur(6px)' }}
-      />
-      <div
-        className="absolute -bottom-32 -left-20 w-96 h-96 rounded-full pointer-events-none"
-        style={{ background: `radial-gradient(circle, ${ACCENT}16, transparent 70%)`, filter: 'blur(6px)' }}
+        className="absolute inset-x-0 top-0 h-72 pointer-events-none"
+        style={{ background: `radial-gradient(60% 100% at 85% 0%, ${ACCENT}14, transparent 70%)` }}
       />
 
-      <div className="max-w-6xl mx-auto flex flex-col gap-4 relative z-10 min-w-0">
+      <div className="max-w-[1400px] mx-auto flex flex-col gap-8 sm:gap-10 relative z-10 min-w-0">
 
         {/* En-tête */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
+        <header className="dash-in flex flex-col sm:flex-row sm:items-end justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>Salut {prenom} 👋</h1>
-            <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>Salut {prenom} 👋</h1>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
               {isManager ? "Voici l'activité de ton équipe" : 'Voici ton activité récente'}
             </p>
           </div>
-          <span className="text-xs px-3 py-1.5 rounded-full capitalize font-medium self-start sm:self-auto" style={{ backgroundColor: `${ACCENT}17`, color: ACCENT }}>
+          <span className="text-xs px-3 py-1.5 rounded-full font-medium self-start sm:self-auto first-letter:uppercase" style={{ backgroundColor: `${ACCENT}17`, color: ACCENT }}>
             {todayStr}
           </span>
-        </div>
+        </header>
 
         {isManager ? (
           <>
-            {/* ===== 1. Mon équipe ===== */}
-            <GroupTitle title="Mon équipe" subtitle="Le suivi de chaque commercial, aujourd'hui et sur la période" />
-
-            <BlockTitle
-              title="Suivi par commercial"
-              subtitle="Choisis un commercial : ses objectifs d'aujourd'hui, puis toute son activité sur la période choisie"
-            />
-            <TeamBreakdownCard />
-
-            {/* ===== 2. Ventes de l'équipe ===== */}
-            <GroupTitle title="Ventes de l'équipe" subtitle="Les résultats Odoo de toute l'équipe" />
-
-            <BlockTitle
-              title="Devis, commandes & CA de l'équipe · Classement du jour"
-              subtitle="Totaux de l'équipe pour le jour choisi, et classement des commerciaux par nombre d'activités aujourd'hui"
-            />
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch [&>*]:min-w-0">
-              <div className="lg:col-span-2 [&>*]:h-full">
+            <Section index={1} title="L'équipe aujourd'hui" subtitle="Devis, commandes et CA de l'équipe, et classement du jour">
+              <div className={`${ROW} grid-cols-1 md:grid-cols-2 2xl:grid-cols-3`}>
                 <TeamOdooSummaryCard />
+                <Leaderboard entries={leaderboard} currentUserId={user?.id} onSelectUser={setSelectedCommercial} />
+                <div className="md:col-span-2 2xl:col-span-1 [&>*]:h-full [&>*]:rounded-2xl">
+                  <TeamOdooTrendCard />
+                </div>
               </div>
-              <Leaderboard entries={leaderboard} currentUserId={user?.id} onSelectUser={setSelectedCommercial} />
-            </div>
+            </Section>
 
-            <BlockTitle
-              title="Devis et commandes par commercial"
-              subtitle="Compare les commerciaux entre eux pour le jour choisi"
-            />
-            <TeamOdooTrendCard />
+            <Section index={2} title="Mon équipe" subtitle="Choisis un commercial : ses objectifs du jour et son activité sur la période">
+              <div className="[&>*]:rounded-2xl">
+                <TeamBreakdownCard />
+              </div>
+            </Section>
 
-            {/* ===== 3. Mon activité ===== */}
-            <GroupTitle title="Mon activité" subtitle="Tes propres objectifs et tes données Odoo" />
-            <PersonalOdooSection userId={user?.id} typeQuotas={typeQuotas} showObjectives />
+            <Section index={3} title="Mon activité" subtitle="Tes propres objectifs et tes données Odoo">
+              <PersonalOdooSection userId={user?.id} typeQuotas={typeQuotas} showObjectives />
+            </Section>
           </>
         ) : (
           <>
-            {/* ===== 1. Ma journée ===== */}
-            <GroupTitle title="Ma journée" subtitle="Ce que tu as fait aujourd'hui et ta place dans l'équipe" />
-            <BlockTitle
-              title="Mes objectifs du jour · Classement du jour"
-              subtitle="Tes appels, RDV, devis, commandes et CA face à tes objectifs, et ton rang dans l'équipe"
-            />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch [&>*]:min-w-0">
-              <ObjectivesCard typeQuotas={typeQuotas} title="Objectifs du jour" />
-              <Leaderboard entries={leaderboard} currentUserId={user?.id} onSelectUser={setSelectedCommercial} />
-            </div>
+            <Section index={1} title="Ma journée" subtitle="Tes objectifs du jour et ta place dans l'équipe">
+              <div className={`${ROW} grid-cols-1 lg:grid-cols-2`}>
+                <ObjectivesCard typeQuotas={typeQuotas} title="Objectifs du jour" />
+                <Leaderboard entries={leaderboard} currentUserId={user?.id} onSelectUser={setSelectedCommercial} />
+              </div>
+            </Section>
 
-            {/* ===== 2. Mes données Odoo ===== */}
-            <GroupTitle title="Mes données Odoo" subtitle="Tes ventes, ton pipeline et tes activités" />
-            <PersonalOdooSection userId={user?.id} typeQuotas={typeQuotas} showObjectives={false} />
+            <Section index={2} title="Mes données Odoo" subtitle="Tes ventes, ton pipeline et tes activités">
+              <PersonalOdooSection userId={user?.id} typeQuotas={typeQuotas} showObjectives={false} />
+            </Section>
 
-            {/* ===== 3. Équipe ===== */}
-            <GroupTitle title="L'équipe" subtitle="Les résultats Odoo de toute l'équipe" />
-            <BlockTitle title="Devis, commandes & CA de l'équipe" subtitle="Totaux de toute l'équipe pour le jour choisi" />
-            <TeamOdooSummaryCard />
-            <BlockTitle title="Devis et commandes par commercial" subtitle="Compare les commerciaux entre eux pour le jour choisi" />
-            <TeamOdooTrendCard />
+            <Section index={3} title="L'équipe" subtitle="Les résultats Odoo de toute l'équipe">
+              <div className={`${ROW} grid-cols-1 lg:grid-cols-5`}>
+                <div className="lg:col-span-2 [&>*]:h-full [&>*]:rounded-2xl"><TeamOdooSummaryCard /></div>
+                <div className="lg:col-span-3 [&>*]:h-full [&>*]:rounded-2xl"><TeamOdooTrendCard /></div>
+              </div>
+            </Section>
           </>
         )}
       </div>
@@ -369,7 +334,12 @@ function Dashboard() {
         />
       )}
 
-      <style>{`@keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>
+      <style>{`
+        @keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        @keyframes dashIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+        .dash-in { animation: dashIn 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+        @media (prefers-reduced-motion: reduce) { .dash-in { animation: none; } }
+      `}</style>
     </div>
   );
 }

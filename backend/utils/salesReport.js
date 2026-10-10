@@ -158,6 +158,58 @@ function buildBuckets(period, start, end) {
   return buckets.map((b) => ({ ...b, devis: 0, commandes: 0, ca: 0, appels: 0, rdv: 0 }));
 }
 
+// Pistes et opportunités : Odoo compte lui-même au lieu de tout nous envoyer.
+// Seules les opportunités ouvertes sont lues en détail (étape + activité prévue).
+async function fetchLeadStats(odooUserId, start, end) {
+  const me = ['user_id', '=', odooUserId];
+  const all = { context: { active_test: false } };
+  const from = `${shift(start, -1)} 00:00:00`;
+  const to = `${shift(end, 1)} 23:59:59`;
+  const count = (domain) => odoo.execute('crm.lead', 'search_count', [[me, ...domain]], all);
+
+  const [waitingActive, waitingLost, pipelineLost, openOpps, created, lost] = await Promise.all([
+    count([['type', '=', 'lead'], ['active', '=', true]]),
+    count([['type', '=', 'lead'], ['active', '=', false]]),
+    count([['type', '=', 'opportunity'], ['active', '=', false]]),
+    odoo.execute('crm.lead', 'search_read',
+      [[me, ['type', '=', 'opportunity'], ['active', '=', true]]],
+      { fields: ['stage_id', 'activity_state'] }),
+    odoo.execute('crm.lead', 'search_read',
+      [[me, ['create_date', '>=', from], ['create_date', '<=', to]]],
+      { fields: ['type', 'create_date'], ...all }),
+    odoo.execute('crm.lead', 'search_read',
+      [[me, ['active', '=', false], ['write_date', '>=', from], ['write_date', '<=', to]]],
+      { fields: ['type', 'write_date'], ...all }),
+  ]);
+
+  const inRange = (d) => {
+    const day = d ? toMoroccoDate(d) : '';
+    return day >= start && day <= end;
+  };
+
+  const stageMap = {};
+  let withoutActivity = 0;
+  openOpps.forEach((l) => {
+    const name = l.stage_id ? l.stage_id[1] : 'Sans étape';
+    stageMap[name] = (stageMap[name] || 0) + 1;
+    if (!l.activity_state) withoutActivity++;
+  });
+
+  const result = {
+    waitingActive, waitingLost, pipelineActive: openOpps.length, pipelineLost,
+    periodWaitingNew: 0, periodWaitingLost: 0, periodPipelineNew: 0, periodPipelineLost: 0,
+    withoutActivity,
+    byStage: Object.entries(stageMap).map(([name, n]) => ({ name, count: n })).sort((x, y) => y.count - x.count),
+  };
+  created.filter((l) => inRange(l.create_date)).forEach((l) => {
+    if (l.type === 'opportunity') result.periodPipelineNew++; else result.periodWaitingNew++;
+  });
+  lost.filter((l) => inRange(l.write_date)).forEach((l) => {
+    if (l.type === 'opportunity') result.periodPipelineLost++; else result.periodWaitingLost++;
+  });
+  return result;
+}
+
 // ---------- Données ----------
 async function getReportData(commercialId, period, dateStr) {
   const userRes = await pool.query('SELECT nom, email, odoo_user_id FROM users WHERE id = $1', [commercialId]);
@@ -216,13 +268,9 @@ async function getReportData(commercialId, period, dateStr) {
       odoo.execute(
         'mail.activity', 'search_read',
         [[['user_id', '=', odooUserId], ...(isGlobal ? [] : [['date_deadline', '>=', start], ['date_deadline', '<=', end]])]],
-        { fields: ['activity_type_id', 'state', 'active', 'activity_cancel'], context: { active_test: false } }
+        { fields: ['activity_type_id', 'date_deadline', 'active', 'activity_cancel'], context: { active_test: false } }
       ),
-      odoo.execute(
-        'crm.lead', 'search_read',
-        [[['user_id', '=', odooUserId]]],
-        { fields: ['type', 'active', 'stage_id', 'activity_state', 'create_date', 'write_date'], context: { active_test: false } }
-      ),
+      fetchLeadStats(odooUserId, start, end),
     ]);
 
     if (ordersR.status === 'fulfilled') {
@@ -248,7 +296,7 @@ async function getReportData(commercialId, period, dateStr) {
       actsR.value.forEach((r) => {
         let status;
         if (r.active === false) status = r.activity_cancel ? 'cancelled' : 'done';
-        else status = r.state === 'overdue' ? 'overdue' : 'planned';
+        else status = r.date_deadline && r.date_deadline < today ? 'overdue' : 'planned';
         acts[status]++;
         acts.total++;
         const raw = r.activity_type_id ? r.activity_type_id[1] : 'Autre';
@@ -264,33 +312,7 @@ async function getReportData(commercialId, period, dateStr) {
     }
 
     if (leadsR.status === 'fulfilled') {
-      const stageMap = {};
-      leadsR.value.forEach((l) => {
-        const isPipe = l.type === 'opportunity';
-        const created = l.create_date ? toMoroccoDate(l.create_date) : '';
-        const changed = l.write_date ? toMoroccoDate(l.write_date) : '';
-        const createdIn = created >= start && created <= end;
-        const lostIn = !l.active && changed >= start && changed <= end;
-        if (isPipe) {
-          if (l.active) {
-            leads.pipelineActive++;
-            const name = l.stage_id ? l.stage_id[1] : 'Sans étape';
-            stageMap[name] = (stageMap[name] || 0) + 1;
-            if (!l.activity_state) leads.withoutActivity++;
-          } else {
-            leads.pipelineLost++;
-          }
-          if (createdIn) leads.periodPipelineNew++;
-          if (lostIn) leads.periodPipelineLost++;
-        } else {
-          if (l.active) leads.waitingActive++; else leads.waitingLost++;
-          if (createdIn) leads.periodWaitingNew++;
-          if (lostIn) leads.periodWaitingLost++;
-        }
-      });
-      leads.byStage = Object.entries(stageMap)
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => b.count - a.count);
+      Object.assign(leads, leadsR.value);
     } else {
       leads.error = true;
       console.error('Erreur Odoo (rapport pistes):', leadsR.reason?.message);

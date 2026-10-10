@@ -95,3 +95,25 @@
     -webkit-tap-highlight-color: transparent;
   }
 }
+
+/* ============================================
+   Dashboard : textes plus grands et plus lisibles
+   (ne touche que la page Dashboard)
+   ============================================ */
+.dash-scope {
+  --text-secondary: rgba(255, 255, 255, 0.75);
+  --text-muted: rgba(255, 255, 255, 0.55);
+}
+[data-theme="light"] .dash-scope {
+  --text-secondary: rgba(0, 0, 0, 0.75);
+  --text-muted: rgba(0, 0, 0, 0.55);
+}
+.dash-scope .text-\[10px\] { font-size: 12px !important; }
+.dash-scope .text-\[11px\] { font-size: 13px !important; }
+.dash-scope .text-xs { font-size: 13.5px !important; line-height: 1.45; }
+.dash-scope .text-sm { font-size: 15px !important; line-height: 1.5; }
+.dash-scope .text-base { font-size: 17px !important; }
+.dash-scope .text-lg { font-size: 21px !important; }
+.dash-scope .text-xl { font-size: 26px !important; }
+.dash-scope .text-2xl { font-size: 30px !important; }
+.dash-scope svg text { font-size: 12px; }

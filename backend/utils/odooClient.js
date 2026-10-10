@@ -1,8 +1,10 @@
 const xmlrpc = require('xmlrpc');
 
 const url = new URL(process.env.ODOO_URL);
-const common = xmlrpc.createSecureClient({ host: url.hostname, port: 443, path: '/xmlrpc/2/common' });
-const models = xmlrpc.createSecureClient({ host: url.hostname, port: 443, path: '/xmlrpc/2/object' });
+const https = require('https');
+const agent = new https.Agent({ keepAlive: true, maxSockets: 10 });
+const common = xmlrpc.createSecureClient({ host: url.hostname, port: 443, path: '/xmlrpc/2/common', agent });
+const models = xmlrpc.createSecureClient({ host: url.hostname, port: 443, path: '/xmlrpc/2/object', agent });
 
 const db = process.env.ODOO_DB;
 const username = process.env.ODOO_USERNAME;
@@ -23,12 +25,14 @@ function authenticate() {
 }
 
 function execute(model, method, args, kwargs = {}) {
+  const t0 = Date.now();
   return authenticate().then((uid) => {
     return new Promise((resolve, reject) => {
       models.methodCall(
         'execute_kw',
         [db, uid, apiKey, model, method, args, kwargs],
         (err, result) => {
+          console.log(`[odoo] ${model}.${method} ${Date.now() - t0}ms ${Array.isArray(result) ? result.length + ' lignes' : ''}`);
           if (err) return reject(err);
           resolve(result);
         }

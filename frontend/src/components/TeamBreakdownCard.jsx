@@ -3,7 +3,7 @@ import { apiFetch, API_URL } from '../utils/api';
 import { Icon } from '../data/icons';
 import { TYPE_COLORS } from '../data/typeColors';
 import Spinner from './Spinner';
-import PieChart from './PieChart';
+import { SplitBarCard, GaugeCard, DotsCard, StageBarsCard } from './MiniCharts';
 import DownloadReportButton from './DownloadReportButton';
 
 const ACCENT = '#f86635';
@@ -273,7 +273,7 @@ const reportCache = new Map();
 function TeamBreakdownCard() {
   const [team, setTeam] = useState([]);
   const [inactive, setInactive] = useState([]);
-  const [userId, setUserId] = useState(null);
+  const [userId, setUserId] = useState(() => Number(localStorage.getItem('teamCardUserId')) || null);
   const [period, setPeriod] = useState('month');
   const [refDate, setRefDate] = useState(() => new Date());
   const [data, setData] = useState(null);
@@ -294,6 +294,10 @@ function TeamBreakdownCard() {
   ), []);
 
   useEffect(() => { loadTeam(); }, [loadTeam]);
+
+  useEffect(() => {
+    if (userId) localStorage.setItem('teamCardUserId', String(userId));
+  }, [userId]);
 
   useEffect(() => {
     apiFetch(`${API_URL}/api/admin/inactive-commercials`)
@@ -470,28 +474,28 @@ function TeamBreakdownCard() {
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 [&>*]:min-w-0">
-            <PieChart
-              title="Appels — sens"
-              centerLabel="appels"
-              data={withOther([
-                { label: 'Sortant', value: data.local.sens.sortant, color: BLUE },
-                { label: 'Entrant', value: data.local.sens.entrant, color: PURPLE },
+            <SplitBarCard
+              title="Sens des appels"
+              unit="appels"
+              parts={withOther([
+                { label: 'Sortants', value: data.local.sens.sortant, color: BLUE },
+                { label: 'Entrants', value: data.local.sens.entrant, color: PURPLE },
               ], data.local.sens.autre)}
             />
-            <PieChart
-              title="Appels — réponse"
-              centerLabel="appels"
-              data={withOther([
-                { label: 'Répond', value: data.local.reponse.repond, color: GREEN },
-                { label: 'Ne répond pas', value: data.local.reponse.ne_repond_pas, color: RED },
+            <GaugeCard
+              title="Réponse aux appels"
+              rateLabel="taux de réponse"
+              parts={withOther([
+                { label: 'Répondus', value: data.local.reponse.repond, color: GREEN },
+                { label: 'Sans réponse', value: data.local.reponse.ne_repond_pas, color: RED },
               ], data.local.reponse.autre)}
             />
-            <PieChart
-              title="Rendez-vous — présence"
-              centerLabel="RDV"
-              data={withOther([
-                { label: 'Présent', value: data.local.presence.present, color: GREEN },
-                { label: 'Absent', value: data.local.presence.absent, color: RED },
+            <DotsCard
+              title="Présence aux rendez-vous"
+              unit="RDV"
+              parts={withOther([
+                { label: 'Présents', value: data.local.presence.present, color: GREEN },
+                { label: 'Absents', value: data.local.presence.absent, color: RED },
               ], data.local.presence.autre)}
             />
           </div>
@@ -518,41 +522,34 @@ function TeamBreakdownCard() {
                 </div>
               </Box>
 
-              <div className="flex flex-col gap-2">
-                <PieChart
-                  title="Liste d'attente"
-                  subtitle="Odoo — état actuel"
-                  centerLabel="pistes"
-                  data={[
-                    { label: 'Actives', value: data.leads.waitingActive, color: ACCENT },
-                    { label: 'Perdues', value: data.leads.waitingLost, color: GRAY },
-                  ]}
-                />
-                {period !== 'global' && (
-                  <p className="text-[11px] px-1" style={{ color: 'var(--text-muted)' }}>
-                    Sur la période : <b style={{ color: 'var(--text-primary)' }}>{fmt(data.leads.periodWaitingNew)}</b> nouvelles ·{' '}
+              <SplitBarCard
+                title="Liste d'attente"
+                subtitle="Odoo, état actuel"
+                unit="pistes"
+                parts={[
+                  { label: 'Actives', value: data.leads.waitingActive, color: ACCENT },
+                  { label: 'Perdues', value: data.leads.waitingLost, color: GRAY },
+                ]}
+                footer={period !== 'global' && (
+                  <p className="text-[11px] mt-auto" style={{ color: 'var(--text-muted)' }}>
+                    Sur la période : <b style={{ color: 'var(--text-primary)' }}>{fmt(data.leads.periodWaitingNew)}</b> nouvelles,{' '}
                     <b style={{ color: RED }}>{fmt(data.leads.periodWaitingLost)}</b> perdues
                   </p>
                 )}
-              </div>
+              />
 
-              <div className="flex flex-col gap-2">
-                <PieChart
-                  title="Pipeline"
-                  subtitle="Odoo — état actuel"
-                  centerLabel="opportunités"
-                  data={[
-                    ...data.leads.byStage.map((s, i) => ({ label: s.name, value: s.count, color: STAGE_COLORS[i % STAGE_COLORS.length] })),
-                    { label: 'Perdues', value: data.leads.pipelineLost, color: GRAY },
-                  ]}
-                />
-                {period !== 'global' && (
-                  <p className="text-[11px] px-1" style={{ color: 'var(--text-muted)' }}>
-                    Sur la période : <b style={{ color: 'var(--text-primary)' }}>{fmt(data.leads.periodPipelineNew)}</b> nouvelles ·{' '}
+              <StageBarsCard
+                title="Pipeline"
+                subtitle="Odoo, opportunités par étape"
+                extra={`${fmt(data.leads.pipelineLost)} perdues`}
+                stages={data.leads.byStage.map((st, i) => ({ label: st.name, value: st.count, color: STAGE_COLORS[i % STAGE_COLORS.length] }))}
+                footer={period !== 'global' && (
+                  <p className="text-[11px] mt-auto" style={{ color: 'var(--text-muted)' }}>
+                    Sur la période : <b style={{ color: 'var(--text-primary)' }}>{fmt(data.leads.periodPipelineNew)}</b> nouvelles,{' '}
                     <b style={{ color: RED }}>{fmt(data.leads.periodPipelineLost)}</b> perdues
                   </p>
                 )}
-              </div>
+              />
             </div>
           ) : (
             <p className="text-xs text-center py-4" style={{ color: 'var(--text-muted)' }}>Pas de compte Odoo lié pour ce commercial</p>

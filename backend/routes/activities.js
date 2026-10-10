@@ -5,6 +5,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 const odoo = require('../utils/odooClient');
 const { toMoroccoDate } = odoo;
 const crypto = require('crypto');
+const salesReport = require('../utils/salesReport');
 const { getGlobalReportData, renderGlobalReportPdf, getDailyReportData, renderDailyReportPdf, getPeriodReportData, renderPeriodReportPdf } = require('../utils/reportGenerator');
 
 router.get('/report/global', authMiddleware, async (req, res) => {
