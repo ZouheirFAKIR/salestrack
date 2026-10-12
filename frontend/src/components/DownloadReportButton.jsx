@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { API_URL } from '../utils/api';
 
 const ACCENT = '#f86635';
@@ -41,13 +42,13 @@ function DownloadIcon() {
 
 function Stepper({ label, onPrev, onNext, disableNext }) {
   return (
-    <div className="flex items-center justify-between rounded-lg px-2 py-1.5 mb-2" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
-      <button onClick={onPrev} className="w-7 h-7 rounded-full flex items-center justify-center text-base" style={{ color: 'var(--text-secondary)' }}>‹</button>
+    <div className="flex items-center justify-between rounded-xl px-2 py-1.5 mb-2" style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
+      <button onClick={onPrev} className="w-9 h-9 rounded-full flex items-center justify-center text-lg" style={{ color: 'var(--text-secondary)' }}>‹</button>
       <span className="text-sm font-medium text-center" style={{ color: 'var(--text-primary)' }}>{label}</span>
       <button
         onClick={onNext}
         disabled={disableNext}
-        className="w-7 h-7 rounded-full flex items-center justify-center text-base disabled:opacity-25"
+        className="w-9 h-9 rounded-full flex items-center justify-center text-lg disabled:opacity-25"
         style={{ color: 'var(--text-secondary)' }}
       >
         ›
@@ -81,6 +82,19 @@ function DownloadReportButton({ commercialId, commercialNom = '', self = false }
   const [quarterYear, setQuarterYear] = useState(thisYear);
   const [quarterStart, setQuarterStart] = useState({ y: thisYear, m: Math.floor(thisMonth / 3) * 3 });
   const [year, setYear] = useState(thisYear);
+
+  // Fenêtre ouverte : on bloque le défilement de la page et Échap ferme
+  useEffect(() => {
+    if (!open) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
 
   const isFutureMonth = (y, m) => y > thisYear || (y === thisYear && m > thisMonth);
   const inQuarter = (y, m) => {
@@ -169,35 +183,43 @@ function DownloadReportButton({ commercialId, commercialNom = '', self = false }
         Rapport
       </button>
 
-      {open && (
-        <>
-          <div className="fixed inset-0 z-[80] bg-black/40 sm:bg-transparent" onClick={() => setOpen(false)} />
-
+      {open && createPortal(
+        <div
+          className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          onClick={() => setOpen(false)}
+        >
           <div
-            className="fixed left-3 right-3 top-1/2 -translate-y-1/2 z-[81] max-h-[85vh] overflow-y-auto rounded-2xl p-4
-                       sm:absolute sm:left-auto sm:right-0 sm:top-full sm:translate-y-0 sm:mt-2 sm:w-80 sm:max-h-none sm:overflow-visible"
-            style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 12px 32px rgba(0,0,0,0.18)' }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Télécharger un rapport"
+            onClick={(e) => e.stopPropagation()}
+            className="w-full sm:w-[24rem] max-h-[88dvh] overflow-y-auto rounded-t-3xl sm:rounded-2xl p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:pb-5"
+            style={{ backgroundColor: 'var(--surface-strong)', border: '1px solid var(--border)', boxShadow: '0 20px 60px rgba(0,0,0,0.5)', animation: 'reportIn 0.22s ease-out' }}
           >
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <p className="text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
-                Rapport{commercialNom ? ` — ${commercialNom}` : ''}
-              </p>
+            <div className="w-10 h-1 rounded-full mx-auto mb-4 sm:hidden" style={{ backgroundColor: 'var(--border)' }} />
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div className="min-w-0">
+                <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Télécharger un rapport</p>
+                {commercialNom && <p className="text-sm truncate" style={{ color: 'var(--text-secondary)' }}>{commercialNom}</p>}
+              </div>
               <button
                 onClick={() => setOpen(false)}
-                className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-base sm:hidden"
-                style={{ backgroundColor: 'var(--surface-strong)', color: 'var(--text-secondary)' }}
+                aria-label="Fermer"
+                className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-lg"
+                style={{ backgroundColor: 'var(--surface-strong)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
               >
                 ×
               </button>
             </div>
 
             {/* Choix du type de période */}
-            <div className="grid grid-cols-3 gap-1.5 mb-4">
+            <div className="grid grid-cols-3 gap-2 mb-4">
               {PERIODS.map((p) => (
                 <button
                   key={p.key}
                   onClick={() => setPeriod(p.key)}
-                  className="text-[11px] font-medium py-1.5 rounded-full transition-colors"
+                  className="text-sm font-medium py-2.5 rounded-xl transition-colors"
                   style={optionStyle(period === p.key)}
                 >
                   {p.label}
@@ -208,13 +230,13 @@ function DownloadReportButton({ commercialId, commercialNom = '', self = false }
             {/* JOUR */}
             {period === 'day' && (
               <div className="mb-3">
-                <p className="text-[11px] mb-1.5" style={{ color: 'var(--text-muted)' }}>Choisis le jour</p>
+                <p className="text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>Choisis le jour</p>
                 <input
                   type="date"
                   value={day}
                   max={toISO(now)}
                   onChange={(e) => e.target.value && setDay(e.target.value)}
-                  className="text-sm px-3 py-2 rounded-lg w-full"
+                  className="text-base px-3 py-2.5 rounded-xl w-full"
                   style={{ border: '1px solid var(--border)', backgroundColor: 'var(--surface-strong)', color: 'var(--text-primary)' }}
                 />
               </div>
@@ -223,7 +245,7 @@ function DownloadReportButton({ commercialId, commercialNom = '', self = false }
             {/* SEMAINE */}
             {period === 'week' && (
               <div className="mb-3">
-                <p className="text-[11px] mb-1.5" style={{ color: 'var(--text-muted)' }}>Choisis la semaine (lundi → dimanche)</p>
+                <p className="text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>Choisis la semaine (lundi → dimanche)</p>
                 <Stepper
                   label={(() => {
                     const end = new Date(weekStart); end.setDate(end.getDate() + 6);
@@ -235,7 +257,7 @@ function DownloadReportButton({ commercialId, commercialNom = '', self = false }
                 />
                 <button
                   onClick={() => setWeekStart(currentMonday)}
-                  className="text-[11px] font-medium px-3 py-1.5 rounded-full w-full"
+                  className="text-sm font-medium px-3 py-2.5 rounded-xl w-full"
                   style={optionStyle(toISO(weekStart) === toISO(currentMonday))}
                 >
                   Cette semaine
@@ -246,7 +268,7 @@ function DownloadReportButton({ commercialId, commercialNom = '', self = false }
             {/* MOIS */}
             {period === 'month' && (
               <div className="mb-3">
-                <p className="text-[11px] mb-1.5" style={{ color: 'var(--text-muted)' }}>Choisis le mois</p>
+                <p className="text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>Choisis le mois</p>
                 <Stepper
                   label={String(monthYear)}
                   onPrev={() => setMonthYear((y) => y - 1)}
@@ -261,7 +283,7 @@ function DownloadReportButton({ commercialId, commercialNom = '', self = false }
                         key={label}
                         disabled={disabled}
                         onClick={() => setMonth({ y: monthYear, m })}
-                        className="text-[11px] font-medium py-1.5 rounded-lg"
+                        className="text-sm font-medium py-2.5 rounded-xl"
                         style={optionStyle(month.y === monthYear && month.m === m, disabled)}
                       >
                         {label}
@@ -275,7 +297,7 @@ function DownloadReportButton({ commercialId, commercialNom = '', self = false }
             {/* TRIMESTRE */}
             {period === 'quarter' && (
               <div className="mb-3">
-                <p className="text-[11px] mb-1.5" style={{ color: 'var(--text-muted)' }}>Choisis un trimestre, ou le 1er mois de tes 3 mois</p>
+                <p className="text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>Choisis un trimestre, ou le 1er mois de tes 3 mois</p>
                 <Stepper
                   label={String(quarterYear)}
                   onPrev={() => setQuarterYear((y) => y - 1)}
@@ -291,11 +313,11 @@ function DownloadReportButton({ commercialId, commercialNom = '', self = false }
                         key={q.label}
                         disabled={disabled}
                         onClick={() => setQuarterStart({ y: quarterYear, m: q.start })}
-                        className="py-1.5 rounded-lg flex flex-col items-center"
+                        className="py-2.5 rounded-xl flex flex-col items-center"
                         style={optionStyle(active, disabled)}
                         title={q.sub}
                       >
-                        <span className="text-[11px] font-semibold">{q.label}</span>
+                        <span className="text-sm font-semibold">{q.label}</span>
                       </button>
                     );
                   })}
@@ -309,7 +331,7 @@ function DownloadReportButton({ commercialId, commercialNom = '', self = false }
                         key={label}
                         disabled={disabled}
                         onClick={() => setQuarterStart({ y: quarterYear, m })}
-                        className="text-[11px] font-medium py-1.5 rounded-lg"
+                        className="text-sm font-medium py-2.5 rounded-xl"
                         style={selected && !disabled
                           ? { backgroundColor: `${ACCENT}22`, color: ACCENT, border: `1px solid ${ACCENT}` }
                           : optionStyle(false, disabled)}
@@ -325,7 +347,7 @@ function DownloadReportButton({ commercialId, commercialNom = '', self = false }
             {/* ANNÉE */}
             {period === 'year' && (
               <div className="mb-3">
-                <p className="text-[11px] mb-1.5" style={{ color: 'var(--text-muted)' }}>Choisis l'année</p>
+                <p className="text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>Choisis l'année</p>
                 <Stepper
                   label={String(year)}
                   onPrev={() => setYear((y) => y - 1)}
@@ -337,27 +359,29 @@ function DownloadReportButton({ commercialId, commercialNom = '', self = false }
 
             {/* GLOBAL */}
             {period === 'global' && (
-              <p className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>
+              <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>
                 Le rapport global contient toute l'activité, sans limite de date.
               </p>
             )}
 
             {/* Résumé */}
-            <div className="rounded-lg px-3 py-2 mb-3" style={{ backgroundColor: `${ACCENT}12`, border: `1px solid ${ACCENT}33` }}>
-              <p className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Rapport pour</p>
-              <p className="text-xs font-semibold capitalize" style={{ color: ACCENT }}>{summary}</p>
+            <div className="rounded-xl px-3.5 py-2.5 mb-4" style={{ backgroundColor: `${ACCENT}14`, border: `1px solid ${ACCENT}40` }}>
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Rapport pour</p>
+              <p className="text-sm font-semibold first-letter:uppercase" style={{ color: ACCENT }}>{summary}</p>
             </div>
 
             <button
               onClick={handleDownload}
               disabled={downloading}
-              className="text-sm w-full py-2.5 rounded-lg font-medium flex items-center justify-center gap-2"
+              className="text-base w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2"
               style={{ backgroundColor: ACCENT, color: '#fff', opacity: downloading ? 0.6 : 1 }}
             >
-              {downloading ? 'Génération...' : (<><DownloadIcon /> Télécharger</>)}
+              {downloading ? 'Génération...' : (<><DownloadIcon /> Télécharger le PDF</>)}
             </button>
           </div>
-        </>
+          <style>{`@keyframes reportIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }`}</style>
+        </div>,
+        document.body,
       )}
     </div>
   );

@@ -165,4 +165,13 @@ export function StageBarsCard({ title, subtitle, stages, extra, footer }) {
           {stages.map((s) => (
             <li key={s.label} className="grid grid-cols-[7.5rem_1fr_3rem] items-center gap-3 text-sm">
               <span className="truncate" style={{ color: SOFT }}>{s.label}</span>
-              <span className="h-3 rounded-r-full transition-[width] duration-700" style={{ width: `${Math.max((s.value
+              <span className="h-3 rounded-r-full transition-[width] duration-700" style={{ width: `${Math.max((s.value / max) * 100, 3)}%`, backgroundColor: s.color }} />
+              <b className="text-right font-semibold" style={{ color: 'var(--text-primary)' }}>{fmt(s.value)}</b>
+            </li>
+          ))}
+        </ul>
+      )}
+      {footer}
+    </Box>
+  );
+}

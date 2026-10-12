@@ -337,7 +337,7 @@ function Dashboard() {
       <style>{`
         @keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
         @keyframes dashIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
-        .dash-in { animation: dashIn 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+        .dash-in { animation: dashIn 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
         @media (prefers-reduced-motion: reduce) { .dash-in { animation: none; } }
       `}</style>
     </div>
